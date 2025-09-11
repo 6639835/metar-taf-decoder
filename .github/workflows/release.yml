@@ -123,6 +123,9 @@ jobs:
   create-github-release:
     needs: test-install
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      discussions: write
     steps:
     - uses: actions/checkout@v4
     
