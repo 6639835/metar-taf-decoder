@@ -74,23 +74,23 @@ jobs:
         
         for file in "${required_files[@]}"; do
           if [ -f "$file" ]; then
-            echo "✓ $file exists"
+            echo "[OK] $file exists"
           else
-            echo "❌ $file missing"
+            echo "[FAIL] $file missing"
             exit 1
           fi
         done
         
         # Check module count
         py_files=$(find weather_decoder -name "*.py" | wc -l)
-        echo "✓ Found $py_files Python files in package"
+        echo "[OK] Found $py_files Python files in package"
         
         if [ "$py_files" -lt 20 ]; then
-          echo "❌ Expected at least 20 Python files, found $py_files"
+          echo "[FAIL] Expected at least 20 Python files, found $py_files"
           exit 1
         fi
         
-        echo "✅ Project structure validation passed"
+        echo "[SUCCESS] Project structure validation passed"
 
   documentation-check:
     runs-on: ubuntu-latest
@@ -103,23 +103,23 @@ jobs:
         
         # Check README has required sections
         if grep -q "# Weather Decoder" README.md; then
-          echo "✓ README has title"
+          echo "[OK] README has title"
         else
-          echo "❌ README missing title"
+          echo "[FAIL] README missing title"
           exit 1
         fi
         
         if grep -q "## Features" README.md; then
-          echo "✓ README has features section"
+          echo "[OK] README has features section"
         else
-          echo "❌ README missing features section"
+          echo "[FAIL] README missing features section"
           exit 1
         fi
         
         if grep -q "## Installation" README.md; then
-          echo "✓ README has installation section"
+          echo "[OK] README has installation section"
         else
-          echo "❌ README missing installation section"
+          echo "[FAIL] README missing installation section"
           exit 1
         fi
         
@@ -156,11 +156,11 @@ jobs:
                     total_missing.extend(missing)
         
         if total_missing:
-            print(f'⚠️  {len(total_missing)} missing docstrings (non-blocking):')
+            print(f'[WARN] {len(total_missing)} missing docstrings (non-blocking):')
             for item in total_missing[:10]:  # Show first 10
                 print(f'  - {item}')
         else:
-            print('✓ All public classes and functions have docstrings')
+            print('[OK] All public classes and functions have docstrings')
         "
         
-        echo "✅ Documentation check completed"
+        echo "[SUCCESS] Documentation check completed"

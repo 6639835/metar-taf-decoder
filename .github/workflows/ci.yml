@@ -30,8 +30,8 @@ jobs:
     
     - name: Test package imports
       run: |
-        python -c "from weather_decoder import MetarDecoder, TafDecoder; print('✓ Package imports successfully')"
-        python -c "from weather_decoder.parsers import WindParser, VisibilityParser; print('✓ Parser imports successful')"
+        python -c "from weather_decoder import MetarDecoder, TafDecoder; print('[OK] Package imports successfully')"
+        python -c "from weather_decoder.parsers import WindParser, VisibilityParser; print('[OK] Parser imports successful')"
     
     - name: Test CLI functionality
       run: |
@@ -52,7 +52,7 @@ jobs:
         assert result.station_id == 'KORD'
         assert result.wind['speed'] == 14
         assert result.wind['gust'] == 23
-        print('✓ Complex METAR parsing successful')
+        print('[OK] Complex METAR parsing successful')
         
         # Test complex TAF  
         taf = TafDecoder()
@@ -60,9 +60,9 @@ jobs:
         result = taf.decode(complex_taf)
         assert result.station_id == 'KJFK'
         assert len(result.forecast_periods) >= 2
-        print('✓ Complex TAF parsing successful')
+        print('[OK] Complex TAF parsing successful')
         
-        print('✓ All edge case tests passed')
+        print('[OK] All edge case tests passed')
         "
     
     - name: Test SLP parsing fix
@@ -76,7 +76,7 @@ jobs:
         
         assert 'Sea Level Pressure' in result.remarks_decoded
         assert result.remarks_decoded['Sea Level Pressure'] == '1020.0 hPa'
-        print('✓ SLP parsing working correctly')
+        print('[OK] SLP parsing working correctly')
         "
     
     - name: Test individual parsers
@@ -108,7 +108,7 @@ jobs:
         assert wx1['intensity'] == 'light'
         assert 'rain' in wx1['phenomena']
         
-        print('✓ Individual parser tests passed')
+        print('[OK] Individual parser tests passed')
         "
 
   install-test:
@@ -131,7 +131,7 @@ jobs:
         decode-taf --version || echo "Console script not available, testing direct script"
         
         # Test package can be imported after installation
-        python -c "from weather_decoder import MetarDecoder, TafDecoder; print('✓ Package installed and imports correctly')"
+        python -c "from weather_decoder import MetarDecoder, TafDecoder; print('[OK] Package installed and imports correctly')"
 
   comprehensive-test:
     runs-on: ubuntu-latest
@@ -170,9 +170,9 @@ jobs:
         for i, metar_str in enumerate(test_metars, 1):
             try:
                 result = metar_decoder.decode(metar_str)
-                print(f'✓ METAR test {i}: {result.station_id} - SUCCESS')
+                print(f'[OK] METAR test {i}: {result.station_id} - SUCCESS')
             except Exception as e:
-                print(f'❌ METAR test {i}: FAILED - {e}')
+                print(f'[FAIL] METAR test {i}: FAILED - {e}')
                 sys.exit(1)
         
         # Test various TAF formats
@@ -187,10 +187,10 @@ jobs:
         for i, taf_str in enumerate(test_tafs, 1):
             try:
                 result = taf_decoder.decode(taf_str)
-                print(f'✓ TAF test {i}: {result.station_id} - SUCCESS')
+                print(f'[OK] TAF test {i}: {result.station_id} - SUCCESS')
             except Exception as e:
-                print(f'❌ TAF test {i}: FAILED - {e}')
+                print(f'[FAIL] TAF test {i}: FAILED - {e}')
                 sys.exit(1)
         
-        print('🎉 All comprehensive tests passed!')
+        print('[SUCCESS] All comprehensive tests passed!')
         "

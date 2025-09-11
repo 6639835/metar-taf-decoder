@@ -24,7 +24,7 @@ jobs:
     
     - name: Run quick tests
       run: |
-        python -c "from weather_decoder import MetarDecoder, TafDecoder; print('✓ Package imports')"
+        python -c "from weather_decoder import MetarDecoder, TafDecoder; print('[OK] Package imports')"
         python decode_metar.py --version
         python decode_taf.py --version
     
@@ -35,10 +35,10 @@ jobs:
         echo "Tag version: $TAG_VERSION"
         echo "Package version: $PACKAGE_VERSION"
         if [ "$TAG_VERSION" != "$PACKAGE_VERSION" ]; then
-          echo "❌ Version mismatch: tag=$TAG_VERSION, package=$PACKAGE_VERSION"
+          echo "[FAIL] Version mismatch: tag=$TAG_VERSION, package=$PACKAGE_VERSION"
           exit 1
         fi
-        echo "✅ Version matches"
+        echo "[OK] Version matches"
 
   build:
     needs: test-before-release
@@ -97,7 +97,7 @@ jobs:
     
     - name: Test installation
       run: |
-        python -c "from weather_decoder import MetarDecoder, TafDecoder; print('✓ Wheel installation successful')"
+        python -c "from weather_decoder import MetarDecoder, TafDecoder; print('[OK] Wheel installation successful')"
         decode-metar --version || echo "Console script not available"
         decode-taf --version || echo "Console script not available"
 

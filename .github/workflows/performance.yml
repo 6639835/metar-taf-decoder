@@ -92,9 +92,9 @@ jobs:
         print(f'  METARs per second: {metars_per_second:.1f}')
         
         if metars_per_second < 50:
-            print('⚠️  Performance warning: METARs/sec below expected threshold')
+            print('[WARN] Performance warning: METARs/sec below expected threshold')
         else:
-            print('✅ METAR performance meets expectations')
+            print('[OK] METAR performance meets expectations')
         "
     
     - name: Run TAF performance tests
@@ -135,9 +135,9 @@ jobs:
         print(f'  TAFs per second: {tafs_per_second:.1f}')
         
         if tafs_per_second < 25:
-            print('⚠️  Performance warning: TAFs/sec below expected threshold')
+            print('[WARN] Performance warning: TAFs/sec below expected threshold')
         else:
-            print('✅ TAF performance meets expectations')
+            print('[OK] TAF performance meets expectations')
         "
     
     - name: Memory usage test
@@ -175,9 +175,9 @@ jobs:
         print(f'Total memory increase: {memory_increase:.2f} MB')
         
         if memory_increase > 100:  # More than 100MB increase is concerning
-            print('⚠️  High memory usage detected')
+            print('[WARN] High memory usage detected')
         else:
-            print('✅ Memory usage within acceptable limits')
+            print('[OK] Memory usage within acceptable limits')
         "
     
     - name: Import performance test
@@ -193,9 +193,9 @@ jobs:
         print(f'Package import time: {import_time:.4f}s')
         
         if import_time > 1.0:
-            print('⚠️  Slow import time detected')
+            print('[WARN] Slow import time detected')
         else:
-            print('✅ Import performance acceptable')
+            print('[OK] Import performance acceptable')
         
         # Test parser import time
         start = time.time()
@@ -205,7 +205,7 @@ jobs:
         print(f'Parser import time: {parser_import_time:.4f}s')
         
         if parser_import_time > 0.5:
-            print('⚠️  Slow parser import time detected')
+            print('[WARN] Slow parser import time detected')
         else:
-            print('✅ Parser import performance acceptable')
+            print('[OK] Parser import performance acceptable')
         "
