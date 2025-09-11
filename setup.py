@@ -7,7 +7,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="weather-decoder",
-    version="1.0.1",
+    version="1.0.2",
     author="Justin",
     description="A comprehensive METAR and TAF decoder for aviation weather reports",
     long_description=long_description,

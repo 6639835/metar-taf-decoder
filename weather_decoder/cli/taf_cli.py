@@ -50,7 +50,7 @@ Examples:
         parser.add_argument(
             '--version',
             action='version',
-            version='TAF Decoder 1.0.0'
+            version='TAF Decoder 1.0.2'
         )
         
         return parser
@@ -88,7 +88,7 @@ Examples:
     
     def _interactive_mode(self):
         """Run in interactive mode"""
-        print("TAF Decoder 1.0.0 - Interactive Mode")
+        print("TAF Decoder 1.0.2 - Interactive Mode")
         print("Enter TAF strings to decode (press Ctrl+C to exit):")
         print("Example: TAF KJFK 061730Z 0618/0724 28008KT 9999 FEW250")
         print()
