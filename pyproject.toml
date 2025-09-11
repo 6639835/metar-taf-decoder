@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 # Black configuration
 [tool.black]
 line-length = 127
-target-version = ['py37', 'py38', 'py39', 'py310', 'py311']
+target-version = ['py38', 'py39', 'py310', 'py311', 'py312']
 include = '\.pyi?$'
 extend-exclude = '''
 /(
@@ -54,7 +54,7 @@ markers = [
 
 # mypy configuration
 [tool.mypy]
-python_version = "3.7"
+python_version = "3.8"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = false  # Set to true once type hints are added
