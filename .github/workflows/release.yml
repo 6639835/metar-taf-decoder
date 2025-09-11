@@ -1,0 +1,191 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  test-before-release:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e .
+        pip install build twine
+    
+    - name: Run quick tests
+      run: |
+        python -c "from weather_decoder import MetarDecoder, TafDecoder; print('✓ Package imports')"
+        python decode_metar.py --version
+        python decode_taf.py --version
+    
+    - name: Verify version matches tag
+      run: |
+        TAG_VERSION=${GITHUB_REF#refs/tags/v}
+        PACKAGE_VERSION=$(python -c "from weather_decoder import __version__; print(__version__)")
+        echo "Tag version: $TAG_VERSION"
+        echo "Package version: $PACKAGE_VERSION"
+        if [ "$TAG_VERSION" != "$PACKAGE_VERSION" ]; then
+          echo "❌ Version mismatch: tag=$TAG_VERSION, package=$PACKAGE_VERSION"
+          exit 1
+        fi
+        echo "✅ Version matches"
+
+  build:
+    needs: test-before-release
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    - name: Install build dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install build twine
+    
+    - name: Build package
+      run: |
+        python -m build
+    
+    - name: Check package
+      run: |
+        twine check dist/*
+    
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: dist
+        path: dist/
+
+  test-install:
+    needs: build
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ['3.8', '3.9', '3.10']
+    
+    steps:
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Download build artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: dist
+        path: dist/
+    
+    - name: Install from wheel
+      run: |
+        python -m pip install --upgrade pip
+        pip install dist/*.whl
+    
+    - name: Test installation
+      run: |
+        python -c "from weather_decoder import MetarDecoder, TafDecoder; print('✓ Wheel installation successful')"
+        decode-metar --version || echo "Console script not available"
+        decode-taf --version || echo "Console script not available"
+
+  publish-test-pypi:
+    needs: test-install
+    runs-on: ubuntu-latest
+    environment: test-pypi
+    steps:
+    - name: Download build artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: dist
+        path: dist/
+    
+    - name: Publish to Test PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        password: ${{ secrets.TEST_PYPI_API_TOKEN }}
+        repository-url: https://test.pypi.org/legacy/
+        skip-existing: true
+
+  create-github-release:
+    needs: test-install
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Download build artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: dist
+        path: dist/
+    
+    - name: Generate changelog
+      run: |
+        TAG_VERSION=${GITHUB_REF#refs/tags/v}
+        echo "# Weather Decoder v$TAG_VERSION" > CHANGELOG.md
+        echo "" >> CHANGELOG.md
+        echo "## What's New" >> CHANGELOG.md
+        echo "" >> CHANGELOG.md
+        echo "- Modular architecture with 22 focused modules" >> CHANGELOG.md
+        echo "- Enhanced METAR and TAF parsing capabilities" >> CHANGELOG.md
+        echo "- Improved CLI interfaces" >> CHANGELOG.md
+        echo "- Professional Python package structure" >> CHANGELOG.md
+        echo "- Comprehensive testing and CI/CD" >> CHANGELOG.md
+        echo "" >> CHANGELOG.md
+        echo "## Installation" >> CHANGELOG.md
+        echo "" >> CHANGELOG.md
+        echo "\`\`\`bash" >> CHANGELOG.md
+        echo "pip install weather-decoder==$TAG_VERSION" >> CHANGELOG.md
+        echo "\`\`\`" >> CHANGELOG.md
+        echo "" >> CHANGELOG.md
+        echo "## Usage" >> CHANGELOG.md
+        echo "" >> CHANGELOG.md
+        echo "\`\`\`python" >> CHANGELOG.md
+        echo "from weather_decoder import MetarDecoder, TafDecoder" >> CHANGELOG.md
+        echo "" >> CHANGELOG.md
+        echo "# Decode METAR" >> CHANGELOG.md
+        echo "metar = MetarDecoder().decode('METAR KJFK ...')" >> CHANGELOG.md
+        echo "" >> CHANGELOG.md
+        echo "# Decode TAF" >> CHANGELOG.md
+        echo "taf = TafDecoder().decode('TAF KJFK ...')" >> CHANGELOG.md
+        echo "\`\`\`" >> CHANGELOG.md
+    
+    - name: Create GitHub Release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Weather Decoder ${{ github.ref }}
+        body_path: CHANGELOG.md
+        draft: false
+        prerelease: false
+
+  publish-pypi:
+    needs: [create-github-release, publish-test-pypi]
+    runs-on: ubuntu-latest
+    environment: pypi
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    steps:
+    - name: Download build artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: dist
+        path: dist/
+    
+    - name: Publish to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        password: ${{ secrets.PYPI_API_TOKEN }}

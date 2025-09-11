@@ -1,0 +1,196 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ['3.7', '3.8', '3.9', '3.10', '3.11']
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e .
+        pip install pytest pytest-cov
+    
+    - name: Test package imports
+      run: |
+        python -c "from weather_decoder import MetarDecoder, TafDecoder; print('✓ Package imports successfully')"
+        python -c "from weather_decoder.parsers import WindParser, VisibilityParser; print('✓ Parser imports successful')"
+    
+    - name: Test CLI functionality
+      run: |
+        python decode_metar.py --version
+        python decode_taf.py --version
+        python decode_metar.py "METAR KJFK 061751Z 28008KT 10SM FEW250 22/18 A2992"
+        python decode_taf.py "TAF KJFK 061730Z 0618/0724 28008KT 9999 FEW250"
+    
+    - name: Test edge cases and complex weather reports
+      run: |
+        python -c "
+        from weather_decoder import MetarDecoder, TafDecoder
+        
+        # Test complex METAR
+        metar = MetarDecoder()
+        complex_metar = 'METAR KORD 121856Z 09014G23KT 3SM -SN BKN016 OVC030 M03/M08 A2968 RMK AO2 SLP049'
+        result = metar.decode(complex_metar)
+        assert result.station_id == 'KORD'
+        assert result.wind['speed'] == 14
+        assert result.wind['gust'] == 23
+        print('✓ Complex METAR parsing successful')
+        
+        # Test complex TAF  
+        taf = TafDecoder()
+        complex_taf = 'TAF KJFK 121726Z 1218/1324 09016G24KT 4SM -SN OVC020 TEMPO 1218/1222 2SM -SN OVC010'
+        result = taf.decode(complex_taf)
+        assert result.station_id == 'KJFK'
+        assert len(result.forecast_periods) >= 2
+        print('✓ Complex TAF parsing successful')
+        
+        print('✓ All edge case tests passed')
+        "
+    
+    - name: Test SLP parsing fix
+      run: |
+        python -c "
+        from weather_decoder import MetarDecoder
+        
+        metar = MetarDecoder()
+        test_metar = 'METAR KBOS 110054Z 36007KT 10SM FEW080 16/13 A3012 RMK AO2 SLP200'
+        result = metar.decode(test_metar)
+        
+        assert 'Sea Level Pressure' in result.remarks_decoded
+        assert result.remarks_decoded['Sea Level Pressure'] == '1020.0 hPa'
+        print('✓ SLP parsing working correctly')
+        "
+    
+    - name: Test individual parsers
+      run: |
+        python -c "
+        from weather_decoder.parsers.wind_parser import WindParser
+        from weather_decoder.parsers.visibility_parser import VisibilityParser
+        from weather_decoder.parsers.weather_parser import WeatherParser
+        
+        # Test wind parser
+        wp = WindParser()
+        wind1 = wp.parse_wind_string('VRB05KT')
+        assert wind1['direction'] == 'VRB'
+        assert wind1['speed'] == 5
+        
+        wind2 = wp.parse_wind_string('28045G65KT')
+        assert wind2['direction'] == 280
+        assert wind2['gust'] == 65
+        
+        # Test visibility parser
+        vp = VisibilityParser()
+        vis1 = vp.parse_visibility_string('P6SM')
+        assert vis1['is_greater_than'] == True
+        assert vis1['value'] == 6.0
+        
+        # Test weather parser
+        wxp = WeatherParser()
+        wx1 = wxp.parse_weather_string('-RA')
+        assert wx1['intensity'] == 'light'
+        assert 'rain' in wx1['phenomena']
+        
+        print('✓ Individual parser tests passed')
+        "
+
+  install-test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    - name: Test pip installation
+      run: |
+        python -m pip install --upgrade pip
+        pip install .
+        
+        # Test console scripts work
+        decode-metar --version || echo "Console script not available, testing direct script"
+        decode-taf --version || echo "Console script not available, testing direct script"
+        
+        # Test package can be imported after installation
+        python -c "from weather_decoder import MetarDecoder, TafDecoder; print('✓ Package installed and imports correctly')"
+
+  comprehensive-test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e .
+    
+    - name: Run comprehensive feature test
+      run: |
+        python -c "
+        import sys
+        from weather_decoder import MetarDecoder, TafDecoder
+        
+        print('=== Comprehensive Feature Test ===')
+        
+        # Test all major METAR features
+        metar_decoder = MetarDecoder()
+        
+        # Test various METAR formats
+        test_metars = [
+            'METAR KJFK 061751Z 28008KT 10SM FEW250 22/18 A2992',
+            'METAR EGLL 061620Z 27008KT 9999 FEW040 SCT250 12/08 Q1013',
+            'METAR KORD 121856Z 09014G23KT 3SM -SN BKN016 OVC030 M03/M08 A2968 RMK AO2 SLP049',
+            'SPECI KJFK 061855Z 28012G18KT 240V320 1/2SM +TSRA BKN008 OVC020CB 22/21 A2992',
+        ]
+        
+        for i, metar_str in enumerate(test_metars, 1):
+            try:
+                result = metar_decoder.decode(metar_str)
+                print(f'✓ METAR test {i}: {result.station_id} - SUCCESS')
+            except Exception as e:
+                print(f'❌ METAR test {i}: FAILED - {e}')
+                sys.exit(1)
+        
+        # Test various TAF formats
+        taf_decoder = TafDecoder()
+        
+        test_tafs = [
+            'TAF KJFK 061730Z 0618/0724 28008KT 9999 FEW250',
+            'TAF EGLL 061100Z 0612/0718 27010KT 9999 SCT040 TEMPO 0612/0615 BKN020',
+            'TAF KJFK 121726Z 1218/1324 09016G24KT 4SM -SN OVC020 FM122200 36018G28KT',
+        ]
+        
+        for i, taf_str in enumerate(test_tafs, 1):
+            try:
+                result = taf_decoder.decode(taf_str)
+                print(f'✓ TAF test {i}: {result.station_id} - SUCCESS')
+            except Exception as e:
+                print(f'❌ TAF test {i}: FAILED - {e}')
+                sys.exit(1)
+        
+        print('🎉 All comprehensive tests passed!')
+        "

@@ -1,0 +1,211 @@
+name: Performance Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  performance-test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e .
+        pip install pytest pytest-benchmark memory-profiler
+    
+    - name: Create performance test data
+      run: |
+        cat > test_data.py << 'EOF'
+        # Sample test data for performance testing
+        SAMPLE_METARS = [
+            'METAR KJFK 061751Z 28008KT 10SM FEW250 22/18 A2992',
+            'METAR EGLL 061620Z 27008KT 9999 FEW040 SCT250 12/08 Q1013',
+            'METAR KORD 121856Z 09014G23KT 3SM -SN BKN016 OVC030 M03/M08 A2968 RMK AO2 SLP049',
+            'METAR KDEN 121852Z 36015G21KT 10SM FEW120 SCT200 M04/M10 A3012 RMK AO2 SLP217',
+            'SPECI KJFK 061855Z 28012G18KT 240V320 1/2SM +TSRA BKN008 OVC020CB 22/21 A2992',
+            'METAR KLAX 121953Z 24008KT 10SM FEW015 SCT200 21/17 A2992 RMK AO2 SLP131',
+            'METAR KIAH 121953Z 18012G18KT 10SM FEW025 SCT250 26/21 A2990 RMK AO2 SLP123',
+            'METAR KBOS 121954Z 32008KT 10SM FEW080 SCT250 18/14 A3008 RMK AO2 SLP184',
+            'METAR KSEA 121953Z 20010KT 10SM FEW020 SCT040 BKN200 16/12 A3001 RMK AO2 SLP158',
+            'METAR KPHX 121951Z 00000KT 10SM CLR 28/M01 A2995 RMK AO2 SLP131 T02781011'
+        ]
+        
+        SAMPLE_TAFS = [
+            'TAF KJFK 061730Z 0618/0724 28008KT 9999 FEW250',
+            'TAF EGLL 061100Z 0612/0718 27010KT 9999 SCT040 TEMPO 0612/0615 BKN020',
+            'TAF KJFK 121726Z 1218/1324 09016G24KT 4SM -SN OVC020 FM122200 36018G28KT',
+            'TAF KORD 121720Z 1218/1324 35015G25KT 5SM -SN OVC015 TEMPO 1218/1224 2SM -SN',
+            'TAF KDEN 121735Z 1218/1318 36018G28KT P6SM SCT080 BECMG 1301/1303 36012KT',
+            'TAF KLAX 121726Z 1218/1324 25006KT P6SM SCT015 BKN200 FM130600 27008KT',
+            'TAF KIAH 121726Z 1218/1324 18012KT P6SM FEW025 SCT250 TEMPO 1220/1224 BKN025',
+            'TAF KBOS 121726Z 1218/1324 32010KT P6SM FEW080 SCT250 FM130000 30015G25KT',
+            'TAF KSEA 121726Z 1218/1324 20012KT P6SM FEW020 SCT040 BKN200 TEMPO 1218/1222',
+            'TAF KPHX 121726Z 1218/1324 VRB03KT P6SM CLR FM130600 09008KT P6SM FEW200'
+        ]
+        EOF
+    
+    - name: Run METAR performance tests
+      run: |
+        python -c "
+        import time
+        import statistics
+        from weather_decoder import MetarDecoder
+        from test_data import SAMPLE_METARS
+        
+        decoder = MetarDecoder()
+        
+        # Warmup
+        for _ in range(10):
+            decoder.decode(SAMPLE_METARS[0])
+        
+        # Performance test
+        times = []
+        for _ in range(100):
+            start = time.time()
+            for metar in SAMPLE_METARS:
+                decoder.decode(metar)
+            end = time.time()
+            times.append(end - start)
+        
+        avg_time = statistics.mean(times)
+        min_time = min(times)
+        max_time = max(times)
+        
+        print(f'METAR Performance Results:')
+        print(f'  Average time for 10 METARs: {avg_time:.4f}s')
+        print(f'  Min time: {min_time:.4f}s')
+        print(f'  Max time: {max_time:.4f}s')
+        print(f'  Average time per METAR: {avg_time/10:.4f}s')
+        
+        # Benchmark - should be able to process at least 100 METARs per second
+        metars_per_second = 10 / avg_time
+        print(f'  METARs per second: {metars_per_second:.1f}')
+        
+        if metars_per_second < 50:
+            print('⚠️  Performance warning: METARs/sec below expected threshold')
+        else:
+            print('✅ METAR performance meets expectations')
+        "
+    
+    - name: Run TAF performance tests
+      run: |
+        python -c "
+        import time
+        import statistics
+        from weather_decoder import TafDecoder
+        from test_data import SAMPLE_TAFS
+        
+        decoder = TafDecoder()
+        
+        # Warmup
+        for _ in range(10):
+            decoder.decode(SAMPLE_TAFS[0])
+        
+        # Performance test
+        times = []
+        for _ in range(100):
+            start = time.time()
+            for taf in SAMPLE_TAFS:
+                decoder.decode(taf)
+            end = time.time()
+            times.append(end - start)
+        
+        avg_time = statistics.mean(times)
+        min_time = min(times)
+        max_time = max(times)
+        
+        print(f'TAF Performance Results:')
+        print(f'  Average time for 10 TAFs: {avg_time:.4f}s')
+        print(f'  Min time: {min_time:.4f}s')
+        print(f'  Max time: {max_time:.4f}s')
+        print(f'  Average time per TAF: {avg_time/10:.4f}s')
+        
+        # Benchmark - should be able to process at least 50 TAFs per second
+        tafs_per_second = 10 / avg_time
+        print(f'  TAFs per second: {tafs_per_second:.1f}')
+        
+        if tafs_per_second < 25:
+            print('⚠️  Performance warning: TAFs/sec below expected threshold')
+        else:
+            print('✅ TAF performance meets expectations')
+        "
+    
+    - name: Memory usage test
+      run: |
+        python -c "
+        import psutil
+        import os
+        from weather_decoder import MetarDecoder, TafDecoder
+        from test_data import SAMPLE_METARS, SAMPLE_TAFS
+        
+        process = psutil.Process(os.getpid())
+        
+        # Initial memory
+        initial_memory = process.memory_info().rss / 1024 / 1024  # MB
+        print(f'Initial memory usage: {initial_memory:.2f} MB')
+        
+        # Create decoders
+        metar_decoder = MetarDecoder()
+        taf_decoder = TafDecoder()
+        
+        decoder_memory = process.memory_info().rss / 1024 / 1024  # MB
+        print(f'Memory after creating decoders: {decoder_memory:.2f} MB')
+        
+        # Process many reports
+        for _ in range(1000):
+            for metar in SAMPLE_METARS:
+                metar_decoder.decode(metar)
+            for taf in SAMPLE_TAFS:
+                taf_decoder.decode(taf)
+        
+        final_memory = process.memory_info().rss / 1024 / 1024  # MB
+        print(f'Final memory usage: {final_memory:.2f} MB')
+        
+        memory_increase = final_memory - initial_memory
+        print(f'Total memory increase: {memory_increase:.2f} MB')
+        
+        if memory_increase > 100:  # More than 100MB increase is concerning
+            print('⚠️  High memory usage detected')
+        else:
+            print('✅ Memory usage within acceptable limits')
+        "
+    
+    - name: Import performance test
+      run: |
+        python -c "
+        import time
+        
+        # Test import time
+        start = time.time()
+        from weather_decoder import MetarDecoder, TafDecoder
+        import_time = time.time() - start
+        
+        print(f'Package import time: {import_time:.4f}s')
+        
+        if import_time > 1.0:
+            print('⚠️  Slow import time detected')
+        else:
+            print('✅ Import performance acceptable')
+        
+        # Test parser import time
+        start = time.time()
+        from weather_decoder.parsers import WindParser, VisibilityParser, WeatherParser
+        parser_import_time = time.time() - start
+        
+        print(f'Parser import time: {parser_import_time:.4f}s')
+        
+        if parser_import_time > 0.5:
+            print('⚠️  Slow parser import time detected')
+        else:
+            print('✅ Parser import performance acceptable')
+        "

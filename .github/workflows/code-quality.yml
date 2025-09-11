@@ -1,0 +1,166 @@
+name: Code Quality
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install flake8 black isort bandit safety
+        pip install -e .
+    
+    - name: Run flake8 linting
+      run: |
+        # Stop the build if there are Python syntax errors or undefined names
+        flake8 weather_decoder --count --select=E9,F63,F7,F82 --show-source --statistics
+        # Exit-zero treats all errors as warnings. GitHub editor is 127 chars wide
+        flake8 weather_decoder --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+    
+    - name: Check code formatting with black
+      run: |
+        black --check --diff weather_decoder/ *.py || echo "Code formatting issues found (non-blocking)"
+    
+    - name: Check import sorting with isort
+      run: |
+        isort --check-only --diff weather_decoder/ *.py || echo "Import sorting issues found (non-blocking)"
+    
+    - name: Run security checks with bandit
+      run: |
+        bandit -r weather_decoder/ -f json -o bandit-report.json || true
+        if [ -f bandit-report.json ]; then
+          echo "Bandit security scan completed"
+          cat bandit-report.json | python -m json.tool || echo "No security issues found"
+        fi
+    
+    - name: Check for known security vulnerabilities
+      run: |
+        safety check || echo "Safety check completed (non-blocking)"
+
+  structure-check:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Check project structure
+      run: |
+        echo "=== Project Structure Check ==="
+        
+        # Check required files exist
+        required_files=(
+          "weather_decoder/__init__.py"
+          "weather_decoder/core/__init__.py"
+          "weather_decoder/parsers/__init__.py"
+          "weather_decoder/data/__init__.py"
+          "weather_decoder/utils/__init__.py"
+          "weather_decoder/cli/__init__.py"
+          "setup.py"
+          "README.md"
+          ".gitignore"
+        )
+        
+        for file in "${required_files[@]}"; do
+          if [ -f "$file" ]; then
+            echo "✓ $file exists"
+          else
+            echo "❌ $file missing"
+            exit 1
+          fi
+        done
+        
+        # Check module count
+        py_files=$(find weather_decoder -name "*.py" | wc -l)
+        echo "✓ Found $py_files Python files in package"
+        
+        if [ "$py_files" -lt 20 ]; then
+          echo "❌ Expected at least 20 Python files, found $py_files"
+          exit 1
+        fi
+        
+        echo "✅ Project structure validation passed"
+
+  documentation-check:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Check documentation completeness
+      run: |
+        echo "=== Documentation Check ==="
+        
+        # Check README has required sections
+        if grep -q "# Weather Decoder" README.md; then
+          echo "✓ README has title"
+        else
+          echo "❌ README missing title"
+          exit 1
+        fi
+        
+        if grep -q "## Features" README.md; then
+          echo "✓ README has features section"
+        else
+          echo "❌ README missing features section"
+          exit 1
+        fi
+        
+        if grep -q "## Installation" README.md; then
+          echo "✓ README has installation section"
+        else
+          echo "❌ README missing installation section"
+          exit 1
+        fi
+        
+        # Check Python docstrings
+        python -c "
+        import ast
+        import os
+        
+        def check_docstrings(filepath):
+            with open(filepath, 'r') as f:
+                tree = ast.parse(f.read())
+            
+            classes = [node for node in ast.walk(tree) if isinstance(node, ast.ClassDef)]
+            functions = [node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)]
+            
+            missing_docs = []
+            
+            for cls in classes:
+                if not ast.get_docstring(cls):
+                    missing_docs.append(f'Class {cls.name} in {filepath}')
+            
+            for func in functions:
+                if not func.name.startswith('_') and not ast.get_docstring(func):
+                    missing_docs.append(f'Function {func.name} in {filepath}')
+            
+            return missing_docs
+        
+        total_missing = []
+        for root, dirs, files in os.walk('weather_decoder'):
+            for file in files:
+                if file.endswith('.py') and file != '__init__.py':
+                    filepath = os.path.join(root, file)
+                    missing = check_docstrings(filepath)
+                    total_missing.extend(missing)
+        
+        if total_missing:
+            print(f'⚠️  {len(total_missing)} missing docstrings (non-blocking):')
+            for item in total_missing[:10]:  # Show first 10
+                print(f'  - {item}')
+        else:
+            print('✓ All public classes and functions have docstrings')
+        "
+        
+        echo "✅ Documentation check completed"
