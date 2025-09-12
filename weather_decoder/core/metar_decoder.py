@@ -41,6 +41,11 @@ class MetarDecoder:
         metar = raw_metar.strip()
         parts = metar.split()
         
+        # Remove remarks section from parts to avoid processing remarks as main weather data
+        if 'RMK' in parts:
+            rmk_index = parts.index('RMK')
+            parts = parts[:rmk_index]
+        
         # Extract header information
         metar_type, station_id, observation_time, auto = self._extract_header(parts)
         
@@ -282,6 +287,86 @@ class MetarDecoder:
                 
                 decoded['Temperature (tenths)'] = f"{temp_sign * temp_tenths / 10:.1f}°C"
                 decoded['Dewpoint (tenths)'] = f"{dew_sign * dew_tenths / 10:.1f}°C"
+            
+            # Variable visibility (VIS)
+            vis_match = re.search(r'VIS\s+(\d+(?:/\d+)?)V(\d+(?:/\d+)?)', remarks)
+            if vis_match:
+                min_vis_str = vis_match.group(1)
+                max_vis_str = vis_match.group(2)
+                
+                # Parse fractions
+                def parse_visibility_fraction(vis_str):
+                    if '/' in vis_str:
+                        num, den = vis_str.split('/')
+                        return float(num) / float(den)
+                    else:
+                        return float(vis_str)
+                
+                min_vis = parse_visibility_fraction(min_vis_str)
+                max_vis = parse_visibility_fraction(max_vis_str)
+                
+                if min_vis == int(min_vis):
+                    min_vis_display = str(int(min_vis))
+                else:
+                    min_vis_display = min_vis_str
+                    
+                if max_vis == int(max_vis):
+                    max_vis_display = str(int(max_vis))
+                else:
+                    max_vis_display = max_vis_str
+                
+                decoded['Variable Visibility'] = f"{min_vis_display} to {max_vis_display} statute miles"
+            
+            # Past weather (RAB11E24, SNB05E15, etc.)
+            # Handle combined begin/end patterns like RAB11E24
+            combined_weather_matches = re.findall(r'([A-Z]{2})B(\d{2})E(\d{2})', remarks)
+            individual_weather_matches = re.findall(r'([A-Z]{2}[A-Z]?)([BE])(\d{2})(?![BE]\d{2})', remarks)
+            
+            past_weather_events = []
+            
+            # Process combined begin/end patterns (e.g., RAB11E24)
+            for weather_code, begin_time, end_time in combined_weather_matches:
+                if weather_code == 'RA':
+                    weather_type = 'rain'
+                elif weather_code == 'SN':
+                    weather_type = 'snow'
+                elif weather_code == 'DZ':
+                    weather_type = 'drizzle'
+                elif weather_code == 'TS':
+                    weather_type = 'thunderstorm'
+                else:
+                    weather_type = weather_code.lower()
+                
+                past_weather_events.append(f"{weather_type} began at minute {begin_time}, ended at minute {end_time}")
+            
+            # Process individual begin/end patterns (e.g., RAB15, RAE20)
+            for weather_code, begin_end, time_minutes in individual_weather_matches:
+                if weather_code == 'RA':
+                    weather_type = 'rain'
+                elif weather_code == 'SN':
+                    weather_type = 'snow'
+                elif weather_code == 'DZ':
+                    weather_type = 'drizzle'
+                elif weather_code == 'TS':
+                    weather_type = 'thunderstorm'
+                else:
+                    weather_type = weather_code.lower()
+                
+                action = 'began' if begin_end == 'B' else 'ended'
+                past_weather_events.append(f"{weather_type} {action} at minute {time_minutes}")
+            
+            if past_weather_events:
+                decoded['Past Weather'] = ', '.join(past_weather_events)
+            
+            # Precipitation amount (P0000, P0001, etc.)
+            precip_match = re.search(r'P(\d{4})', remarks)
+            if precip_match:
+                precip_hundredths = int(precip_match.group(1))
+                if precip_hundredths == 0:
+                    decoded['Precipitation Amount'] = "Less than 0.01 inches"
+                else:
+                    precip_inches = precip_hundredths / 100.0
+                    decoded['Precipitation Amount'] = f"{precip_inches:.2f} inches"
             
             return remarks, decoded
         else:
