@@ -11,7 +11,7 @@ from .core.taf_decoder import TafDecoder
 from .data.metar_data import MetarData
 from .data.taf_data import TafData
 
-__version__ = "1.0.6"
+__version__ = "1.0.7"
 __author__ = "Justin"
 
 __all__ = [

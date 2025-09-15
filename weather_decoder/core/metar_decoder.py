@@ -288,6 +288,20 @@ class MetarDecoder:
                 decoded['Temperature (tenths)'] = f"{temp_sign * temp_tenths / 10:.1f}°C"
                 decoded['Dewpoint (tenths)'] = f"{dew_sign * dew_tenths / 10:.1f}°C"
             
+            # 24-hour temperature extremes (4MMMMNNNN format)
+            temp_extremes_match = re.search(r'4([01])(\d{3})([01])(\d{3})', remarks)
+            if temp_extremes_match:
+                max_sign = -1 if temp_extremes_match.group(1) == '1' else 1
+                max_temp_tenths = int(temp_extremes_match.group(2))
+                min_sign = -1 if temp_extremes_match.group(3) == '1' else 1
+                min_temp_tenths = int(temp_extremes_match.group(4))
+                
+                max_temp = max_sign * max_temp_tenths / 10
+                min_temp = min_sign * min_temp_tenths / 10
+                
+                decoded['24-Hour Maximum Temperature'] = f"{max_temp:.1f}°C"
+                decoded['24-Hour Minimum Temperature'] = f"{min_temp:.1f}°C"
+            
             # Variable visibility (VIS)
             vis_match = re.search(r'VIS\s+(\d+(?:/\d+)?)V(\d+(?:/\d+)?)', remarks)
             if vis_match:
