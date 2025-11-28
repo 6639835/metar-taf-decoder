@@ -1,67 +1,64 @@
 """Weather phenomena parser"""
 
 from typing import Dict, List
-from ..utils.constants import WEATHER_INTENSITY, WEATHER_DESCRIPTORS, WEATHER_PHENOMENA
+
+from ..utils.constants import WEATHER_DESCRIPTORS, WEATHER_INTENSITY, WEATHER_PHENOMENA
 
 
 class WeatherParser:
     """Parser for weather phenomena in METAR and TAF reports"""
-    
+
     @staticmethod
     def extract_weather(parts: List[str]) -> List[Dict]:
         """Extract weather phenomena from weather report parts"""
         weather_groups = []
-        
+
         i = 0
         while i < len(parts):
             part = parts[i]
-            
+
             # Check for NSW (No Significant Weather)
-            if part == 'NSW':
-                weather_groups.append({
-                    'intensity': '',
-                    'descriptor': '',
-                    'phenomena': ['no significant weather']
-                })
+            if part == "NSW":
+                weather_groups.append({"intensity": "", "descriptor": "", "phenomena": ["no significant weather"]})
                 parts.pop(i)
                 continue
-            
+
             # Process weather groups
             has_weather = False
-            intensity = ''
-            descriptor = ''
+            intensity = ""
+            descriptor = ""
             phenomena = []
-            
+
             # Check for intensity prefix
-            if part.startswith('+') or part.startswith('-'):
-                if part.startswith('+'):
-                    intensity = 'heavy'
+            if part.startswith("+") or part.startswith("-"):
+                if part.startswith("+"):
+                    intensity = "heavy"
                     part = part[1:]
-                elif part.startswith('-'):
-                    intensity = 'light'
+                elif part.startswith("-"):
+                    intensity = "light"
                     part = part[1:]
                 has_weather = True
-            
+
             # Check for vicinity (VC)
-            elif part.startswith('VC'):
-                intensity = 'vicinity'
+            elif part.startswith("VC"):
+                intensity = "vicinity"
                 part = part[2:]
                 has_weather = True
-            
+
             # Check for descriptor
             for desc_code, desc_value in WEATHER_DESCRIPTORS.items():
                 if part.startswith(desc_code):
                     descriptor = desc_value
-                    part = part[len(desc_code):]
+                    part = part[len(desc_code) :]
                     has_weather = True
                     break
-            
+
             # Handle the case where the part is just 'TS' (thunderstorm without precipitation)
-            if part == 'TS':
-                descriptor = 'thunderstorm'
+            if part == "TS":
+                descriptor = "thunderstorm"
                 has_weather = True
-                part = ''
-            
+                part = ""
+
             # Check for weather phenomena
             remaining = part
             while remaining and len(remaining) >= 2:
@@ -72,58 +69,50 @@ class WeatherParser:
                     has_weather = True
                 else:
                     break
-            
+
             if has_weather:
-                weather_groups.append({
-                    'intensity': intensity,
-                    'descriptor': descriptor,
-                    'phenomena': phenomena
-                })
+                weather_groups.append({"intensity": intensity, "descriptor": descriptor, "phenomena": phenomena})
                 parts.pop(i)
             else:
                 i += 1
-        
+
         return weather_groups
-    
+
     @staticmethod
     def parse_weather_string(weather_str: str) -> Dict:
         """Parse a single weather string"""
         # Check for NSW
-        if weather_str == 'NSW':
-            return {
-                'intensity': '',
-                'descriptor': '',
-                'phenomena': ['no significant weather']
-            }
-        
-        intensity = ''
-        descriptor = ''
+        if weather_str == "NSW":
+            return {"intensity": "", "descriptor": "", "phenomena": ["no significant weather"]}
+
+        intensity = ""
+        descriptor = ""
         phenomena = []
         part = weather_str
-        
+
         # Check for intensity prefix
-        if part.startswith('+'):
-            intensity = 'heavy'
+        if part.startswith("+"):
+            intensity = "heavy"
             part = part[1:]
-        elif part.startswith('-'):
-            intensity = 'light'
+        elif part.startswith("-"):
+            intensity = "light"
             part = part[1:]
-        elif part.startswith('VC'):
-            intensity = 'vicinity'
+        elif part.startswith("VC"):
+            intensity = "vicinity"
             part = part[2:]
-        
+
         # Check for descriptor
         for desc_code, desc_value in WEATHER_DESCRIPTORS.items():
             if part.startswith(desc_code):
                 descriptor = desc_value
-                part = part[len(desc_code):]
+                part = part[len(desc_code) :]
                 break
-        
+
         # Handle standalone thunderstorm
-        if part == 'TS':
-            descriptor = 'thunderstorm'
-            part = ''
-        
+        if part == "TS":
+            descriptor = "thunderstorm"
+            part = ""
+
         # Check for weather phenomena
         remaining = part
         while remaining and len(remaining) >= 2:
@@ -133,9 +122,5 @@ class WeatherParser:
                 remaining = remaining[2:]
             else:
                 break
-        
-        return {
-            'intensity': intensity,
-            'descriptor': descriptor,
-            'phenomena': phenomena
-        }
+
+        return {"intensity": intensity, "descriptor": descriptor, "phenomena": phenomena}

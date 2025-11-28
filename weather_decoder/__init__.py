@@ -14,9 +14,4 @@ from .data.taf_data import TafData
 __version__ = "1.0.7"
 __author__ = "Justin"
 
-__all__ = [
-    "MetarDecoder",
-    "TafDecoder", 
-    "MetarData",
-    "TafData"
-]
+__all__ = ["MetarDecoder", "TafDecoder", "MetarData", "TafData"]
