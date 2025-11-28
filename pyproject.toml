@@ -1,7 +1,44 @@
 # Build system configuration
 [build-system]
-requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2"]
+requires = ["setuptools>=45", "wheel"]
 build-backend = "setuptools.build_meta"
+
+# Project metadata
+[project]
+name = "weather-decoder"
+version = "1.0.7"
+description = "A comprehensive METAR and TAF decoder for aviation weather reports"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Justin"}
+]
+requires-python = ">=3.8"
+keywords = ["metar", "taf", "aviation", "weather", "meteorology", "parsing", "decoder"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Topic :: Scientific/Engineering :: Atmospheric Science",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+[project.urls]
+Source = "https://github.com/6639835/metar-taf-decoder"
+"Bug Reports" = "https://github.com/6639835/metar-taf-decoder/issues"
+
+[project.scripts]
+decode-metar = "weather_decoder.cli.metar_cli:main"
+decode-taf = "weather_decoder.cli.taf_cli:main"
+
+# Setuptools configuration
+[tool.setuptools.packages.find]
+where = ["."]
 
 # Black configuration
 [tool.black]

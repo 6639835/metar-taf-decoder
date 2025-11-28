@@ -15,6 +15,8 @@ class MetarData:
     station_id: str
     observation_time: datetime
     auto: bool
+    is_nil: bool  # NIL indicates a missing report
+    maintenance_needed: bool  # $ indicator - station needs maintenance
     wind: Dict
     visibility: Dict
     runway_visual_range: List[Dict]
@@ -23,9 +25,9 @@ class MetarData:
     weather_groups: List[Dict]
     sky_conditions: List[Dict]
     temperature: float
-    dewpoint: float
+    dewpoint: float  # Can be None if not available
     altimeter: Dict
-    windshear: List[str]
+    windshear: List[Dict]  # Changed from List[str] to List[Dict] for structured data
     trends: List[Dict]
     remarks: str
     remarks_decoded: Dict
@@ -35,10 +37,18 @@ class MetarData:
         """Return a human-readable string of the decoded METAR"""
         lines = [
             f"METAR for {self.station_id} issued {self.observation_time.day:02d} {self.observation_time.hour:02d}:{self.observation_time.minute:02d} UTC",
+        ]
+        
+        # Handle NIL (missing) report
+        if self.is_nil:
+            lines.append("Status: NIL (Missing report)")
+            return "\n".join(lines)
+        
+        lines.extend([
             f"Type: {'AUTO' if self.auto else 'Manual'} {self.metar_type}",
             f"Wind: {self.wind_text()}",
             f"Visibility: {self.visibility_text()}",
-        ]
+        ])
         
         if self.runway_visual_range:
             rvr_lines = [f"Runway Visual Range:"]
@@ -139,13 +149,15 @@ class MetarData:
             lines.extend(sky_lines)
         
         if self.windshear:
-            lines.append(f"Windshear: {', '.join(self.windshear)}")
+            ws_descriptions = [ws.get('description', ws.get('raw', 'Wind shear reported')) for ws in self.windshear]
+            lines.append(f"Windshear: {', '.join(ws_descriptions)}")
         
-        lines.extend([
-            f"Temperature: {self.temperature}°C",
-            f"Dew Point: {self.dewpoint}°C",
-            f"Altimeter: {self.altimeter['value']} {self.altimeter['unit']}",
-        ])
+        lines.append(f"Temperature: {self.temperature}°C")
+        if self.dewpoint is not None:
+            lines.append(f"Dew Point: {self.dewpoint}°C")
+        else:
+            lines.append("Dew Point: Not available")
+        lines.append(f"Altimeter: {self.altimeter['value']} {self.altimeter['unit']}")
         
         if self.trends:
             for i, trend in enumerate(self.trends):

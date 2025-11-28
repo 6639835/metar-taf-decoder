@@ -11,7 +11,13 @@ class TemperatureParser:
     
     @staticmethod
     def extract_temperature_dewpoint(parts: List[str]) -> Tuple[Optional[float], Optional[float]]:
-        """Extract temperature and dewpoint from METAR parts"""
+        """Extract temperature and dewpoint from METAR parts
+        
+        Handles:
+        - Standard format: 17/15 (temp 17°C, dewpoint 15°C)
+        - Negative values: M03/M05 (temp -3°C, dewpoint -5°C)
+        - Missing dewpoint: 17/ (temp 17°C, dewpoint not available)
+        """
         for i, part in enumerate(parts):
             match = re.match(TEMPERATURE_PATTERN, part)
             if match:
@@ -19,9 +25,13 @@ class TemperatureParser:
                 temp_value = int(match.group(2))
                 temperature = temp_sign * temp_value
                 
-                dew_sign = -1 if match.group(3) == 'M' else 1
-                dew_value = int(match.group(4))
-                dewpoint = dew_sign * dew_value
+                # Dewpoint is optional (group 3 is sign, group 4 is value)
+                if match.group(4) is not None:
+                    dew_sign = -1 if match.group(3) == 'M' else 1
+                    dew_value = int(match.group(4))
+                    dewpoint = dew_sign * dew_value
+                else:
+                    dewpoint = None
                 
                 parts.pop(i)
                 return temperature, dewpoint
@@ -117,9 +127,13 @@ class TemperatureParser:
             temp_value = int(match.group(2))
             temperature = temp_sign * temp_value
             
-            dew_sign = -1 if match.group(3) == 'M' else 1
-            dew_value = int(match.group(4))
-            dewpoint = dew_sign * dew_value
+            # Dewpoint is optional
+            if match.group(4) is not None:
+                dew_sign = -1 if match.group(3) == 'M' else 1
+                dew_value = int(match.group(4))
+                dewpoint = dew_sign * dew_value
+            else:
+                dewpoint = None
             
             return temperature, dewpoint
         

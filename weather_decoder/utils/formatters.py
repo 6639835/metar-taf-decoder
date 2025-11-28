@@ -9,8 +9,12 @@ def format_wind(wind: Dict) -> str:
         dir_text = "Variable"
     else:
         dir_text = f"{wind['direction']}°"
-        
-    speed_text = f"{wind['speed']} {wind['unit']}"
+    
+    # Handle extreme wind speeds (above limit)
+    if wind.get('above'):
+        speed_text = f"above {wind['speed']} {wind['unit']}"
+    else:
+        speed_text = f"{wind['speed']} {wind['unit']}"
     
     if wind.get('gust'):
         speed_text += f", gusting to {wind['gust']} {wind['unit']}"
@@ -30,14 +34,23 @@ def format_visibility(visibility: Dict) -> str:
     vis_value = visibility['value']
     vis_unit = visibility['unit']
     
-    if vis_value == 9999:
+    # Handle less than (M prefix for SM or 0000 for meters)
+    if visibility.get('is_less_than'):
+        if vis_unit == 'SM':
+            if isinstance(vis_value, float) and not vis_value.is_integer():
+                result = f"Less than {vis_value} {vis_unit}"
+            else:
+                result = f"Less than {int(vis_value)} {vis_unit}"
+        elif vis_value == 0:
+            result = "Less than 50 M"
+        else:
+            result = f"Less than {vis_value} {vis_unit}"
+    elif vis_value == 9999:
         result = "10 km or more"
     elif vis_unit == 'M' and vis_value >= 1000 and vis_value <= 9000:
         # Format meter values to km if 1000 or greater
         km_value = vis_value / 1000
         result = f"{km_value:.1f} km" if km_value % 1 != 0 else f"{int(km_value)} km"
-    elif vis_value == 0 and visibility.get('is_less_than'):
-        result = f"Less than {vis_value} {vis_unit}"
     elif visibility.get('is_greater_than'):
         if vis_unit == 'SM':
             result = f"Greater than {vis_value} {vis_unit}"
@@ -61,6 +74,22 @@ def format_visibility(visibility: Dict) -> str:
             result = f"{km_value:.1f} km" if km_value % 1 != 0 else f"{int(km_value)} km"
         else:
             result = f"{vis_value} {vis_unit}"
+    
+    # Add direction if present (directional visibility)
+    if visibility.get('direction'):
+        result += f" to the {visibility['direction']}"
+    
+    # Add directional visibility if present (e.g., "2000 1200NW")
+    if visibility.get('directional_visibility'):
+        dir_vis = visibility['directional_visibility']
+        dir_val = dir_vis['value']
+        dir_dir = dir_vis['direction']
+        if dir_val >= 1000:
+            dir_km = dir_val / 1000
+            dir_text = f"{dir_km:.1f} km" if dir_km % 1 != 0 else f"{int(dir_km)} km"
+        else:
+            dir_text = f"{dir_val} M"
+        result += f", {dir_text} to the {dir_dir}"
     
     # Add NDV indicator if present (METAR specific)
     if visibility.get('ndv'):
