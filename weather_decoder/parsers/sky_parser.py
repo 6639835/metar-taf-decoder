@@ -22,13 +22,23 @@ class SkyParser:
             match = re.match(SKY_PATTERN, part)
             if match:
                 sky_type = match.group(1)
-                height = int(match.group(2)) * 100  # Convert to feet
+                height_str = match.group(2)
+                # Height can be /// when unknown, or 3 digits
+                if height_str == '///':
+                    height = None
+                    unknown_height = True
+                else:
+                    height = int(height_str) * 100  # Convert to feet
+                    unknown_height = False
                 cloud_type = match.group(3) or None
                 
                 sky = {
                     'type': sky_type,
                     'height': height
                 }
+                
+                if unknown_height:
+                    sky['unknown_height'] = True
                 
                 if cloud_type == 'CB':
                     sky['cb'] = True
@@ -68,13 +78,23 @@ class SkyParser:
         match = re.match(SKY_PATTERN, sky_str)
         if match:
             sky_type = match.group(1)
-            height = int(match.group(2)) * 100  # Convert to feet
+            height_str = match.group(2)
+            # Height can be /// when unknown, or 3 digits
+            if height_str == '///':
+                height = None
+                unknown_height = True
+            else:
+                height = int(height_str) * 100  # Convert to feet
+                unknown_height = False
             cloud_type = match.group(3) or None
             
             sky = {
                 'type': sky_type,
                 'height': height
             }
+            
+            if unknown_height:
+                sky['unknown_height'] = True
             
             if cloud_type == 'CB':
                 sky['cb'] = True

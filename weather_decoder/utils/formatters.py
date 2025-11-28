@@ -117,11 +117,21 @@ def format_sky_condition(sky: Dict) -> str:
     elif sky['type'] == 'NCD':
         return "No cloud detected"
     elif sky['type'] == 'VV':
+        if sky.get('unknown_height'):
+            return "Vertical visibility (unknown height)"
         return f"Vertical visibility {sky['height']} feet"
     elif sky['type'] == '///':
-        return f"Unknown cloud type at {sky['height']} feet"
+        if sky.get('unknown_height'):
+            return "Unknown cloud amount at unknown height"
+        return f"Unknown cloud amount at {sky['height']} feet"
     else:
-        result = f"{sky['type']} clouds at {sky['height']} feet"
+        # Handle unknown height
+        if sky.get('unknown_height'):
+            height_str = "unknown height"
+        else:
+            height_str = f"{sky['height']} feet"
+        
+        result = f"{sky['type']} clouds at {height_str}"
         if sky.get('cb'):
             result += " (CB)"
         elif sky.get('tcu'):

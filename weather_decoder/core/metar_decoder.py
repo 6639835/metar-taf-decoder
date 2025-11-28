@@ -762,6 +762,15 @@ class MetarDecoder:
                 qfe_value = int(qfe_match.group(1))
                 decoded['QFE'] = f"{qfe_value} hPa"
             
+            # Altimeter setting in remarks (US format: A followed by 4 digits)
+            # e.g., A3001 = 30.01 inHg, A2992 = 29.92 inHg
+            # This is often included in Japanese METARs alongside Q (hPa) setting
+            altimeter_rmk_match = re.search(r'\bA(\d{4})\b', remarks)
+            if altimeter_rmk_match:
+                alt_value = int(altimeter_rmk_match.group(1))
+                alt_inhg = alt_value / 100
+                decoded['Altimeter (Remarks)'] = f"{alt_inhg:.2f} inHg"
+            
             # Precipitation amount (P0000, P0001, etc.)
             precip_match = re.search(r'P(\d{4})', remarks)
             if precip_match:
@@ -947,13 +956,30 @@ class MetarDecoder:
             }
             
             cloud_types_found = []
-            # Match patterns like SC6, AC3, CB8, TCU4, etc.
-            # Note: Cloud codes can be concatenated without spaces (e.g., SC3AC3)
-            # So we don't require word boundary after the digit
-            cloud_type_matches = re.findall(r'(TCU|SC|ST|CU|CB|CI|CS|CC|AC|AS|NS|CF|SF)(\d)', remarks)
-            for cloud_code, oktas in cloud_type_matches:
+            
+            # Japanese/ICAO format: {oktas}{cloud_type}{height} e.g., 1CU007, 3SC015
+            # oktas first, then cloud type, then height in hundreds of feet
+            japan_cloud_matches = re.findall(r'\b(\d)(TCU|SC|ST|CU|CB|CI|CS|CC|AC|AS|NS|CF|SF)(\d{3})\b', remarks)
+            for oktas, cloud_code, height in japan_cloud_matches:
                 cloud_name = cloud_type_codes.get(cloud_code, cloud_code)
-                cloud_types_found.append(f"{cloud_name} {oktas}/8 sky coverage")
+                height_ft = int(height) * 100
+                cloud_types_found.append(f"{cloud_name} {oktas}/8 sky coverage at {height_ft} feet")
+            
+            # Canadian format: {cloud_type}{oktas} e.g., SC6, AC3, CB8, TCU4
+            # Cloud codes can be concatenated without spaces (e.g., CU1AC1AC1CI1)
+            # Use negative lookahead to ensure the digit is NOT followed by 2 more digits (which would be Japanese format)
+            if not japan_cloud_matches:
+                cloud_type_matches = re.findall(r'(TCU|SC|ST|CU|CB|CI|CS|CC|AC|AS|NS|CF|SF)(\d)(?!\d{2})', remarks)
+                for cloud_code, oktas in cloud_type_matches:
+                    cloud_name = cloud_type_codes.get(cloud_code, cloud_code)
+                    cloud_types_found.append(f"{cloud_name} {oktas}/8 sky coverage")
+            
+            # Match trace cloud patterns like "AC TR", "CI TR", etc.
+            # TR = trace amount (less than 1/8 sky coverage)
+            trace_cloud_matches = re.findall(r'\b(TCU|SC|ST|CU|CB|CI|CS|CC|AC|AS|NS|CF|SF)\s+TR\b', remarks)
+            for cloud_code in trace_cloud_matches:
+                cloud_name = cloud_type_codes.get(cloud_code, cloud_code)
+                cloud_types_found.append(f"{cloud_name} trace (less than 1/8 sky coverage)")
             
             if cloud_types_found:
                 decoded['Cloud Types'] = '; '.join(cloud_types_found)

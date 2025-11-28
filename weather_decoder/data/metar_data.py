@@ -125,9 +125,15 @@ class MetarData:
                 elif sky['type'] == 'NCD':
                     sky_lines.append(f"  No cloud detected")
                 elif sky['type'] == 'VV':
-                    sky_lines.append(f"  Vertical visibility {sky['height']} feet")
+                    if sky.get('unknown_height'):
+                        sky_lines.append(f"  Vertical visibility (unknown height)")
+                    else:
+                        sky_lines.append(f"  Vertical visibility {sky['height']} feet")
                 elif sky['type'] == '///':
-                    sky_lines.append(f"  Unknown cloud type at {sky['height']} feet (AUTO station)")
+                    if sky.get('unknown_height'):
+                        sky_lines.append(f"  Unknown cloud amount at unknown height (AUTO station)")
+                    else:
+                        sky_lines.append(f"  Unknown cloud amount at {sky['height']} feet (AUTO station)")
                 elif sky['type'] == 'AUTO' and sky.get('missing_data'):
                     sky_lines.append(f"  Cloud data missing (AUTO station)")
                 elif sky['type'] == 'unknown' and sky.get('missing_data'):
@@ -140,7 +146,12 @@ class MetarData:
                         cloud_type_text = " (TCU)"
                     sky_lines.append(f"  Unknown cloud height{cloud_type_text} (AUTO station)")
                 else:
-                    sky_lines.append(f"  {sky['type']} clouds at {sky['height']} feet")
+                    # Handle unknown height
+                    if sky.get('unknown_height'):
+                        height_str = "unknown height"
+                    else:
+                        height_str = f"{sky['height']} feet"
+                    sky_lines.append(f"  {sky['type']} clouds at {height_str}")
                     if sky.get('cb') or sky.get('tcu'):
                         cb_tcu = 'CB' if sky.get('cb') else 'TCU'
                         sky_lines[-1] += f" ({cb_tcu})"

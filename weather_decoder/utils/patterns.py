@@ -36,7 +36,8 @@ RVR_PATTERN = r'R(\d{2}[LCR]?)/([PM])?(\d{4})(?:V([PM])?(\d{4}))?(?:FT)?([UDN])?
 RUNWAY_STATE_PATTERN = r'R(\d{2}[LCR]?)/(\d|/)(\d|/)(\d{2}|//)(\d{2}|//)$'
 
 # Sky condition patterns
-SKY_PATTERN = r'(SKC|CLR|FEW|SCT|BKN|OVC|VV|///)(\d{3})(CB|TCU|///)?'
+# Height can be 3 digits or /// when height cannot be determined by auto system
+SKY_PATTERN = r'(SKC|CLR|FEW|SCT|BKN|OVC|VV|///)(\d{3}|///)(CB|TCU|///)?'
 
 # Temperature patterns
 # Dewpoint is optional (e.g., 17/ when dewpoint not available)
