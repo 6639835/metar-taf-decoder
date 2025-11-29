@@ -34,4 +34,3 @@ CLOUD_TYPE_CODES = {
     "CF": "Cumulus Fractus",
     "SF": "Stratus Fractus",
 }
-

@@ -22,7 +22,7 @@ RUNWAY_STATE_PATTERN = r"R(\d{2}[LCR]?)/(\d|/)(\d|/)(\d{2}|//)(\d{2}|//)$"
 
 class RunwayParser:
     """Parser for runway information in METAR reports
-    
+
     Handles:
     - RVR (Runway Visual Range) reports
     - Runway state reports (MOTNE format)
@@ -30,16 +30,16 @@ class RunwayParser:
 
     def extract_rvr(self, parts: List[str]) -> List[Dict]:
         """Extract runway visual range information
-        
+
         RVR format per ICAO: R{runway}/{M|P}{value}{V{M|P}{value}}{FT}{trend}
         - M = less than (Minus/below minimum)
         - P = more than (Plus/above maximum)
         - FT suffix indicates feet (US format), otherwise meters (ICAO default)
         - Trend: U = improving (Up), D = deteriorating (Down), N = no change
-        
+
         Args:
             parts: List of tokens from the weather report (modified in place)
-            
+
         Returns:
             List of RVR dictionaries
         """
@@ -59,11 +59,11 @@ class RunwayParser:
 
     def _parse_rvr_match(self, match: re.Match, original: str) -> Dict:
         """Parse an RVR regex match into structured data
-        
+
         Args:
             match: Regex match object
             original: Original token string
-            
+
         Returns:
             RVR dictionary
         """
@@ -97,14 +97,14 @@ class RunwayParser:
 
     def extract_runway_state(self, parts: List[str]) -> List[Dict]:
         """Extract runway state reports (MOTNE format)
-        
+
         Format: R{runway}/{deposit}{extent}{depth}{braking}
-        Example: R23/490156 = Runway 23, dry snow (4), >51% coverage (9), 
+        Example: R23/490156 = Runway 23, dry snow (4), >51% coverage (9),
                              01mm depth, braking coefficient 0.56
-        
+
         Args:
             parts: List of tokens from the weather report (modified in place)
-            
+
         Returns:
             List of runway state dictionaries
         """
@@ -124,11 +124,11 @@ class RunwayParser:
 
     def _parse_runway_state_match(self, match: re.Match, original: str) -> Dict:
         """Parse a runway state regex match into structured data
-        
+
         Args:
             match: Regex match object
             original: Original token string
-            
+
         Returns:
             Runway state dictionary
         """
@@ -156,10 +156,10 @@ class RunwayParser:
     @staticmethod
     def _decode_depth(depth_raw: str) -> str:
         """Decode runway depth value
-        
+
         Args:
             depth_raw: Raw depth code (2 characters)
-            
+
         Returns:
             Human-readable depth description
         """
@@ -167,15 +167,15 @@ class RunwayParser:
             return "not reported"
         elif depth_raw == "00":
             return "less than 1mm"
-        
+
         try:
             depth_val = int(depth_raw)
         except ValueError:
             return f"unknown ({depth_raw})"
-            
+
         if depth_val <= 90:
             return f"{depth_val}mm"
-        
+
         # Special codes for larger depths
         depth_codes = {
             92: "10cm",
@@ -192,19 +192,19 @@ class RunwayParser:
     @staticmethod
     def _decode_braking(braking_raw: str) -> str:
         """Decode runway braking action/friction coefficient
-        
+
         Args:
             braking_raw: Raw braking code (2 characters)
-            
+
         Returns:
             Human-readable braking description
         """
         if braking_raw == "//":
             return "not reported"
-        
+
         if braking_raw in RUNWAY_BRAKING:
             return RUNWAY_BRAKING[braking_raw]
-        
+
         # Numeric braking coefficient (01-90 = 0.01 to 0.90)
         try:
             coef = int(braking_raw) / 100
@@ -214,10 +214,10 @@ class RunwayParser:
 
     def parse_rvr_string(self, rvr_str: str) -> Optional[Dict]:
         """Parse a single RVR string
-        
+
         Args:
             rvr_str: RVR string to parse
-            
+
         Returns:
             RVR dictionary or None if no match
         """
@@ -228,10 +228,10 @@ class RunwayParser:
 
     def parse_runway_state_string(self, state_str: str) -> Optional[Dict]:
         """Parse a single runway state string
-        
+
         Args:
             state_str: Runway state string to parse
-            
+
         Returns:
             Runway state dictionary or None if no match
         """
@@ -239,4 +239,3 @@ class RunwayParser:
         if match:
             return self._parse_runway_state_match(match, state_str)
         return None
-

@@ -8,7 +8,7 @@ from .base_parser import TokenParser
 
 class VisibilityParser(TokenParser):
     """Parser for visibility information in METAR and TAF reports
-    
+
     Handles various visibility formats:
     - CAVOK (Ceiling And Visibility OK)
     - 4-digit meter format (e.g., 1200, 9999, 0000)
@@ -23,10 +23,10 @@ class VisibilityParser(TokenParser):
 
     def parse(self, token: str) -> Optional[Dict]:
         """Parse a visibility token into structured data
-        
+
         Args:
             token: A single token that may contain visibility information
-            
+
         Returns:
             Dictionary with visibility data if token matches, None otherwise
         """
@@ -68,10 +68,10 @@ class VisibilityParser(TokenParser):
 
     def _parse_sm_visibility(self, match: re.Match) -> Dict:
         """Parse a statute miles visibility match
-        
+
         Args:
             match: Regex match object from SM pattern
-            
+
         Returns:
             Dictionary with visibility data
         """
@@ -94,27 +94,27 @@ class VisibilityParser(TokenParser):
 
     def extract_visibility(self, parts: List[str]) -> Optional[Dict]:
         """Extract visibility information from weather report parts
-        
+
         This method handles complex multi-token visibility formats like
         "1 1/2SM" (mixed fractions) and "2000 1200NW" (with directional).
-        
+
         Args:
             parts: List of tokens from the weather report (modified in place)
-            
+
         Returns:
             Dictionary with visibility data if found, None otherwise
         """
         for i, part in enumerate(parts):
             # Try simple single-token parse first
             result = self.parse(part)
-            
+
             if result is not None:
                 parts.pop(i)
-                
+
                 # For 4-digit meter visibility, check for additional info
                 if result.get("unit") == "M" and not result.get("is_cavok"):
                     self._check_additional_visibility(parts, i, result)
-                
+
                 return result
 
             # Check for mixed fraction SM visibility (e.g., "1 1/2SM")
@@ -135,15 +135,13 @@ class VisibilityParser(TokenParser):
 
         return None
 
-    def _check_additional_visibility(
-        self, parts: List[str], i: int, result: Dict
-    ) -> None:
+    def _check_additional_visibility(self, parts: List[str], i: int, result: Dict) -> None:
         """Check for additional visibility information after main value
-        
+
         Handles:
         - Directional visibility (e.g., "2000 1200NW")
         - Minimum visibility (e.g., "4000 0600")
-        
+
         Args:
             parts: List of remaining tokens (may be modified)
             i: Current index in parts list

@@ -9,7 +9,7 @@ from .base_parser import TokenParser
 
 class WindParser(TokenParser):
     """Parser for wind information in METAR and TAF reports
-    
+
     Handles various wind formats:
     - Standard: dddssKT (e.g., 27015KT)
     - With gusts: dddssGggKT (e.g., 27015G25KT)
@@ -21,10 +21,10 @@ class WindParser(TokenParser):
 
     def parse(self, token: str) -> Optional[Dict]:
         """Parse a wind token into structured data
-        
+
         Args:
             token: A single token that may contain wind information
-            
+
         Returns:
             Dictionary with wind data if token matches, None otherwise
         """
@@ -69,13 +69,13 @@ class WindParser(TokenParser):
 
     def extract_wind(self, parts: List[str]) -> Optional[Dict]:
         """Extract wind information from weather report parts
-        
+
         This method extends the base extract() to also check for
         variable wind direction in the following token.
-        
+
         Args:
             parts: List of tokens from the weather report (modified in place)
-            
+
         Returns:
             Dictionary with wind data if found, None otherwise
         """
@@ -83,14 +83,14 @@ class WindParser(TokenParser):
             wind = self.parse(part)
             if wind is not None:
                 parts.pop(i)
-                
+
                 # Look for variable direction in the next part
                 if i < len(parts):
                     var_dir = self.parse_variable_direction(parts[i])
                     if var_dir:
                         wind["variable_direction"] = var_dir
                         parts.pop(i)
-                
+
                 return wind
 
         return None
@@ -109,10 +109,10 @@ class WindParser(TokenParser):
     @staticmethod
     def parse_variable_direction(var_str: str) -> Optional[tuple]:
         """Parse variable wind direction string (e.g., '240V340')
-        
+
         Args:
             var_str: Token that may contain variable direction
-            
+
         Returns:
             Tuple of (from_direction, to_direction) or None
         """

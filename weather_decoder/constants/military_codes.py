@@ -9,4 +9,3 @@ MILITARY_COLOR_CODES = {
     "AMB": "Amber",
     "RED": "Red",
 }
-

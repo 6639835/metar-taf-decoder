@@ -544,7 +544,7 @@ class MetarDecoder:
 
     def _extract_remarks(self, metar: str) -> tuple:
         """Extract and decode remarks section
-        
+
         Delegates to RemarksParser for all remarks parsing logic.
         """
         return self.remarks_parser.parse(metar)

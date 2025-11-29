@@ -10,7 +10,7 @@ from ..formatters.taf_formatter import TafFormatter
 @dataclass
 class TafData:
     """Class to hold decoded TAF data
-    
+
     This is a pure data container. Formatting logic is handled by TafFormatter.
     """
 
@@ -24,7 +24,7 @@ class TafData:
 
     def __str__(self) -> str:
         """Return a human-readable string of the decoded TAF
-        
+
         Delegates to TafFormatter for the actual formatting.
         """
         return TafFormatter.format(self)

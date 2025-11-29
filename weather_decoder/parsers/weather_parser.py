@@ -8,7 +8,7 @@ from .base_parser import StopConditionMixin, TokenParser
 
 class WeatherParser(TokenParser, StopConditionMixin):
     """Parser for weather phenomena in METAR and TAF reports
-    
+
     Handles weather phenomena encoding:
     - Intensity: - (light), + (heavy), VC (vicinity)
     - Descriptors: MI, PR, BC, DR, BL, SH, TS, FZ
@@ -21,10 +21,10 @@ class WeatherParser(TokenParser, StopConditionMixin):
 
     def parse(self, token: str) -> Optional[Dict]:
         """Parse a weather phenomena token into structured data
-        
+
         Args:
             token: A single token that may contain weather phenomena
-            
+
         Returns:
             Dictionary with weather data if token matches, None otherwise
         """
@@ -60,7 +60,7 @@ class WeatherParser(TokenParser, StopConditionMixin):
         for desc_code, desc_value in WEATHER_DESCRIPTORS.items():
             if remaining.startswith(desc_code):
                 descriptor = desc_value
-                remaining = remaining[len(desc_code):]
+                remaining = remaining[len(desc_code) :]
                 has_weather = True
                 break
 
@@ -92,13 +92,13 @@ class WeatherParser(TokenParser, StopConditionMixin):
 
     def extract_weather(self, parts: List[str]) -> List[Dict]:
         """Extract all weather phenomena from weather report parts
-        
+
         This method extracts all weather tokens until a stop
         token (trend indicator) is encountered.
-        
+
         Args:
             parts: List of tokens from the weather report (modified in place)
-            
+
         Returns:
             List of weather phenomena dictionaries
         """

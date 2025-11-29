@@ -9,10 +9,10 @@ from typing import Dict, List
 
 def format_wind(wind: Dict) -> str:
     """Format wind information into a readable string
-    
+
     Args:
         wind: Dictionary with wind data (direction, speed, unit, etc.)
-        
+
     Returns:
         Human-readable wind string
     """
@@ -39,10 +39,10 @@ def format_wind(wind: Dict) -> str:
 
 def format_visibility(visibility: Dict) -> str:
     """Format visibility information into a readable string
-    
+
     Args:
         visibility: Dictionary with visibility data
-        
+
     Returns:
         Human-readable visibility string
     """
@@ -155,10 +155,10 @@ def _format_minimum_visibility(min_vis: Dict) -> str:
 
 def format_temperature(temp_value: float) -> str:
     """Format temperature value
-    
+
     Args:
         temp_value: Temperature in Celsius
-        
+
     Returns:
         Formatted temperature string
     """
@@ -167,10 +167,10 @@ def format_temperature(temp_value: float) -> str:
 
 def format_pressure(pressure: Dict) -> str:
     """Format pressure information
-    
+
     Args:
         pressure: Dictionary with pressure data (value, unit)
-        
+
     Returns:
         Formatted pressure string
     """
@@ -179,10 +179,10 @@ def format_pressure(pressure: Dict) -> str:
 
 def format_sky_condition(sky: Dict) -> str:
     """Format a single sky condition
-    
+
     Args:
         sky: Dictionary with sky condition data
-        
+
     Returns:
         Human-readable sky condition string
     """
@@ -210,7 +210,7 @@ def format_sky_condition(sky: Dict) -> str:
             height_str = f"{sky['height']} feet"
 
         result = f"{sky_type} clouds at {height_str}"
-        
+
         # Add cloud type modifiers
         if sky.get("cb"):
             result += " (CB)"
@@ -218,16 +218,16 @@ def format_sky_condition(sky: Dict) -> str:
             result += " (TCU)"
         elif sky.get("unknown_type"):
             result += " (unknown type)"
-            
+
         return result
 
 
 def format_weather_group(weather: Dict) -> str:
     """Format a weather phenomena group
-    
+
     Args:
         weather: Dictionary with weather phenomena data
-        
+
     Returns:
         Human-readable weather string
     """
@@ -247,18 +247,18 @@ def format_weather_group(weather: Dict) -> str:
 
 def format_sky_conditions_list(sky_conditions: List[Dict]) -> List[str]:
     """Format a list of sky conditions
-    
+
     Args:
         sky_conditions: List of sky condition dictionaries
-        
+
     Returns:
         List of formatted sky condition strings
     """
     lines: List[str] = []
-    
+
     for sky in sky_conditions:
         sky_type = sky["type"]
-        
+
         if sky_type in ["CLR", "SKC"]:
             lines.append("Clear skies")
         elif sky_type == "NSC":
@@ -292,31 +292,31 @@ def format_sky_conditions_list(sky_conditions: List[Dict]) -> List[str]:
                 height_str = "unknown height"
             else:
                 height_str = f"{sky['height']} feet"
-            
+
             line = f"{sky_type} clouds at {height_str}"
-            
+
             if sky.get("cb") or sky.get("tcu"):
                 cb_tcu = "CB" if sky.get("cb") else "TCU"
                 line += f" ({cb_tcu})"
             elif sky.get("unknown_type"):
                 line += " (unknown type)"
-            
+
             lines.append(line)
-    
+
     return lines
 
 
 def format_weather_groups_list(weather_groups: List[Dict]) -> List[str]:
     """Format a list of weather phenomena
-    
+
     Args:
         weather_groups: List of weather phenomena dictionaries
-        
+
     Returns:
         List of formatted weather strings
     """
     lines: List[str] = []
-    
+
     for wx in weather_groups:
         intensity = wx.get("intensity", "")
         descriptor = wx.get("descriptor", "")
@@ -332,6 +332,5 @@ def format_weather_groups_list(weather_groups: List[Dict]) -> List[str]:
                 wx_text.append(", ".join(phenomena))
 
             lines.append(" ".join(wx_text))
-    
-    return lines
 
+    return lines

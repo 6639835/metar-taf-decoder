@@ -11,7 +11,7 @@ from ..formatters.metar_formatter import MetarFormatter
 @dataclass
 class MetarData:
     """Class to hold decoded METAR data
-    
+
     This is a pure data container. Formatting logic is handled by MetarFormatter.
     """
 
@@ -40,7 +40,7 @@ class MetarData:
 
     def __str__(self) -> str:
         """Return a human-readable string of the decoded METAR
-        
+
         Delegates to MetarFormatter for the actual formatting.
         """
         return MetarFormatter.format(self)

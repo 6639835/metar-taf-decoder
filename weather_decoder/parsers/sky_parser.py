@@ -10,7 +10,7 @@ from .base_parser import StopConditionMixin, TokenParser
 
 class SkyParser(TokenParser, StopConditionMixin):
     """Parser for sky conditions in METAR and TAF reports
-    
+
     Handles various sky condition formats:
     - Clear sky codes: SKC, CLR, NSC, NCD
     - Cloud layers: FEW, SCT, BKN, OVC with height
@@ -24,10 +24,10 @@ class SkyParser(TokenParser, StopConditionMixin):
 
     def parse(self, token: str) -> Optional[Dict]:
         """Parse a sky condition token into structured data
-        
+
         Args:
             token: A single token that may contain sky condition
-            
+
         Returns:
             Dictionary with sky data if token matches, None otherwise
         """
@@ -70,13 +70,13 @@ class SkyParser(TokenParser, StopConditionMixin):
 
     def extract_sky_conditions(self, parts: List[str]) -> List[Dict]:
         """Extract all sky conditions from weather report parts
-        
+
         This method extracts all sky condition tokens until a stop
         token (trend indicator) is encountered.
-        
+
         Args:
             parts: List of tokens from the weather report (modified in place)
-            
+
         Returns:
             List of sky condition dictionaries
         """
@@ -107,10 +107,10 @@ class SkyParser(TokenParser, StopConditionMixin):
     @staticmethod
     def get_sky_description(sky_type: str) -> str:
         """Get human-readable description for sky condition type
-        
+
         Args:
             sky_type: Sky condition code (e.g., 'SKC', 'FEW', 'SCT')
-            
+
         Returns:
             Human-readable description
         """

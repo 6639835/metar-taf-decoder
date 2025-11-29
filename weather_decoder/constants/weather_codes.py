@@ -46,4 +46,3 @@ WEATHER_PHENOMENA = {
     "SS": "sandstorm",
     "DS": "duststorm",
 }
-

@@ -12,4 +12,3 @@ PRESSURE_TENDENCY_CHARACTERISTICS = {
     7: "Decreasing steadily or unsteadily",
     8: "Steady or increasing, then decreasing; or decreasing then decreasing more rapidly",
 }
-

@@ -34,4 +34,3 @@ DIRECTION_ABBREV = {
     "S": "south",
     "W": "west",
 }
-

@@ -83,4 +83,3 @@ __all__ = [
     # Military
     "MILITARY_COLOR_CODES",
 ]
-

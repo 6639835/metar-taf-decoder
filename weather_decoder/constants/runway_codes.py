@@ -75,4 +75,3 @@ RUNWAY_BRAKING_REMARKS = {
     95: "Good",
     99: "Unreliable",
 }
-

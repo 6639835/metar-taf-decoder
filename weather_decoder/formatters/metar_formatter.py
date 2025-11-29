@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 class MetarFormatter:
     """Formatter for METAR data output
-    
+
     This class handles the conversion of MetarData objects into
     human-readable string representations.
     """
@@ -26,10 +26,10 @@ class MetarFormatter:
     @staticmethod
     def format(metar: "MetarData") -> str:
         """Format a MetarData object into a human-readable string
-        
+
         Args:
             metar: The MetarData object to format
-            
+
         Returns:
             Human-readable METAR string
         """
@@ -50,11 +50,13 @@ class MetarFormatter:
             return "\n".join(lines)
 
         # Basic info
-        lines.extend([
-            f"Type: {'AUTO' if metar.auto else 'Manual'} {metar.metar_type}",
-            f"Wind: {format_wind(metar.wind)}",
-            f"Visibility: {format_visibility(metar.visibility)}",
-        ])
+        lines.extend(
+            [
+                f"Type: {'AUTO' if metar.auto else 'Manual'} {metar.metar_type}",
+                f"Wind: {format_wind(metar.wind)}",
+                f"Visibility: {format_visibility(metar.visibility)}",
+            ]
+        )
 
         # RVR
         if metar.runway_visual_range:
@@ -84,10 +86,7 @@ class MetarFormatter:
 
         # Windshear
         if metar.windshear:
-            ws_descriptions = [
-                ws.get("description", ws.get("raw", "Wind shear reported"))
-                for ws in metar.windshear
-            ]
+            ws_descriptions = [ws.get("description", ws.get("raw", "Wind shear reported")) for ws in metar.windshear]
             lines.append(f"Windshear: {', '.join(ws_descriptions)}")
 
         # Temperature and dewpoint
@@ -121,7 +120,7 @@ class MetarFormatter:
     def _format_rvr(self, rvr_list: List[Dict]) -> List[str]:
         """Format runway visual range information"""
         lines = ["Runway Visual Range:"]
-        
+
         for rvr in rvr_list:
             if rvr.get("variable_range"):
                 # Variable RVR format
@@ -154,9 +153,9 @@ class MetarFormatter:
 
             if rvr.get("trend"):
                 rvr_line += f" ({rvr['trend']})"
-            
+
             lines.append(rvr_line)
-        
+
         return lines
 
     def _format_runway_conditions(self, conditions: List[Dict]) -> List[str]:
@@ -215,16 +214,12 @@ class MetarFormatter:
             elif key == "runway_state_reports_remarks":
                 lines.extend(self._format_runway_state_remarks(value))
             elif isinstance(value, dict):
-                lines.append(
-                    f"  {key}: {', '.join([f'{k}: {v}' for k, v in value.items()])}"
-                )
+                lines.append(f"  {key}: {', '.join([f'{k}: {v}' for k, v in value.items()])}")
             elif isinstance(value, list):
                 if value and isinstance(value[0], dict):
                     lines.append(f"  {key}:")
                     for item in value:
-                        lines.append(
-                            f"    {', '.join([f'{k}: {v}' for k, v in item.items()])}"
-                        )
+                        lines.append(f"    {', '.join([f'{k}: {v}' for k, v in item.items()])}")
                 else:
                     lines.append(f"  {key}: {', '.join(value)}")
             else:
@@ -235,7 +230,7 @@ class MetarFormatter:
     def _format_directional_info(self, info_list: List[Dict]) -> List[str]:
         """Format directional information"""
         lines = ["  Directional information:"]
-        
+
         for info in info_list:
             modifier = info.get("modifier", "")
             phenomenon = info.get("phenomenon", "")
@@ -254,18 +249,16 @@ class MetarFormatter:
                     else:
                         description.append(f"in the {dir_text}")
                 else:
-                    description.append(
-                        f"in the {', '.join(directions[:-1])} and {directions[-1]}"
-                    )
+                    description.append(f"in the {', '.join(directions[:-1])} and {directions[-1]}")
 
             lines.append(f"    {' '.join(description)}")
-        
+
         return lines
 
     def _format_runway_winds(self, winds: List[Dict]) -> List[str]:
         """Format runway-specific winds"""
         lines = ["  Runway-specific winds:"]
-        
+
         for wind in winds:
             runway = wind.get("runway", "")
             direction = wind.get("direction", "")
@@ -283,13 +276,13 @@ class MetarFormatter:
                 wind_text += f" (varying between {var_dir[0]}° and {var_dir[1]}°)"
 
             lines.append(wind_text)
-        
+
         return lines
 
     def _format_altitude_winds(self, winds: List[Dict]) -> List[str]:
         """Format altitude-specific winds"""
         lines = ["  Altitude-specific winds:"]
-        
+
         for wind in winds:
             altitude = wind.get("altitude", "")
             altitude_unit = wind.get("altitude_unit", "feet")
@@ -304,13 +297,13 @@ class MetarFormatter:
                 wind_text += f", gusting to {gust} {unit}"
 
             lines.append(wind_text)
-        
+
         return lines
 
     def _format_location_winds(self, winds: List[Dict]) -> List[str]:
         """Format location-specific winds"""
         lines = ["  Location-specific winds:"]
-        
+
         for wind in winds:
             location = wind.get("location", "")
             direction = wind.get("direction", "")
@@ -324,18 +317,17 @@ class MetarFormatter:
                 wind_text += f", gusting to {gust} {unit}"
 
             lines.append(wind_text)
-        
+
         return lines
 
     def _format_runway_state_remarks(self, reports: List[Dict]) -> List[str]:
         """Format runway state reports in remarks"""
         lines = ["  Runway State Reports in Remarks:"]
-        
+
         for report in reports:
             lines.append(
                 f"    Runway {report['runway']}: {report['deposit']}, "
                 f"{report['contamination']}, {report['depth']}, {report['braking']}"
             )
-        
-        return lines
 
+        return lines

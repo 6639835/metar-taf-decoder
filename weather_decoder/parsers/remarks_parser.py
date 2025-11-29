@@ -25,7 +25,7 @@ from ..utils.constants import (
 
 class RemarksParser:
     """Parser for METAR remarks section
-    
+
     The remarks section (RMK) contains supplementary weather information
     including precise temperature readings, pressure data, precipitation
     amounts, and various observational notes.
@@ -74,10 +74,10 @@ class RemarksParser:
 
     def parse(self, metar: str) -> Tuple[str, Dict]:
         """Parse the remarks section from a METAR string
-        
+
         Args:
             metar: The full METAR string
-            
+
         Returns:
             Tuple of (raw_remarks_string, decoded_remarks_dict)
         """
@@ -136,7 +136,7 @@ class RemarksParser:
         """Parse station type (AO1/AO2)"""
         ao2_pos = remarks.find("AO2")
         ao1_pos = remarks.find("AO1")
-        
+
         if ao2_pos >= 0:
             decoded["Station Type"] = "Automated station with precipitation discriminator"
             positions["Station Type"] = ao2_pos
@@ -150,14 +150,12 @@ class RemarksParser:
 
     def _parse_runway_winds(self, remarks: str, decoded: Dict) -> None:
         """Parse runway-specific wind information
-        
-        Handles both US format (WIND location dddssKT) and 
+
+        Handles both US format (WIND location dddssKT) and
         ICAO/European format (RWYxx dddssKT [dddVddd])
         """
         # US format: WIND location dddss(G)KT
-        wind_patterns = re.findall(
-            r"WIND\s+(\w+)\s+(\d{3})(\d{2,3})(?:G(\d{2,3}))?KT", remarks
-        )
+        wind_patterns = re.findall(r"WIND\s+(\w+)\s+(\d{3})(\d{2,3})(?:G(\d{2,3}))?KT", remarks)
         if wind_patterns:
             if "runway_winds" not in decoded:
                 decoded["runway_winds"] = []
@@ -197,9 +195,7 @@ class RemarksParser:
 
     def _parse_peak_wind(self, remarks: str, decoded: Dict) -> None:
         """Parse peak wind information (PK WND dddss/hhmm)"""
-        pk_wnd_match = re.search(
-            r"PK\s+WND\s+(\d{3})(\d{2,3})/(\d{2})(\d{2})", remarks
-        )
+        pk_wnd_match = re.search(r"PK\s+WND\s+(\d{3})(\d{2,3})/(\d{2})(\d{2})", remarks)
         if pk_wnd_match:
             pk_direction = int(pk_wnd_match.group(1))
             pk_speed = int(pk_wnd_match.group(2))
@@ -233,7 +229,7 @@ class RemarksParser:
 
     def _parse_pressure_tendency(self, remarks: str, decoded: Dict) -> None:
         """Parse pressure tendency (5appp format)
-        
+
         5 = group identifier
         a = pressure characteristic (0-8)
         ppp = pressure change in tenths of hPa
@@ -243,9 +239,7 @@ class RemarksParser:
             characteristic = int(pressure_tendency_match.group(1))
             change_tenths = int(pressure_tendency_match.group(2))
             change_hpa = change_tenths / 10
-            char_desc = PRESSURE_TENDENCY_CHARACTERISTICS.get(
-                characteristic, f"Unknown ({characteristic})"
-            )
+            char_desc = PRESSURE_TENDENCY_CHARACTERISTICS.get(characteristic, f"Unknown ({characteristic})")
             decoded["Pressure Tendency"] = f"{char_desc}; change: {change_hpa:.1f} hPa"
 
     def _parse_qfe(self, remarks: str, decoded: Dict) -> None:
@@ -288,9 +282,7 @@ class RemarksParser:
 
     def _parse_24hr_temperature_extremes(self, remarks: str, decoded: Dict) -> None:
         """Parse 24-hour temperature extremes (4snTTTsnTTT format)"""
-        temp_extremes_match = re.search(
-            r"(?<!\d)4([01])(\d{3})([01])(\d{3})(?!\d)", remarks
-        )
+        temp_extremes_match = re.search(r"(?<!\d)4([01])(\d{3})([01])(\d{3})(?!\d)", remarks)
         if temp_extremes_match:
             max_sign = -1 if temp_extremes_match.group(1) == "1" else 1
             max_temp_tenths = int(temp_extremes_match.group(2))
@@ -361,16 +353,10 @@ class RemarksParser:
             min_vis = self._parse_visibility_fraction(min_vis_str)
             max_vis = self._parse_visibility_fraction(max_vis_str)
 
-            min_vis_display = (
-                str(int(min_vis)) if min_vis == int(min_vis) else min_vis_str
-            )
-            max_vis_display = (
-                str(int(max_vis)) if max_vis == int(max_vis) else max_vis_str
-            )
+            min_vis_display = str(int(min_vis)) if min_vis == int(min_vis) else min_vis_str
+            max_vis_display = str(int(max_vis)) if max_vis == int(max_vis) else max_vis_str
 
-            decoded["Variable Visibility"] = (
-                f"{min_vis_display} to {max_vis_display} statute miles"
-            )
+            decoded["Variable Visibility"] = f"{min_vis_display} to {max_vis_display} statute miles"
 
     def _parse_surface_visibility(self, remarks: str, decoded: Dict) -> None:
         """Parse surface visibility (SFC VIS vv)"""
@@ -400,7 +386,7 @@ class RemarksParser:
 
     def _parse_past_weather(self, remarks: str, decoded: Dict) -> None:
         """Parse past weather events (e.g., RAB11E24, FZRAB29E44)
-        
+
         Format: [descriptor][phenomenon]B[time]E[time]...
         B = began, E = ended
         """
@@ -421,16 +407,12 @@ class RemarksParser:
             # Build weather type string
             weather_parts = []
             if descriptor:
-                weather_parts.append(
-                    WEATHER_DESCRIPTORS.get(descriptor, descriptor.lower())
-                )
-            weather_parts.append(
-                WEATHER_PHENOMENA.get(phenomenon, phenomenon.lower())
-            )
+                weather_parts.append(WEATHER_DESCRIPTORS.get(descriptor, descriptor.lower()))
+            weather_parts.append(WEATHER_PHENOMENA.get(phenomenon, phenomenon.lower()))
             weather_type = " ".join(weather_parts)
 
             # Extract all B/E events
-            events_str = full_match[len(descriptor) + len(phenomenon):]
+            events_str = full_match[len(descriptor) + len(phenomenon) :]
             event_matches = re.findall(r"([BE])(\d{2})", events_str)
 
             # Build event descriptions
@@ -440,16 +422,14 @@ class RemarksParser:
                 event_descriptions.append(f"{action_text} at minute {time}")
 
             if event_descriptions:
-                past_weather_events.append(
-                    f"{weather_type} {', '.join(event_descriptions)}"
-                )
+                past_weather_events.append(f"{weather_type} {', '.join(event_descriptions)}")
 
         if past_weather_events:
             decoded["Past Weather"] = "; ".join(past_weather_events)
 
     def _parse_lightning(self, remarks: str, decoded: Dict) -> None:
         """Parse lightning information
-        
+
         Format: [FRQ|OCNL|CONS] LTG[IC|CC|CG|CA]* [DSNT|VC|OHD] [directions]
         """
         ltg_match = re.search(
@@ -474,7 +454,7 @@ class RemarksParser:
             if ltg_types:
                 types = []
                 for i in range(0, len(ltg_types), 2):
-                    lt = ltg_types[i:i + 2]
+                    lt = ltg_types[i : i + 2]
                     types.append(LIGHTNING_TYPES.get(lt, lt))
                 ltg_parts.append(" and ".join(types) + " lightning")
             else:
@@ -529,7 +509,7 @@ class RemarksParser:
 
     def _parse_thunderstorm_location(self, remarks: str, decoded: Dict) -> None:
         """Parse thunderstorm location and movement
-        
+
         Format: TS [DSNT|VC|OHD|ALQDS] [directions] [MOV direction]
         """
         ts_match = re.search(
@@ -577,8 +557,7 @@ class RemarksParser:
     def _parse_acsl(self, remarks: str, decoded: Dict) -> None:
         """Parse ACSL (Altocumulus Standing Lenticular) clouds"""
         acsl_match = re.search(
-            r"ACSL\s*(DSNT|VC|OHD)?\s*([NSEW]+(?:-[NSEW]+)?)?\s*"
-            r"(?:MOV\s+([NSEW]+(?:-[NSEW]+)?))?",
+            r"ACSL\s*(DSNT|VC|OHD)?\s*([NSEW]+(?:-[NSEW]+)?)?\s*" r"(?:MOV\s+([NSEW]+(?:-[NSEW]+)?))?",
             remarks,
         )
         if acsl_match:
@@ -609,7 +588,7 @@ class RemarksParser:
 
     def _parse_cloud_types(self, remarks: str, decoded: Dict) -> None:
         """Parse cloud type codes
-        
+
         Handles:
         - Japanese/ICAO format: {oktas}{cloud_type}{height} e.g., 1CU007, 3SC015
         - Canadian format: {cloud_type}{oktas} e.g., SC6, AC3
@@ -618,34 +597,24 @@ class RemarksParser:
         cloud_types_found = []
 
         # Japanese/ICAO format
-        japan_cloud_matches = re.findall(
-            r"\b(\d)(TCU|SN|SC|ST|CU|CB|CI|CS|CC|AC|AS|NS|CF|SF)(\d{3})\b", remarks
-        )
+        japan_cloud_matches = re.findall(r"\b(\d)(TCU|SN|SC|ST|CU|CB|CI|CS|CC|AC|AS|NS|CF|SF)(\d{3})\b", remarks)
         for oktas, cloud_code, height in japan_cloud_matches:
             cloud_name = CLOUD_TYPE_CODES.get(cloud_code, cloud_code)
             height_ft = int(height) * 100
-            cloud_types_found.append(
-                f"{cloud_name} {oktas}/8 sky coverage at {height_ft} feet"
-            )
+            cloud_types_found.append(f"{cloud_name} {oktas}/8 sky coverage at {height_ft} feet")
 
         # Canadian format (only if no Japanese format found)
         if not japan_cloud_matches:
-            cloud_type_matches = re.findall(
-                r"(TCU|SN|SC|ST|CU|CB|CI|CS|CC|AC|AS|NS|CF|SF)(\d)(?!\d{2})", remarks
-            )
+            cloud_type_matches = re.findall(r"(TCU|SN|SC|ST|CU|CB|CI|CS|CC|AC|AS|NS|CF|SF)(\d)(?!\d{2})", remarks)
             for cloud_code, oktas in cloud_type_matches:
                 cloud_name = CLOUD_TYPE_CODES.get(cloud_code, cloud_code)
                 cloud_types_found.append(f"{cloud_name} {oktas}/8 sky coverage")
 
         # Trace cloud patterns
-        trace_cloud_matches = re.findall(
-            r"\b(TCU|SN|SC|ST|CU|CB|CI|CS|CC|AC|AS|NS|CF|SF)\s+TR\b", remarks
-        )
+        trace_cloud_matches = re.findall(r"\b(TCU|SN|SC|ST|CU|CB|CI|CS|CC|AC|AS|NS|CF|SF)\s+TR\b", remarks)
         for cloud_code in trace_cloud_matches:
             cloud_name = CLOUD_TYPE_CODES.get(cloud_code, cloud_code)
-            cloud_types_found.append(
-                f"{cloud_name} trace (less than 1/8 sky coverage)"
-            )
+            cloud_types_found.append(f"{cloud_name} trace (less than 1/8 sky coverage)")
 
         if cloud_types_found:
             decoded["Cloud Types"] = "; ".join(cloud_types_found)
@@ -683,7 +652,7 @@ class RemarksParser:
 
     def _parse_runway_state_remarks(self, remarks: str, decoded: Dict) -> None:
         """Parse runway state in remarks (8-group format: 8RDEddBB)
-        
+
         8 = group identifier
         R = runway designator
         D = deposit type
@@ -691,9 +660,7 @@ class RemarksParser:
         dd = depth of deposit
         BB = braking action/friction coefficient
         """
-        runway_state_rmk_match = re.search(
-            r"(?<!\d)8(\d)(\d)(\d)(\d{2})(\d{2})(?!\d)", remarks
-        )
+        runway_state_rmk_match = re.search(r"(?<!\d)8(\d)(\d)(\d)(\d{2})(\d{2})(?!\d)", remarks)
         if runway_state_rmk_match:
             runway_digit = runway_state_rmk_match.group(1)
             deposit = runway_state_rmk_match.group(2)
@@ -709,14 +676,10 @@ class RemarksParser:
                 runway_desc = f"Runway {runway_num}x"
 
             # Deposit type
-            deposit_desc = RUNWAY_STATE_DEPOSIT_TYPES_REMARKS.get(
-                deposit, f"Unknown ({deposit})"
-            )
+            deposit_desc = RUNWAY_STATE_DEPOSIT_TYPES_REMARKS.get(deposit, f"Unknown ({deposit})")
 
             # Extent of contamination
-            extent_desc = RUNWAY_STATE_EXTENT_REMARKS.get(
-                extent, f"Unknown ({extent})"
-            )
+            extent_desc = RUNWAY_STATE_EXTENT_REMARKS.get(extent, f"Unknown ({extent})")
 
             # Depth of deposit
             depth_val = int(depth_raw)
@@ -727,8 +690,7 @@ class RemarksParser:
             braking_desc = self._decode_braking_action(braking_val, braking_raw)
 
             decoded["Runway State (Remarks)"] = (
-                f"{runway_desc}: {deposit_desc}, {extent_desc} coverage, "
-                f"depth {depth_desc}, braking {braking_desc}"
+                f"{runway_desc}: {deposit_desc}, {extent_desc} coverage, " f"depth {depth_desc}, braking {braking_desc}"
             )
 
     @staticmethod
@@ -787,7 +749,7 @@ class RemarksParser:
     def _parse_sensor_status(self, remarks: str, decoded: Dict) -> None:
         """Parse sensor status indicators"""
         sensor_status = []
-        
+
         sensor_indicators = {
             "PWINO": "Present Weather Identifier not operational",
             "TSNO": "Thunderstorm sensor not operational",
@@ -797,7 +759,7 @@ class RemarksParser:
             "CHINO": "Ceiling height indicator not operational",
             "RVRNO": "RVR sensor not operational",
         }
-        
+
         for code, description in sensor_indicators.items():
             if code in remarks:
                 sensor_status.append(description)
@@ -805,9 +767,7 @@ class RemarksParser:
         if sensor_status:
             decoded["Sensor Status"] = "; ".join(sensor_status)
 
-    def _parse_maintenance_indicator(
-        self, remarks: str, decoded: Dict, positions: Dict
-    ) -> None:
+    def _parse_maintenance_indicator(self, remarks: str, decoded: Dict, positions: Dict) -> None:
         """Parse maintenance indicator ($)"""
         if "$" in remarks:
             decoded["Maintenance Indicator"] = "Station requires maintenance"
@@ -817,9 +777,7 @@ class RemarksParser:
     # Utility Methods
     # =========================================================================
 
-    def _sort_by_position(
-        self, remarks: str, decoded: Dict, positions: Dict
-    ) -> Dict:
+    def _sort_by_position(self, remarks: str, decoded: Dict, positions: Dict) -> Dict:
         """Sort decoded dict by position in original remarks string"""
         # Find positions for keys not already tracked
         for key in decoded:
@@ -827,9 +785,7 @@ class RemarksParser:
                 patterns = self._key_patterns.get(key, [])
                 min_pos = len(remarks)  # Default to end
                 for pattern in patterns:
-                    if pattern.startswith(r"") or any(
-                        c in pattern for c in r"\d[]{}+*?"
-                    ):
+                    if pattern.startswith(r"") or any(c in pattern for c in r"\d[]{}+*?"):
                         # It's a regex pattern
                         match = re.search(pattern, remarks)
                         if match:
@@ -842,7 +798,4 @@ class RemarksParser:
                 positions[key] = min_pos
 
         # Sort decoded dict by position
-        return dict(
-            sorted(decoded.items(), key=lambda x: positions.get(x[0], len(remarks)))
-        )
-
+        return dict(sorted(decoded.items(), key=lambda x: positions.get(x[0], len(remarks))))

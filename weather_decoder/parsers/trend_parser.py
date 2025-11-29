@@ -12,12 +12,12 @@ from ..constants.change_codes import TREND_TYPES
 
 class TrendParser:
     """Parser for trend information in METAR reports
-    
+
     Trends indicate expected changes in weather conditions:
     - NOSIG: No significant changes expected in next 2 hours
     - BECMG: Becoming - gradual change expected
     - TEMPO: Temporary - fluctuations expected
-    
+
     Time indicators:
     - FM (From): Changes starting from specified time
     - TL (Till): Changes until specified time
@@ -26,7 +26,7 @@ class TrendParser:
 
     def __init__(self, wind_parser=None, sky_parser=None, weather_parser=None):
         """Initialize the trend parser with optional dependent parsers
-        
+
         Args:
             wind_parser: WindParser instance for parsing wind changes
             sky_parser: SkyParser instance for parsing sky changes
@@ -38,10 +38,10 @@ class TrendParser:
 
     def extract_trends(self, parts: List[str]) -> List[Dict]:
         """Extract and decode trend information from METAR parts
-        
+
         Args:
             parts: List of tokens from the weather report (modified in place)
-            
+
         Returns:
             List of trend dictionaries
         """
@@ -59,16 +59,14 @@ class TrendParser:
 
         return trends
 
-    def _parse_trend_group(
-        self, trend_type: str, parts: List[str], start_idx: int
-    ) -> Dict:
+    def _parse_trend_group(self, trend_type: str, parts: List[str], start_idx: int) -> Dict:
         """Parse a single trend group
-        
+
         Args:
             trend_type: The type of trend (NOSIG, BECMG, TEMPO)
             parts: Remaining parts list
             start_idx: Index to start parsing from
-            
+
         Returns:
             Trend dictionary
         """
@@ -101,9 +99,7 @@ class TrendParser:
                 weather_changes.append(change)
 
         # Build description
-        description = self._build_trend_description(
-            trend_type, time_info, weather_changes
-        )
+        description = self._build_trend_description(trend_type, time_info, weather_changes)
 
         return {
             "type": trend_type,
@@ -115,11 +111,11 @@ class TrendParser:
 
     def _parse_time_indicator(self, element: str, time_info: Dict) -> bool:
         """Parse time indicator from element
-        
+
         Args:
             element: The element to parse
             time_info: Dictionary to store parsed time (modified in place)
-            
+
         Returns:
             True if a time indicator was parsed, False otherwise
         """
@@ -145,10 +141,10 @@ class TrendParser:
 
     def _parse_weather_change(self, element: str) -> Optional[str]:
         """Parse a weather change element
-        
+
         Args:
             element: The element to parse
-            
+
         Returns:
             Description of the change, or None
         """
@@ -163,18 +159,14 @@ class TrendParser:
                 return f"visibility {vis_value}m"
 
         # Wind changes
-        wind_match = re.match(
-            r"(\d{3}|VRB)\d{2,3}(G\d{2,3})?(KT|MPS|KMH)", element
-        )
+        wind_match = re.match(r"(\d{3}|VRB)\d{2,3}(G\d{2,3})?(KT|MPS|KMH)", element)
         if wind_match and self.wind_parser:
             wind_info = self.wind_parser.parse(element)
             if wind_info:
                 return self._format_wind_change(wind_info)
 
         # Cloud changes
-        cloud_match = re.match(
-            r"(SKC|CLR|NSC|NCD|FEW|SCT|BKN|OVC|VV)(\d{3}|///)?", element
-        )
+        cloud_match = re.match(r"(SKC|CLR|NSC|NCD|FEW|SCT|BKN|OVC|VV)(\d{3}|///)?", element)
         if cloud_match and self.sky_parser:
             sky_info = self.sky_parser.parse(element)
             if sky_info:
@@ -182,8 +174,7 @@ class TrendParser:
 
         # Weather phenomena
         wx_match = re.match(
-            r"^[-+]?(VC)?(MI|PR|BC|DR|BL|SH|TS|FZ)?"
-            r"(DZ|RA|SN|SG|IC|PL|GR|GS|UP|BR|FG|FU|VA|DU|SA|HZ|PY|PO|SQ|FC|SS|DS)+",
+            r"^[-+]?(VC)?(MI|PR|BC|DR|BL|SH|TS|FZ)?" r"(DZ|RA|SN|SG|IC|PL|GR|GS|UP|BR|FG|FU|VA|DU|SA|HZ|PY|PO|SQ|FC|SS|DS)+",
             element,
         )
         if wx_match and self.weather_parser:
@@ -203,11 +194,7 @@ class TrendParser:
 
     def _format_wind_change(self, wind_info: Dict) -> str:
         """Format wind change for trend description"""
-        dir_text = (
-            "variable"
-            if wind_info["direction"] == "VRB"
-            else f"{wind_info['direction']}°"
-        )
+        dir_text = "variable" if wind_info["direction"] == "VRB" else f"{wind_info['direction']}°"
         wind_desc = f"wind {dir_text} at {wind_info['speed']} {wind_info['unit']}"
         if wind_info.get("gust"):
             wind_desc += f" gusting {wind_info['gust']}"
@@ -216,7 +203,7 @@ class TrendParser:
     def _format_sky_change(self, sky_info: Dict) -> str:
         """Format sky condition change for trend description"""
         sky_type = sky_info["type"]
-        
+
         if sky_type in ["SKC", "CLR"]:
             return "sky clear"
         elif sky_type == "NSC":
@@ -253,12 +240,12 @@ class TrendParser:
         weather_changes: List[str],
     ) -> str:
         """Build human-readable trend description
-        
+
         Args:
             trend_type: BECMG or TEMPO
             time_info: Parsed time information
             weather_changes: List of weather change descriptions
-            
+
         Returns:
             Human-readable description
         """
@@ -286,4 +273,3 @@ class TrendParser:
             parts.append(", ".join(weather_changes))
 
         return " ".join(parts)
-

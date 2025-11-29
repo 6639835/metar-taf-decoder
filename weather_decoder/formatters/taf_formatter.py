@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 class TafFormatter:
     """Formatter for TAF data output
-    
+
     This class handles the conversion of TafData objects into
     human-readable string representations.
     """
@@ -26,10 +26,10 @@ class TafFormatter:
     @staticmethod
     def format(taf: "TafData") -> str:
         """Format a TafData object into a human-readable string
-        
+
         Args:
             taf: The TafData object to format
-            
+
         Returns:
             Human-readable TAF string
         """
@@ -124,10 +124,7 @@ class TafFormatter:
         elif change_type == "FM":
             from_time = period.get("from_time")
             if from_time:
-                return (
-                    f"From {from_time.day:02d} "
-                    f"{from_time.hour:02d}:{from_time.minute:02d} UTC{prob_text}:"
-                )
+                return f"From {from_time.day:02d} " f"{from_time.hour:02d}:{from_time.minute:02d} UTC{prob_text}:"
             return f"From (unknown time){prob_text}:"
         elif change_type == "PROB":
             prob = period.get("probability", 0)
@@ -147,10 +144,7 @@ class TafFormatter:
             )
         elif period.get("from_time"):
             from_time = period["from_time"]
-            return (
-                f" {from_time.day:02d} "
-                f"{from_time.hour:02d}:{from_time.minute:02d} UTC"
-            )
+            return f" {from_time.day:02d} " f"{from_time.hour:02d}:{from_time.minute:02d} UTC"
         return ""
 
     def _format_probability(self, period: Dict) -> str:
@@ -167,18 +161,12 @@ class TafFormatter:
             if period.get("temperature_max_list"):
                 for i, temp in enumerate(period["temperature_max_list"]):
                     prefix = "," if i > 0 else ""
-                    parts.append(
-                        f"{prefix} max {temp['value']}°C at "
-                        f"{temp['time'].strftime('%d/%H:%M')} UTC"
-                    )
+                    parts.append(f"{prefix} max {temp['value']}°C at " f"{temp['time'].strftime('%d/%H:%M')} UTC")
 
             if period.get("temperature_min_list"):
                 for i, temp in enumerate(period["temperature_min_list"]):
                     prefix = "," if parts or i > 0 else ""
-                    parts.append(
-                        f"{prefix} min {temp['value']}°C at "
-                        f"{temp['time'].strftime('%d/%H:%M')} UTC"
-                    )
+                    parts.append(f"{prefix} min {temp['value']}°C at " f"{temp['time'].strftime('%d/%H:%M')} UTC")
 
         # Fallback for backward compatibility
         elif period.get("temperature_min") is not None or period.get("temperature_max") is not None:
@@ -203,20 +191,15 @@ class TafFormatter:
         if taf.remarks_decoded:
             for key, value in taf.remarks_decoded.items():
                 if isinstance(value, dict):
-                    lines.append(
-                        f"  {key}: {', '.join([f'{k}: {v}' for k, v in value.items()])}"
-                    )
+                    lines.append(f"  {key}: {', '.join([f'{k}: {v}' for k, v in value.items()])}")
                 elif isinstance(value, list):
                     if value and isinstance(value[0], dict):
                         lines.append(f"  {key}:")
                         for item in value:
-                            lines.append(
-                                f"    {', '.join([f'{k}: {v}' for k, v in item.items()])}"
-                            )
+                            lines.append(f"    {', '.join([f'{k}: {v}' for k, v in item.items()])}")
                     else:
                         lines.append(f"  {key}: {', '.join(value)}")
                 else:
                     lines.append(f"  {key}: {value}")
 
         return lines
-

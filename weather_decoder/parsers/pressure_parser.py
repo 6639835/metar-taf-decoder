@@ -9,7 +9,7 @@ from .base_parser import TokenParser
 
 class PressureParser(TokenParser):
     """Parser for pressure/altimeter information in METAR and TAF reports
-    
+
     Handles various pressure formats:
     - US altimeter: Axxxx (e.g., A2992 = 29.92 inHg)
     - ICAO QNH: Qxxxx (e.g., Q1013 = 1013 hPa)
@@ -18,10 +18,10 @@ class PressureParser(TokenParser):
 
     def parse(self, token: str) -> Optional[Dict]:
         """Parse a pressure/altimeter token into structured data
-        
+
         Args:
             token: A single token that may contain pressure information
-            
+
         Returns:
             Dictionary with pressure data if token matches, None otherwise
         """
@@ -40,12 +40,12 @@ class PressureParser(TokenParser):
 
     def parse_qnh(self, token: str) -> Optional[Dict]:
         """Parse a QNH pressure token
-        
+
         QNH can appear in multiple formats in TAF reports.
-        
+
         Args:
             token: A single token that may contain QNH information
-            
+
         Returns:
             Dictionary with QNH data if token matches, None otherwise
         """
@@ -79,10 +79,10 @@ class PressureParser(TokenParser):
 
     def extract_altimeter(self, parts: List[str]) -> Optional[Dict]:
         """Extract altimeter information from METAR parts
-        
+
         Args:
             parts: List of tokens from the weather report (modified in place)
-            
+
         Returns:
             Dictionary with altimeter data if found, None otherwise
         """
@@ -95,10 +95,10 @@ class PressureParser(TokenParser):
 
     def extract_qnh(self, parts: List[str]) -> Optional[Dict]:
         """Extract QNH (pressure setting) information from TAF parts
-        
+
         Args:
             parts: List of tokens from the weather report (modified in place)
-            
+
         Returns:
             Dictionary with QNH data if found, None otherwise
         """
