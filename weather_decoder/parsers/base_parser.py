@@ -6,7 +6,7 @@ weather report tokens.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Generic, List, Optional, TypeVar
+from typing import Any, Dict, Generic, List, Optional, Tuple, TypeVar
 
 # Type variable for parser result types
 T = TypeVar("T")
@@ -109,7 +109,7 @@ class MultiTokenParser(BaseParser[List[Dict]]):
     handling multi-token parsing.
     """
 
-    def parse_with_lookahead(self, parts: List[str], start_index: int) -> tuple[Optional[List[Dict]], int]:
+    def parse_with_lookahead(self, parts: List[str], start_index: int) -> Tuple[Optional[List[Dict]], int]:
         """Parse tokens starting at the given index with lookahead
 
         This method allows parsers to consume multiple tokens when needed.
