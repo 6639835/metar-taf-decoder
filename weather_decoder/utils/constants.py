@@ -88,16 +88,11 @@ RUNWAY_DEPOSIT_TYPES = {
 
 # Runway state report - extent of contamination
 RUNWAY_EXTENT = {
-    "1": "less than 10%",
+    "1": "10% or less",
     "2": "11% to 25%",
-    "3": "26% to 50%",  # Not commonly used
-    "4": "51% to 75%",  # Not commonly used
     "5": "26% to 50%",
-    "6": "51% to 75%",  # Not commonly used
-    "7": "76% to 90%",  # Not commonly used
-    "8": "91% to 100%",  # Not commonly used
-    "9": "more than 51%",
-    "/": "not reported",
+    "9": "51% to 100%",
+    "/": "not reported (e.g. due to rwy clearance in progress)",
 }
 
 # Runway state report - braking action/friction coefficient
@@ -109,4 +104,104 @@ RUNWAY_BRAKING = {
     "95": "good",
     "99": "unreliable or unmeasurable",
     "//": "not reported",
+}
+
+# Pressure tendency characteristics (3-hour pressure tendency)
+PRESSURE_TENDENCY_CHARACTERISTICS = {
+    0: "Increasing, then decreasing",
+    1: "Increasing, then steady; or increasing then increasing more slowly",
+    2: "Increasing steadily or unsteadily",
+    3: "Decreasing or steady, then increasing; or increasing then increasing more rapidly",
+    4: "Steady",
+    5: "Decreasing, then increasing",
+    6: "Decreasing, then steady; or decreasing then decreasing more slowly",
+    7: "Decreasing steadily or unsteadily",
+    8: "Steady or increasing, then decreasing; or decreasing then decreasing more rapidly",
+}
+
+# Lightning frequency codes
+LIGHTNING_FREQUENCY = {
+    "FRQ": "frequent (more than 6 per minute)",
+    "OCNL": "occasional (1-6 per minute)",
+    "CONS": "continuous",
+}
+
+# Lightning type codes
+LIGHTNING_TYPES = {
+    "IC": "in-cloud",
+    "CC": "cloud-to-cloud",
+    "CG": "cloud-to-ground",
+    "CA": "cloud-to-air",
+}
+
+# Location/Distance indicators
+LOCATION_INDICATORS = {
+    "DSNT": "distant (10-30 NM)",
+    "VC": "in vicinity (5-10 NM)",
+    "OHD": "overhead",
+    "ALQDS": "all quadrants",
+}
+
+# Direction abbreviations
+DIRECTION_ABBREV = {
+    "NE": "northeast",
+    "NW": "northwest",
+    "SE": "southeast",
+    "SW": "southwest",
+    "N": "north",
+    "E": "east",
+    "S": "south",
+    "W": "west",
+}
+
+# Cloud type codes (ICAO/Canadian format)
+CLOUD_TYPE_CODES = {
+    "SC": "Stratocumulus",
+    "ST": "Stratus",
+    "CU": "Cumulus",
+    "CB": "Cumulonimbus",
+    "CI": "Cirrus",
+    "CS": "Cirrostratus",
+    "CC": "Cirrocumulus",
+    "AC": "Altocumulus",
+    "AS": "Altostratus",
+    "NS": "Nimbostratus",
+    "SN": "Nimbostratus",  # Canadian alternate for NS
+    "TCU": "Towering Cumulus",
+    "CF": "Cumulus Fractus",
+    "SF": "Stratus Fractus",
+}
+
+# Runway state deposit types (8-group remarks format)
+RUNWAY_STATE_DEPOSIT_TYPES_REMARKS = {
+    "0": "Clear and dry",
+    "1": "Damp",
+    "2": "Wet or water patches",
+    "3": "Rime or frost (normally less than 1mm deep)",
+    "4": "Dry snow",
+    "5": "Wet snow",
+    "6": "Slush",
+    "7": "Ice",
+    "8": "Compacted or rolled snow",
+    "9": "Frozen ruts or ridges",
+    "/": "Not reported",
+}
+
+# Runway state extent types (8-group remarks format)
+RUNWAY_STATE_EXTENT_REMARKS = {
+    "1": "10% or less",
+    "2": "11% to 25%",
+    "5": "26% to 50%",
+    "9": "51% to 100%",
+    "/": "Not reported",
+}
+
+# Runway braking action (8-group remarks format)
+RUNWAY_BRAKING_REMARKS = {
+    91: "Poor",
+    92: "Medium/Poor",
+    93: "Medium",
+    94: "Medium/Good",
+    95: "Good",
+    99: "Unreliable",
 }

@@ -12,7 +12,25 @@ from ..parsers.time_parser import TimeParser
 from ..parsers.visibility_parser import VisibilityParser
 from ..parsers.weather_parser import WeatherParser
 from ..parsers.wind_parser import WindParser
-from ..utils.constants import MILITARY_COLOR_CODES, RUNWAY_BRAKING, RUNWAY_DEPOSIT_TYPES, RUNWAY_EXTENT, TREND_TYPES
+from ..utils.constants import (
+    CLOUD_TYPE_CODES,
+    DIRECTION_ABBREV,
+    LIGHTNING_FREQUENCY,
+    LIGHTNING_TYPES,
+    LOCATION_INDICATORS,
+    MILITARY_COLOR_CODES,
+    PRESSURE_TENDENCY_CHARACTERISTICS,
+    RUNWAY_BRAKING,
+    RUNWAY_BRAKING_REMARKS,
+    RUNWAY_DEPOSIT_TYPES,
+    RUNWAY_EXTENT,
+    RUNWAY_STATE_DEPOSIT_TYPES_REMARKS,
+    RUNWAY_STATE_EXTENT_REMARKS,
+    RVR_TRENDS,
+    TREND_TYPES,
+    WEATHER_DESCRIPTORS,
+    WEATHER_PHENOMENA,
+)
 from ..utils.patterns import COMPILED_PATTERNS, RUNWAY_STATE_PATTERN, RVR_PATTERN
 
 
@@ -182,8 +200,7 @@ class MetarDecoder:
                     rvr["variable_more_than"] = variable_more_than
 
                 if trend:
-                    trend_map = {"U": "improving", "D": "deteriorating", "N": "no change"}
-                    rvr["trend"] = trend_map.get(trend, trend)
+                    rvr["trend"] = RVR_TRENDS.get(trend, trend)
 
                 rvr_list.append(rvr)
                 parts.pop(i)
@@ -438,7 +455,7 @@ class MetarDecoder:
                                 wind_desc += f" gusting {wind_info['gust']}"
                             weather_changes.append(wind_desc)
                     # Parse cloud changes
-                    elif re.match(r"(SKC|CLR|NSC|NCD|FEW|SCT|BKN|OVC|VV)\d{0,3}", element):
+                    elif re.match(r"(SKC|CLR|NSC|NCD|FEW|SCT|BKN|OVC|VV)(\d{3}|///)?", element):
                         sky_info = self.sky_parser.parse_sky_string(element)
                         if sky_info:
                             if sky_info["type"] in ["SKC", "CLR"]:
@@ -448,7 +465,10 @@ class MetarDecoder:
                             elif sky_info["type"] == "NCD":
                                 weather_changes.append("no cloud detected")
                             elif sky_info["type"] == "VV":
-                                weather_changes.append(f"vertical visibility {sky_info['height']}ft")
+                                if sky_info.get("unknown_height") or sky_info["height"] is None:
+                                    weather_changes.append("vertical visibility unknown")
+                                else:
+                                    weather_changes.append(f"vertical visibility {sky_info['height']}ft")
                             else:
                                 cloud_desc = f"{sky_info['type']} at {sky_info['height']}ft"
                                 if sky_info.get("cb"):
@@ -604,19 +624,7 @@ class MetarDecoder:
                 change_tenths = int(pressure_tendency_match.group(2))
                 change_hpa = change_tenths / 10
 
-                char_descriptions = {
-                    0: "Increasing, then decreasing",
-                    1: "Increasing, then steady; or increasing then increasing more slowly",
-                    2: "Increasing steadily or unsteadily",
-                    3: "Decreasing or steady, then increasing; or increasing then increasing more rapidly",
-                    4: "Steady",
-                    5: "Decreasing, then increasing",
-                    6: "Decreasing, then steady; or decreasing then decreasing more slowly",
-                    7: "Decreasing steadily or unsteadily",
-                    8: "Steady or increasing, then decreasing; or decreasing then decreasing more rapidly",
-                }
-
-                char_desc = char_descriptions.get(characteristic, f"Unknown ({characteristic})")
+                char_desc = PRESSURE_TENDENCY_CHARACTERISTICS.get(characteristic, f"Unknown ({characteristic})")
                 decoded["Pressure Tendency"] = f"{char_desc}; change: {change_hpa:.1f} hPa"
 
             # Temperature/dewpoint to tenths
@@ -715,9 +723,8 @@ class MetarDecoder:
 
             # Find all past weather groups in remarks
             # Pattern: optional descriptor + mandatory phenomenon + sequence of B/E events
-            past_weather_pattern = (
-                r"(MI|PR|BC|DR|BL|SH|TS|FZ)?(DZ|RA|SN|SG|IC|PL|GR|GS|UP|BR|FG|FU|VA|DU|SA|HZ|PY|PO|SQ|FC|SS|DS)(?:[BE]\d{2})+"
-            )
+            # Note: TS can be both a descriptor (TSRA) and a standalone phenomenon (TSB25)
+            past_weather_pattern = r"(MI|PR|BC|DR|BL|SH|TS|FZ)?(TS|DZ|RA|SN|SG|IC|PL|GR|GS|UP|BR|FG|FU|VA|DU|SA|HZ|PY|PO|SQ|FC|SS|DS)(?:[BE]\d{2})+"
             past_weather_matches = re.finditer(past_weather_pattern, remarks)
 
             past_weather_events = []
@@ -729,50 +736,11 @@ class MetarDecoder:
                 descriptor = match.group(1) or ""
                 phenomenon = match.group(2)
 
-                # Map weather codes to readable names
-                descriptor_map = {
-                    "FZ": "freezing",
-                    "SH": "shower",
-                    "TS": "thunderstorm",
-                    "MI": "shallow",
-                    "PR": "partial",
-                    "BC": "patches",
-                    "DR": "low drifting",
-                    "BL": "blowing",
-                }
-
-                phenomenon_map = {
-                    "TS": "thunderstorm",
-                    "RA": "rain",
-                    "SN": "snow",
-                    "DZ": "drizzle",
-                    "PL": "ice pellets",
-                    "GR": "hail",
-                    "GS": "small hail/snow pellets",
-                    "UP": "unknown precipitation",
-                    "IC": "ice crystals",
-                    "PE": "ice pellets",
-                    "SG": "snow grains",
-                    "BR": "mist",
-                    "FG": "fog",
-                    "FU": "smoke",
-                    "VA": "volcanic ash",
-                    "DU": "dust",
-                    "SA": "sand",
-                    "HZ": "haze",
-                    "PY": "spray",
-                    "PO": "dust/sand whirls",
-                    "SQ": "squalls",
-                    "FC": "funnel cloud",
-                    "SS": "sandstorm",
-                    "DS": "duststorm",
-                }
-
                 # Build weather type string
                 weather_parts = []
                 if descriptor:
-                    weather_parts.append(descriptor_map.get(descriptor, descriptor.lower()))
-                weather_parts.append(phenomenon_map.get(phenomenon, phenomenon.lower()))
+                    weather_parts.append(WEATHER_DESCRIPTORS.get(descriptor, descriptor.lower()))
+                weather_parts.append(WEATHER_PHENOMENA.get(phenomenon, phenomenon.lower()))
                 weather_type = " ".join(weather_parts)
 
                 # Extract all B/E events for this weather type
@@ -860,22 +828,16 @@ class MetarDecoder:
 
                 # Frequency
                 freq = ltg_match.group(1)
-                freq_map = {
-                    "FRQ": "frequent (more than 6 per minute)",
-                    "OCNL": "occasional (1-6 per minute)",
-                    "CONS": "continuous",
-                }
                 if freq:
-                    ltg_parts.append(freq_map.get(freq, freq))
+                    ltg_parts.append(LIGHTNING_FREQUENCY.get(freq, freq))
 
                 # Lightning types (optional)
                 ltg_types = ltg_match.group(2)
                 if ltg_types:
-                    type_map = {"IC": "in-cloud", "CC": "cloud-to-cloud", "CG": "cloud-to-ground", "CA": "cloud-to-air"}
                     types = []
                     for i in range(0, len(ltg_types), 2):
                         lt = ltg_types[i : i + 2]
-                        types.append(type_map.get(lt, lt))
+                        types.append(LIGHTNING_TYPES.get(lt, lt))
                     ltg_parts.append(" and ".join(types) + " lightning")
                 else:
                     # No specific type, just "lightning"
@@ -883,13 +845,8 @@ class MetarDecoder:
 
                 # Distance/location (can be in group 3 or group 6)
                 distance = ltg_match.group(3) or ltg_match.group(6)
-                loc_map = {
-                    "DSNT": "distant (10-30 NM)",
-                    "VC": "in vicinity (5-10 NM)",
-                    "OHD": "overhead",
-                }
                 if distance:
-                    ltg_parts.append(loc_map.get(distance, distance))
+                    ltg_parts.append(LOCATION_INDICATORS.get(distance, distance))
 
                 # ALQDS (all quadrants) in group 4
                 alqds = ltg_match.group(4)
@@ -901,19 +858,9 @@ class MetarDecoder:
                 if direction:
                     # Clean up direction string
                     direction = direction.replace("AND", "and")
-                    dir_map = {
-                        "NE": "northeast",
-                        "NW": "northwest",
-                        "SE": "southeast",
-                        "SW": "southwest",
-                        "N": "north",
-                        "E": "east",
-                        "S": "south",
-                        "W": "west",
-                    }
                     # Handle direction ranges like E-SE (east to southeast)
                     # Replace longer abbreviations first to avoid partial matches
-                    for abbr, full in dir_map.items():
+                    for abbr, full in DIRECTION_ABBREV.items():
                         direction = direction.replace(abbr, full)
                     # Convert hyphen to "to" for ranges
                     direction = direction.replace("-", " to ")
@@ -937,23 +884,51 @@ class MetarDecoder:
                     virga_parts.append(loc_map.get(location, location))
 
                 if direction:
-                    dir_map = {
-                        "NE": "northeast",
-                        "NW": "northwest",
-                        "SE": "southeast",
-                        "SW": "southwest",
-                        "N": "north",
-                        "E": "east",
-                        "S": "south",
-                        "W": "west",
-                    }
                     dir_text = direction
-                    for abbr, full in dir_map.items():
+                    for abbr, full in DIRECTION_ABBREV.items():
                         dir_text = dir_text.replace(abbr, full)
                     dir_text = dir_text.replace("-", " to ").replace("AND", "and")
                     virga_parts.append(f"to the {dir_text}")
 
                 decoded["Virga"] = " ".join(virga_parts)
+
+            # Thunderstorm location and movement (TS)
+            # Format: TS [DSNT|VC|OHD|ALQDS] [directions] [MOV direction]
+            # Example: TS OHD MOV E = Thunderstorm overhead, moving east
+            ts_match = re.search(
+                r"\bTS\s+(DSNT|VC|OHD|ALQDS)?\s*((?:(?:NE|NW|SE|SW|N|E|S|W)(?:-(?:NE|NW|SE|SW|N|E|S|W))?)(?:\s+AND\s+(?:NE|NW|SE|SW|N|E|S|W)(?:-(?:NE|NW|SE|SW|N|E|S|W))?)*)?\s*(?:MOV\s+((?:NE|NW|SE|SW|N|E|S|W)(?:-(?:NE|NW|SE|SW|N|E|S|W))?))?",
+                remarks,
+            )
+            if ts_match:
+                ts_parts = ["Thunderstorm"]
+                location = ts_match.group(1)
+                direction = ts_match.group(2)
+                movement = ts_match.group(3)
+
+                if location:
+                    loc_map = {
+                        "DSNT": "distant (10-30 NM)",
+                        "VC": "in vicinity (5-10 NM)",
+                        "OHD": "overhead",
+                        "ALQDS": "all quadrants",
+                    }
+                    ts_parts.append(loc_map.get(location, location))
+
+                if direction:
+                    dir_text = direction
+                    for abbr, full in DIRECTION_ABBREV.items():
+                        dir_text = dir_text.replace(abbr, full)
+                    dir_text = dir_text.replace("-", " to ").replace("AND", "and")
+                    ts_parts.append(f"to the {dir_text}")
+
+                if movement:
+                    mov_text = movement
+                    for abbr, full in DIRECTION_ABBREV.items():
+                        mov_text = mov_text.replace(abbr, full)
+                    mov_text = mov_text.replace("-", " to ")
+                    ts_parts.append(f"moving {mov_text}")
+
+                decoded["Thunderstorm Location"] = " ".join(ts_parts)
 
             # ACSL (Altocumulus Standing Lenticular) clouds
             # Format: ACSL [DSNT|VC|OHD] [direction] [MOV direction]
@@ -971,25 +946,15 @@ class MetarDecoder:
                     acsl_parts.append(loc_map.get(location, location))
 
                 if direction:
-                    dir_map = {
-                        "NE": "northeast",
-                        "NW": "northwest",
-                        "SE": "southeast",
-                        "SW": "southwest",
-                        "N": "north",
-                        "E": "east",
-                        "S": "south",
-                        "W": "west",
-                    }
                     dir_text = direction
-                    for abbr, full in dir_map.items():
+                    for abbr, full in DIRECTION_ABBREV.items():
                         dir_text = dir_text.replace(abbr, full)
                     dir_text = dir_text.replace("-", " to ")
                     acsl_parts.append(f"to the {dir_text}")
 
                 if movement:
                     mov_text = movement
-                    for abbr, full in dir_map.items():
+                    for abbr, full in DIRECTION_ABBREV.items():
                         mov_text = mov_text.replace(abbr, full)
                     mov_text = mov_text.replace("-", " to ")
                     acsl_parts.append(f"moving {mov_text}")
@@ -1000,47 +965,31 @@ class MetarDecoder:
             # Format: XX# where XX is cloud type abbreviation and # is oktas (1-8)
             # SC = Stratocumulus, ST = Stratus, CU = Cumulus, CB = Cumulonimbus
             # CI = Cirrus, CS = Cirrostratus, CC = Cirrocumulus
-            # AC = Altocumulus, AS = Altostratus, NS = Nimbostratus, TCU = Towering Cumulus
-            cloud_type_codes = {
-                "SC": "Stratocumulus",
-                "ST": "Stratus",
-                "CU": "Cumulus",
-                "CB": "Cumulonimbus",
-                "CI": "Cirrus",
-                "CS": "Cirrostratus",
-                "CC": "Cirrocumulus",
-                "AC": "Altocumulus",
-                "AS": "Altostratus",
-                "NS": "Nimbostratus",
-                "TCU": "Towering Cumulus",
-                "CF": "Cumulus Fractus",
-                "SF": "Stratus Fractus",
-            }
-
+            # AC = Altocumulus, AS = Altostratus, NS/SN = Nimbostratus, TCU = Towering Cumulus
             cloud_types_found = []
 
             # Japanese/ICAO format: {oktas}{cloud_type}{height} e.g., 1CU007, 3SC015
             # oktas first, then cloud type, then height in hundreds of feet
-            japan_cloud_matches = re.findall(r"\b(\d)(TCU|SC|ST|CU|CB|CI|CS|CC|AC|AS|NS|CF|SF)(\d{3})\b", remarks)
+            japan_cloud_matches = re.findall(r"\b(\d)(TCU|SN|SC|ST|CU|CB|CI|CS|CC|AC|AS|NS|CF|SF)(\d{3})\b", remarks)
             for oktas, cloud_code, height in japan_cloud_matches:
-                cloud_name = cloud_type_codes.get(cloud_code, cloud_code)
+                cloud_name = CLOUD_TYPE_CODES.get(cloud_code, cloud_code)
                 height_ft = int(height) * 100
                 cloud_types_found.append(f"{cloud_name} {oktas}/8 sky coverage at {height_ft} feet")
 
-            # Canadian format: {cloud_type}{oktas} e.g., SC6, AC3, CB8, TCU4
+            # Canadian format: {cloud_type}{oktas} e.g., SC6, AC3, CB8, TCU4, SN8
             # Cloud codes can be concatenated without spaces (e.g., CU1AC1AC1CI1)
             # Use negative lookahead to ensure the digit is NOT followed by 2 more digits (which would be Japanese format)
             if not japan_cloud_matches:
-                cloud_type_matches = re.findall(r"(TCU|SC|ST|CU|CB|CI|CS|CC|AC|AS|NS|CF|SF)(\d)(?!\d{2})", remarks)
+                cloud_type_matches = re.findall(r"(TCU|SN|SC|ST|CU|CB|CI|CS|CC|AC|AS|NS|CF|SF)(\d)(?!\d{2})", remarks)
                 for cloud_code, oktas in cloud_type_matches:
-                    cloud_name = cloud_type_codes.get(cloud_code, cloud_code)
+                    cloud_name = CLOUD_TYPE_CODES.get(cloud_code, cloud_code)
                     cloud_types_found.append(f"{cloud_name} {oktas}/8 sky coverage")
 
-            # Match trace cloud patterns like "AC TR", "CI TR", etc.
+            # Match trace cloud patterns like "AC TR", "CI TR", "SN TR", etc.
             # TR = trace amount (less than 1/8 sky coverage)
-            trace_cloud_matches = re.findall(r"\b(TCU|SC|ST|CU|CB|CI|CS|CC|AC|AS|NS|CF|SF)\s+TR\b", remarks)
+            trace_cloud_matches = re.findall(r"\b(TCU|SN|SC|ST|CU|CB|CI|CS|CC|AC|AS|NS|CF|SF)\s+TR\b", remarks)
             for cloud_code in trace_cloud_matches:
-                cloud_name = cloud_type_codes.get(cloud_code, cloud_code)
+                cloud_name = CLOUD_TYPE_CODES.get(cloud_code, cloud_code)
                 cloud_types_found.append(f"{cloud_name} trace (less than 1/8 sky coverage)")
 
             if cloud_types_found:
@@ -1125,30 +1074,10 @@ class MetarDecoder:
                     runway_desc = f"Runway {runway_num}x"
 
                 # Deposit types
-                deposit_types = {
-                    "0": "Clear and dry",
-                    "1": "Damp",
-                    "2": "Wet or water patches",
-                    "3": "Rime or frost (normally less than 1mm deep)",
-                    "4": "Dry snow",
-                    "5": "Wet snow",
-                    "6": "Slush",
-                    "7": "Ice",
-                    "8": "Compacted or rolled snow",
-                    "9": "Frozen ruts or ridges",
-                    "/": "Not reported",
-                }
-                deposit_desc = deposit_types.get(deposit, f"Unknown ({deposit})")
+                deposit_desc = RUNWAY_STATE_DEPOSIT_TYPES_REMARKS.get(deposit, f"Unknown ({deposit})")
 
                 # Extent of contamination
-                extent_types = {
-                    "1": "10% or less",
-                    "2": "11% to 25%",
-                    "5": "26% to 50%",
-                    "9": "51% to 100%",
-                    "/": "Not reported",
-                }
-                extent_desc = extent_types.get(extent, f"Unknown ({extent})")
+                extent_desc = RUNWAY_STATE_EXTENT_REMARKS.get(extent, f"Unknown ({extent})")
 
                 # Depth of deposit
                 depth_val = int(depth_raw)
@@ -1177,9 +1106,8 @@ class MetarDecoder:
 
                 # Braking action
                 braking_val = int(braking_raw)
-                if braking_val >= 91 and braking_val <= 95:
-                    braking_map = {91: "Poor", 92: "Medium/Poor", 93: "Medium", 94: "Medium/Good", 95: "Good"}
-                    braking_desc = braking_map.get(braking_val, f"Coefficient 0.{braking_raw}")
+                if braking_val in RUNWAY_BRAKING_REMARKS:
+                    braking_desc = RUNWAY_BRAKING_REMARKS[braking_val]
                 elif braking_val == 99:
                     braking_desc = "Unreliable"
                 else:
@@ -1236,8 +1164,9 @@ class MetarDecoder:
                 "Tower Visibility": ["TWR VIS"],
                 "Lightning": ["LTG"],
                 "Virga": ["VIRGA"],
+                "Thunderstorm Location": ["TS OHD", "TS DSNT", "TS VC", "TS ALQDS", "TS MOV"],
                 "ACSL": ["ACSL"],
-                "Cloud Types": ["SC", "AC", "ST", "CU", "CB", "CI", "AS", "NS", "TCU", "CC", "CS"],
+                "Cloud Types": ["SC", "AC", "ST", "CU", "CB", "CI", "AS", "NS", "SN", "TCU", "CC", "CS"],
                 "Density Altitude": ["DENSITY ALT"],
                 "Obscuration": ["OBSC"],
                 "Ceiling": ["CIG"],
