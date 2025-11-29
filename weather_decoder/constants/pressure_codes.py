@@ -1,0 +1,15 @@
+"""Pressure-related codes"""
+
+# Pressure tendency characteristics (3-hour pressure tendency)
+PRESSURE_TENDENCY_CHARACTERISTICS = {
+    0: "Increasing, then decreasing",
+    1: "Increasing, then steady; or increasing then increasing more slowly",
+    2: "Increasing steadily or unsteadily",
+    3: "Decreasing or steady, then increasing; or increasing then increasing more rapidly",
+    4: "Steady",
+    5: "Decreasing, then increasing",
+    6: "Decreasing, then steady; or decreasing then decreasing more slowly",
+    7: "Decreasing steadily or unsteadily",
+    8: "Steady or increasing, then decreasing; or decreasing then decreasing more rapidly",
+}
+

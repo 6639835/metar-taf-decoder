@@ -1,131 +1,127 @@
 """Weather phenomena parser"""
 
-from typing import Dict, List
+from typing import Dict, List, Optional
 
-from ..utils.constants import TREND_TYPES, WEATHER_DESCRIPTORS, WEATHER_INTENSITY, WEATHER_PHENOMENA
+from ..utils.constants import TREND_TYPES, WEATHER_DESCRIPTORS, WEATHER_PHENOMENA
+from .base_parser import StopConditionMixin, TokenParser
 
 
-class WeatherParser:
-    """Parser for weather phenomena in METAR and TAF reports"""
+class WeatherParser(TokenParser, StopConditionMixin):
+    """Parser for weather phenomena in METAR and TAF reports
+    
+    Handles weather phenomena encoding:
+    - Intensity: - (light), + (heavy), VC (vicinity)
+    - Descriptors: MI, PR, BC, DR, BL, SH, TS, FZ
+    - Phenomena: DZ, RA, SN, etc.
+    - Special: NSW (No Significant Weather)
+    """
 
-    @staticmethod
-    def extract_weather(parts: List[str]) -> List[Dict]:
-        """Extract weather phenomena from weather report parts"""
-        weather_groups = []
+    # Stop parsing when we encounter trend indicators
+    stop_tokens = TREND_TYPES
 
-        i = 0
-        while i < len(parts):
-            part = parts[i]
-
-            # Stop if we encounter a trend indicator (TEMPO, BECMG, NOSIG)
-            # These and their associated conditions should be handled by the trend parser
-            if part in TREND_TYPES:
-                break
-
-            # Check for NSW (No Significant Weather)
-            if part == "NSW":
-                weather_groups.append({"intensity": "", "descriptor": "", "phenomena": ["no significant weather"]})
-                parts.pop(i)
-                continue
-
-            # Process weather groups
-            has_weather = False
-            intensity = ""
-            descriptor = ""
-            phenomena = []
-
-            # Check for intensity prefix
-            if part.startswith("+") or part.startswith("-"):
-                if part.startswith("+"):
-                    intensity = "heavy"
-                    part = part[1:]
-                elif part.startswith("-"):
-                    intensity = "light"
-                    part = part[1:]
-                has_weather = True
-
-            # Check for vicinity (VC)
-            elif part.startswith("VC"):
-                intensity = "vicinity"
-                part = part[2:]
-                has_weather = True
-
-            # Check for descriptor
-            for desc_code, desc_value in WEATHER_DESCRIPTORS.items():
-                if part.startswith(desc_code):
-                    descriptor = desc_value
-                    part = part[len(desc_code) :]
-                    has_weather = True
-                    break
-
-            # Handle the case where the part is just 'TS' (thunderstorm without precipitation)
-            if part == "TS":
-                descriptor = "thunderstorm"
-                has_weather = True
-                part = ""
-
-            # Check for weather phenomena
-            remaining = part
-            while remaining and len(remaining) >= 2:
-                code = remaining[:2]
-                if code in WEATHER_PHENOMENA:
-                    phenomena.append(WEATHER_PHENOMENA[code])
-                    remaining = remaining[2:]
-                    has_weather = True
-                else:
-                    break
-
-            if has_weather:
-                weather_groups.append({"intensity": intensity, "descriptor": descriptor, "phenomena": phenomena})
-                parts.pop(i)
-            else:
-                i += 1
-
-        return weather_groups
-
-    @staticmethod
-    def parse_weather_string(weather_str: str) -> Dict:
-        """Parse a single weather string"""
-        # Check for NSW
-        if weather_str == "NSW":
-            return {"intensity": "", "descriptor": "", "phenomena": ["no significant weather"]}
+    def parse(self, token: str) -> Optional[Dict]:
+        """Parse a weather phenomena token into structured data
+        
+        Args:
+            token: A single token that may contain weather phenomena
+            
+        Returns:
+            Dictionary with weather data if token matches, None otherwise
+        """
+        # Check for NSW (No Significant Weather)
+        if token == "NSW":
+            return {
+                "intensity": "",
+                "descriptor": "",
+                "phenomena": ["no significant weather"],
+            }
 
         intensity = ""
         descriptor = ""
-        phenomena = []
-        part = weather_str
+        phenomena: List[str] = []
+        remaining = token
+        has_weather = False
 
         # Check for intensity prefix
-        if part.startswith("+"):
+        if remaining.startswith("+"):
             intensity = "heavy"
-            part = part[1:]
-        elif part.startswith("-"):
+            remaining = remaining[1:]
+            has_weather = True
+        elif remaining.startswith("-"):
             intensity = "light"
-            part = part[1:]
-        elif part.startswith("VC"):
+            remaining = remaining[1:]
+            has_weather = True
+        elif remaining.startswith("VC"):
             intensity = "vicinity"
-            part = part[2:]
+            remaining = remaining[2:]
+            has_weather = True
 
         # Check for descriptor
         for desc_code, desc_value in WEATHER_DESCRIPTORS.items():
-            if part.startswith(desc_code):
+            if remaining.startswith(desc_code):
                 descriptor = desc_value
-                part = part[len(desc_code) :]
+                remaining = remaining[len(desc_code):]
+                has_weather = True
                 break
 
         # Handle standalone thunderstorm
-        if part == "TS":
+        if remaining == "TS":
             descriptor = "thunderstorm"
-            part = ""
+            remaining = ""
+            has_weather = True
 
-        # Check for weather phenomena
-        remaining = part
+        # Extract weather phenomena (2-character codes)
         while remaining and len(remaining) >= 2:
             code = remaining[:2]
             if code in WEATHER_PHENOMENA:
                 phenomena.append(WEATHER_PHENOMENA[code])
                 remaining = remaining[2:]
+                has_weather = True
             else:
                 break
 
-        return {"intensity": intensity, "descriptor": descriptor, "phenomena": phenomena}
+        # Only return if we found some weather information
+        if has_weather:
+            return {
+                "intensity": intensity,
+                "descriptor": descriptor,
+                "phenomena": phenomena,
+            }
+
+        return None
+
+    def extract_weather(self, parts: List[str]) -> List[Dict]:
+        """Extract all weather phenomena from weather report parts
+        
+        This method extracts all weather tokens until a stop
+        token (trend indicator) is encountered.
+        
+        Args:
+            parts: List of tokens from the weather report (modified in place)
+            
+        Returns:
+            List of weather phenomena dictionaries
+        """
+        weather_groups: List[Dict] = []
+
+        i = 0
+        while i < len(parts):
+            # Stop if we encounter a trend indicator
+            if self.should_stop(parts[i]):
+                break
+
+            # Try to parse the token
+            weather = self.parse(parts[i])
+            if weather is not None:
+                weather_groups.append(weather)
+                parts.pop(i)
+                # Don't increment i since we removed the current element
+            else:
+                i += 1
+
+        return weather_groups
+
+    # Backwards compatibility alias
+    def parse_weather_string(self, weather_str: str) -> Optional[Dict]:
+        """Parse a single weather string (alias for parse())"""
+        return self.parse(weather_str)

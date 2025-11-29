@@ -4,7 +4,7 @@ import re
 from datetime import datetime, timezone
 from typing import Dict, Optional, Tuple
 
-from ..utils.patterns import DATETIME_PATTERN, FM_PATTERN, TIME_RANGE_PATTERN, VALID_PERIOD_PATTERN
+from ..utils.patterns import DATETIME_PATTERN, FM_PATTERN, VALID_PERIOD_PATTERN
 
 
 class TimeParser:

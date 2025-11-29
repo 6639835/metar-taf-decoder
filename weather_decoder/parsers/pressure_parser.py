@@ -1,140 +1,119 @@
 """Pressure/altimeter information parser"""
 
 import re
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 from ..utils.patterns import ALT_PATTERN, ALT_QNH_PATTERN, ALTIMETER_PATTERN, QNH_PATTERN
+from .base_parser import TokenParser
 
 
-class PressureParser:
-    """Parser for pressure/altimeter information in METAR and TAF reports"""
+class PressureParser(TokenParser):
+    """Parser for pressure/altimeter information in METAR and TAF reports
+    
+    Handles various pressure formats:
+    - US altimeter: Axxxx (e.g., A2992 = 29.92 inHg)
+    - ICAO QNH: Qxxxx (e.g., Q1013 = 1013 hPa)
+    - Alternative: QNHxxxxINS/HPa
+    """
 
-    @staticmethod
-    def extract_altimeter(parts: List[str]) -> Optional[Dict]:
-        """Extract altimeter information from METAR parts"""
-        for i, part in enumerate(parts):
-            match = re.match(ALTIMETER_PATTERN, part)
-            if match:
-                prefix = match.group(1)
-                value = int(match.group(2))
-
-                if prefix == "A":
-                    # US format - inches of mercury in hundredths
-                    altimeter = {"value": value / 100.0, "unit": "inHg"}
-                else:  # Q prefix
-                    # ICAO format - hectopascals
-                    altimeter = {"value": value, "unit": "hPa"}
-
-                parts.pop(i)
-                return altimeter
-
-        return None
-
-    @staticmethod
-    def extract_qnh(parts: List[str]) -> Optional[Dict]:
-        """Extract QNH (pressure setting) information from TAF parts"""
-        # Primary QNH pattern (Q followed by 4 digits)
-        for i, part in enumerate(parts):
-            match = re.match(QNH_PATTERN, part)
-            if match:
-                qnh_value = int(match.group(1))
-
-                # For QNH in hPa, the value is typically between 900-1050
-                if qnh_value >= 900 and qnh_value <= 1050:
-                    unit = "hPa"
-                else:
-                    # For inches of mercury in hundredths (e.g., Q2992 = 29.92 inHg)
-                    unit = "inHg"
-                    qnh_value = qnh_value / 100.0  # Convert to decimal format
-
-                qnh = {"value": qnh_value, "unit": unit}
-
-                parts.pop(i)
-                return qnh
-
-        # Alternative QNH formats
-        for i, part in enumerate(parts):
-            match = re.match(ALT_QNH_PATTERN, part)
-            if match:
-                qnh_value = int(match.group(1))
-
-                # Determine unit based on suffix
-                unit = "inHg"
-                if "HPa" in part:
-                    unit = "hPa"
-
-                # Format value based on unit
-                formatted_value = qnh_value
-                if unit == "inHg":
-                    formatted_value = qnh_value / 100.0  # Convert to decimal format
-
-                qnh = {"value": formatted_value, "unit": unit}
-
-                parts.pop(i)
-                return qnh
-
-        # US-style altimeter format (A prefix)
-        for i, part in enumerate(parts):
-            match = re.match(ALT_PATTERN, part)
-            if match:
-                qnh_value = int(match.group(1))
-                qnh_value = qnh_value / 100.0  # Convert to decimal format
-
-                qnh = {"value": qnh_value, "unit": "inHg"}
-
-                parts.pop(i)
-                return qnh
-
-        return None
-
-    @staticmethod
-    def parse_altimeter_string(alt_str: str) -> Optional[Dict]:
-        """Parse an altimeter string directly"""
-        match = re.match(ALTIMETER_PATTERN, alt_str)
+    def parse(self, token: str) -> Optional[Dict]:
+        """Parse a pressure/altimeter token into structured data
+        
+        Args:
+            token: A single token that may contain pressure information
+            
+        Returns:
+            Dictionary with pressure data if token matches, None otherwise
+        """
+        # Standard A/Q format
+        match = re.match(ALTIMETER_PATTERN, token)
         if match:
             prefix = match.group(1)
             value = int(match.group(2))
 
             if prefix == "A":
-                # US format - inches of mercury in hundredths
                 return {"value": value / 100.0, "unit": "inHg"}
             else:  # Q prefix
-                # ICAO format - hectopascals
                 return {"value": value, "unit": "hPa"}
 
         return None
 
-    @staticmethod
-    def parse_qnh_string(qnh_str: str) -> Optional[Dict]:
-        """Parse a QNH string directly"""
-        # Standard Q format
-        match = re.match(QNH_PATTERN, qnh_str)
+    def parse_qnh(self, token: str) -> Optional[Dict]:
+        """Parse a QNH pressure token
+        
+        QNH can appear in multiple formats in TAF reports.
+        
+        Args:
+            token: A single token that may contain QNH information
+            
+        Returns:
+            Dictionary with QNH data if token matches, None otherwise
+        """
+        # Primary QNH pattern (Q followed by 4 digits)
+        match = re.match(QNH_PATTERN, token)
         if match:
-            qnh_value = int(match.group(1))
+            qnh_value: Union[int, float] = int(match.group(1))
 
-            if qnh_value >= 900 and qnh_value <= 1050:
-                unit = "hPa"
+            # Determine unit based on value range
+            if 900 <= qnh_value <= 1050:
+                return {"value": qnh_value, "unit": "hPa"}
             else:
-                unit = "inHg"
-                qnh_value = qnh_value / 100.0
+                return {"value": qnh_value / 100.0, "unit": "inHg"}
 
-            return {"value": qnh_value, "unit": unit}
-
-        # Alternative formats
-        match = re.match(ALT_QNH_PATTERN, qnh_str)
+        # Alternative QNH format (QNHxxxxINS/HPa)
+        match = re.match(ALT_QNH_PATTERN, token)
         if match:
             qnh_value = int(match.group(1))
-            unit = "hPa" if "HPa" in qnh_str else "inHg"
+            unit = "hPa" if "HPa" in token else "inHg"
 
             if unit == "inHg":
-                qnh_value = qnh_value / 100.0
-
+                return {"value": qnh_value / 100.0, "unit": unit}
             return {"value": qnh_value, "unit": unit}
 
-        # A-prefix format
-        match = re.match(ALT_PATTERN, qnh_str)
+        # US-style altimeter format (A prefix)
+        match = re.match(ALT_PATTERN, token)
         if match:
-            qnh_value = int(match.group(1)) / 100.0
-            return {"value": qnh_value, "unit": "inHg"}
+            return {"value": int(match.group(1)) / 100.0, "unit": "inHg"}
 
         return None
+
+    def extract_altimeter(self, parts: List[str]) -> Optional[Dict]:
+        """Extract altimeter information from METAR parts
+        
+        Args:
+            parts: List of tokens from the weather report (modified in place)
+            
+        Returns:
+            Dictionary with altimeter data if found, None otherwise
+        """
+        for i, part in enumerate(parts):
+            result = self.parse(part)
+            if result is not None:
+                parts.pop(i)
+                return result
+        return None
+
+    def extract_qnh(self, parts: List[str]) -> Optional[Dict]:
+        """Extract QNH (pressure setting) information from TAF parts
+        
+        Args:
+            parts: List of tokens from the weather report (modified in place)
+            
+        Returns:
+            Dictionary with QNH data if found, None otherwise
+        """
+        for i, part in enumerate(parts):
+            result = self.parse_qnh(part)
+            if result is not None:
+                parts.pop(i)
+                return result
+        return None
+
+    # Backwards compatibility aliases
+    def parse_altimeter_string(self, alt_str: str) -> Optional[Dict]:
+        """Parse an altimeter string directly (alias for parse())"""
+        return self.parse(alt_str)
+
+    def parse_qnh_string(self, qnh_str: str) -> Optional[Dict]:
+        """Parse a QNH string directly (alias for parse_qnh())"""
+        return self.parse_qnh(qnh_str)
