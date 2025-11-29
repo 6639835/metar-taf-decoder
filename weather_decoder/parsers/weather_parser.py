@@ -2,7 +2,7 @@
 
 from typing import Dict, List
 
-from ..utils.constants import WEATHER_DESCRIPTORS, WEATHER_INTENSITY, WEATHER_PHENOMENA
+from ..utils.constants import TREND_TYPES, WEATHER_DESCRIPTORS, WEATHER_INTENSITY, WEATHER_PHENOMENA
 
 
 class WeatherParser:
@@ -16,6 +16,11 @@ class WeatherParser:
         i = 0
         while i < len(parts):
             part = parts[i]
+
+            # Stop if we encounter a trend indicator (TEMPO, BECMG, NOSIG)
+            # These and their associated conditions should be handled by the trend parser
+            if part in TREND_TYPES:
+                break
 
             # Check for NSW (No Significant Weather)
             if part == "NSW":

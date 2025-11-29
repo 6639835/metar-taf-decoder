@@ -458,7 +458,7 @@ class MetarDecoder:
                                 weather_changes.append(cloud_desc)
                     # Parse weather phenomena
                     elif re.match(
-                        r"^[-+]?VC?(MI|PR|BC|DR|BL|SH|TS|FZ)?(DZ|RA|SN|SG|IC|PL|GR|GS|UP|BR|FG|FU|VA|DU|SA|HZ|PY|PO|SQ|FC|SS|DS)+",
+                        r"^[-+]?(VC)?(MI|PR|BC|DR|BL|SH|TS|FZ)?(DZ|RA|SN|SG|IC|PL|GR|GS|UP|BR|FG|FU|VA|DU|SA|HZ|PY|PO|SQ|FC|SS|DS)+",
                         element,
                     ):
                         wx_info = self.weather_parser.parse_weather_string(element)
@@ -703,77 +703,94 @@ class MetarDecoder:
 
                 decoded["Variable Visibility"] = f"{min_vis_display} to {max_vis_display} statute miles"
 
-            # Past weather (RAB11E24, SNB05E15, etc.)
-            # Handle combined begin/end patterns like RAB11E24
-            # Valid weather codes for past weather: RA, SN, DZ, TS, PL, GR, GS, UP, FG, BR, etc.
-            VALID_PAST_WEATHER_CODES = {
-                "RA",
-                "SN",
-                "DZ",
-                "TS",
-                "PL",
-                "GR",
-                "GS",
-                "UP",
-                "FG",
-                "BR",
-                "FU",
-                "VA",
-                "DU",
-                "SA",
-                "HZ",
-                "SQ",
-                "FC",
-                "SS",
-                "DS",
-            }
+            # Past weather (RAB11E24, SNB05E15, FZRAB29E44, TSRAB10E20, etc.)
+            # Format: [descriptor][phenomenon]B[time]E[time]...
+            # Descriptors: MI, PR, BC, DR, BL, SH, TS, FZ
+            # Phenomena: DZ, RA, SN, SG, IC, PL, GR, GS, UP, BR, FG, FU, VA, DU, SA, HZ, PY, PO, SQ, FC, SS, DS
+            # Examples:
+            #   RAB11E24 = rain began at :11, ended at :24
+            #   FZRAB29E44 = freezing rain began at :29, ended at :44
+            #   TSRAB10E20 = thunderstorm rain began at :10, ended at :20
+            #   UPB11E12B44E47 = unknown precip began :11, ended :12, began :44, ended :47
 
-            combined_weather_matches = re.findall(r"([A-Z]{2})B(\d{2})E(\d{2})", remarks)
-            individual_weather_matches = re.findall(r"([A-Z]{2})([BE])(\d{2})(?![BE\d])", remarks)
+            # Find all past weather groups in remarks
+            # Pattern: optional descriptor + mandatory phenomenon + sequence of B/E events
+            past_weather_pattern = (
+                r"(MI|PR|BC|DR|BL|SH|TS|FZ)?(DZ|RA|SN|SG|IC|PL|GR|GS|UP|BR|FG|FU|VA|DU|SA|HZ|PY|PO|SQ|FC|SS|DS)(?:[BE]\d{2})+"
+            )
+            past_weather_matches = re.finditer(past_weather_pattern, remarks)
 
             past_weather_events = []
 
-            # Process combined begin/end patterns (e.g., RAB11E24)
-            for weather_code, begin_time, end_time in combined_weather_matches:
-                # Only process valid weather codes (exclude QFE, QNH, etc.)
-                if weather_code not in VALID_PAST_WEATHER_CODES:
-                    continue
+            for match in past_weather_matches:
+                full_match = match.group(0)
 
-                if weather_code == "RA":
-                    weather_type = "rain"
-                elif weather_code == "SN":
-                    weather_type = "snow"
-                elif weather_code == "DZ":
-                    weather_type = "drizzle"
-                elif weather_code == "TS":
-                    weather_type = "thunderstorm"
-                else:
-                    weather_type = weather_code.lower()
+                # Extract descriptor (group 1, optional) and phenomenon (group 2, required)
+                descriptor = match.group(1) or ""
+                phenomenon = match.group(2)
 
-                past_weather_events.append(f"{weather_type} began at minute {begin_time}, ended at minute {end_time}")
+                # Map weather codes to readable names
+                descriptor_map = {
+                    "FZ": "freezing",
+                    "SH": "shower",
+                    "TS": "thunderstorm",
+                    "MI": "shallow",
+                    "PR": "partial",
+                    "BC": "patches",
+                    "DR": "low drifting",
+                    "BL": "blowing",
+                }
 
-            # Process individual begin/end patterns (e.g., RAB15, RAE20)
-            for weather_code, begin_end, time_minutes in individual_weather_matches:
-                # Only process valid weather codes (exclude QFE, QNH, etc.)
-                if weather_code not in VALID_PAST_WEATHER_CODES:
-                    continue
+                phenomenon_map = {
+                    "TS": "thunderstorm",
+                    "RA": "rain",
+                    "SN": "snow",
+                    "DZ": "drizzle",
+                    "PL": "ice pellets",
+                    "GR": "hail",
+                    "GS": "small hail/snow pellets",
+                    "UP": "unknown precipitation",
+                    "IC": "ice crystals",
+                    "PE": "ice pellets",
+                    "SG": "snow grains",
+                    "BR": "mist",
+                    "FG": "fog",
+                    "FU": "smoke",
+                    "VA": "volcanic ash",
+                    "DU": "dust",
+                    "SA": "sand",
+                    "HZ": "haze",
+                    "PY": "spray",
+                    "PO": "dust/sand whirls",
+                    "SQ": "squalls",
+                    "FC": "funnel cloud",
+                    "SS": "sandstorm",
+                    "DS": "duststorm",
+                }
 
-                if weather_code == "RA":
-                    weather_type = "rain"
-                elif weather_code == "SN":
-                    weather_type = "snow"
-                elif weather_code == "DZ":
-                    weather_type = "drizzle"
-                elif weather_code == "TS":
-                    weather_type = "thunderstorm"
-                else:
-                    weather_type = weather_code.lower()
+                # Build weather type string
+                weather_parts = []
+                if descriptor:
+                    weather_parts.append(descriptor_map.get(descriptor, descriptor.lower()))
+                weather_parts.append(phenomenon_map.get(phenomenon, phenomenon.lower()))
+                weather_type = " ".join(weather_parts)
 
-                action = "began" if begin_end == "B" else "ended"
-                past_weather_events.append(f"{weather_type} {action} at minute {time_minutes}")
+                # Extract all B/E events for this weather type
+                events_str = full_match[len(descriptor) + len(phenomenon) :]
+                event_matches = re.findall(r"([BE])(\d{2})", events_str)
+
+                # Build event descriptions
+                event_descriptions = []
+                for action, time in event_matches:
+                    action_text = "began" if action == "B" else "ended"
+                    event_descriptions.append(f"{action_text} at minute {time}")
+
+                # Combine into single weather event description
+                if event_descriptions:
+                    past_weather_events.append(f"{weather_type} {', '.join(event_descriptions)}")
 
             if past_weather_events:
-                decoded["Past Weather"] = ", ".join(past_weather_events)
+                decoded["Past Weather"] = "; ".join(past_weather_events)
 
             # QFE (field elevation pressure) in remarks
             qfe_match = re.search(r"QFE(\d{3,4})", remarks)
@@ -828,13 +845,14 @@ class MetarDecoder:
                 decoded["Tower Visibility"] = f"{twr_vis_str} SM"
 
             # Lightning (LTG) information
-            # Format: [FRQ|OCNL|CONS] LTG[IC|CC|CG|CA]+ [DSNT|VC|OHD]? [directions]
+            # Format: [FRQ|OCNL|CONS] LTG[IC|CC|CG|CA]* [DSNT|VC|OHD] [ALQDS|directions]
             # IC = in-cloud, CC = cloud-to-cloud, CG = cloud-to-ground, CA = cloud-to-air
             # FRQ = frequent (>6/min), OCNL = occasional (1-6/min), CONS = continuous
-            # DSNT = distant (10-30 NM), VC = vicinity (5-10 NM), OHD = overhead
+            # DSNT = distant (10-30 NM), VC = vicinity (5-10 NM), OHD = overhead, ALQDS = all quadrants
             # Direction patterns: N, NE, E, SE, S, SW, W, NW or ranges like E-SE
+            # Groups: (1)freq (2)types (3)distance (4)ALQDS (5)directions (6)distance_fallback
             ltg_match = re.search(
-                r"(FRQ|OCNL|CONS)?\s*LTG((?:IC|CC|CG|CA)+)\s*(DSNT|VC|OHD|ALQDS)?\s*((?:NE|NW|SE|SW|N|E|S|W)(?:-(?:NE|NW|SE|SW|N|E|S|W))?(?:\s+AND\s+(?:NE|NW|SE|SW|N|E|S|W)(?:-(?:NE|NW|SE|SW|N|E|S|W))?)*)?(?=\s|$)",
+                r"(FRQ|OCNL|CONS)?\s*LTG((?:IC|CC|CG|CA)*)\s*(?:(DSNT|VC|OHD)\s+)?(?:(ALQDS)|((?:NE|NW|SE|SW|N|E|S|W)(?:-(?:NE|NW|SE|SW|N|E|S|W))?(?:\s+AND\s+(?:NE|NW|SE|SW|N|E|S|W)(?:-(?:NE|NW|SE|SW|N|E|S|W))?)*)|(DSNT|VC|OHD))(?=\s|$)",
                 remarks,
             )
             if ltg_match:
@@ -850,31 +868,38 @@ class MetarDecoder:
                 if freq:
                     ltg_parts.append(freq_map.get(freq, freq))
 
-                # Lightning types
+                # Lightning types (optional)
                 ltg_types = ltg_match.group(2)
-                type_map = {"IC": "in-cloud", "CC": "cloud-to-cloud", "CG": "cloud-to-ground", "CA": "cloud-to-air"}
-                types = []
-                for i in range(0, len(ltg_types), 2):
-                    lt = ltg_types[i : i + 2]
-                    types.append(type_map.get(lt, lt))
-                ltg_parts.append(" and ".join(types) + " lightning")
+                if ltg_types:
+                    type_map = {"IC": "in-cloud", "CC": "cloud-to-cloud", "CG": "cloud-to-ground", "CA": "cloud-to-air"}
+                    types = []
+                    for i in range(0, len(ltg_types), 2):
+                        lt = ltg_types[i : i + 2]
+                        types.append(type_map.get(lt, lt))
+                    ltg_parts.append(" and ".join(types) + " lightning")
+                else:
+                    # No specific type, just "lightning"
+                    ltg_parts.append("lightning")
 
-                # Location
-                location = ltg_match.group(3)
+                # Distance/location (can be in group 3 or group 6)
+                distance = ltg_match.group(3) or ltg_match.group(6)
                 loc_map = {
                     "DSNT": "distant (10-30 NM)",
                     "VC": "in vicinity (5-10 NM)",
                     "OHD": "overhead",
-                    "ALQDS": "all quadrants",
                 }
-                if location and location != "AND":
-                    ltg_parts.append(loc_map.get(location, location))
+                if distance:
+                    ltg_parts.append(loc_map.get(distance, distance))
 
-                # Direction
-                direction = ltg_match.group(4)
+                # ALQDS (all quadrants) in group 4
+                alqds = ltg_match.group(4)
+                if alqds:
+                    ltg_parts.append("all quadrants")
+
+                # Direction in group 5
+                direction = ltg_match.group(5)
                 if direction:
                     # Clean up direction string
-                    direction = direction.replace("DSNT", "").strip()
                     direction = direction.replace("AND", "and")
                     dir_map = {
                         "NE": "northeast",

@@ -44,12 +44,19 @@ class VisibilityParser:
                 result = {"value": vis_value, "unit": "M", "is_cavok": False}
 
                 # Check if next part is directional visibility (e.g., "2000 1200NW")
+                # or minimum visibility (e.g., "4000 0600")
                 if i < len(parts):
                     next_dir_match = re.match(r"^(\d{4})(N|NE|E|SE|S|SW|W|NW)$", parts[i])
                     if next_dir_match:
                         result["directional_visibility"] = {
                             "value": int(next_dir_match.group(1)),
                             "direction": next_dir_match.group(2),
+                        }
+                        parts.pop(i)
+                    # Check for minimum visibility (second 4-digit number without direction)
+                    elif len(parts[i]) == 4 and parts[i].isdigit():
+                        result["minimum_visibility"] = {
+                            "value": int(parts[i]),
                         }
                         parts.pop(i)
 

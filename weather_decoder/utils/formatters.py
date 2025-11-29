@@ -91,6 +91,17 @@ def format_visibility(visibility: Dict) -> str:
             dir_text = f"{dir_val} M"
         result += f", {dir_text} to the {dir_dir}"
 
+    # Add minimum visibility if present (e.g., "4000 0600")
+    if visibility.get("minimum_visibility"):
+        min_vis = visibility["minimum_visibility"]
+        min_val = min_vis["value"]
+        if min_val >= 1000:
+            min_km = min_val / 1000
+            min_text = f"{min_km:.1f} km" if min_km % 1 != 0 else f"{int(min_km)} km"
+        else:
+            min_text = f"{min_val} M"
+        result += f" (minimum {min_text})"
+
     # Add NDV indicator if present (METAR specific)
     if visibility.get("ndv"):
         result += " (No Directional Variation)"

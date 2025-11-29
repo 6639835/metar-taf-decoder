@@ -3,7 +3,7 @@
 import re
 from typing import Dict, List
 
-from ..utils.constants import SKY_CONDITIONS
+from ..utils.constants import SKY_CONDITIONS, TREND_TYPES
 from ..utils.patterns import SKY_PATTERN
 
 
@@ -18,6 +18,11 @@ class SkyParser:
         i = 0
         while i < len(parts):
             part = parts[i]
+
+            # Stop if we encounter a trend indicator (TEMPO, BECMG, NOSIG)
+            # These and their associated conditions should be handled by the trend parser
+            if part in TREND_TYPES:
+                break
 
             # Check for sky condition pattern
             match = re.match(SKY_PATTERN, part)
