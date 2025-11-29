@@ -209,8 +209,6 @@ class MetarFormatter:
                 lines.extend(self._format_altitude_winds(value))
             elif key == "location_winds":
                 lines.extend(self._format_location_winds(value))
-            elif key == "wind_shift":
-                lines.append(f"  wind_shift: at {value['time']}")
             elif key == "runway_state_reports_remarks":
                 lines.extend(self._format_runway_state_remarks(value))
             elif isinstance(value, dict):

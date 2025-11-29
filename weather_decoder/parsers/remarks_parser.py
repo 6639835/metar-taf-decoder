@@ -63,7 +63,7 @@ class RemarksParser:
             "variable_ceiling": ["CIG"],
             "Pressure Change": ["PRESFR", "PRESRR"],
             "Frontal Passage": ["FROPA"],
-            "wind_shift": ["WSHFT"],
+            "Wind Shift": ["WSHFT"],
             "SLP Status": ["SLPNO"],
             "RVR Status": ["RVRNO"],
             "Runway State (Remarks)": [r"8\d{7}"],
@@ -209,7 +209,7 @@ class RemarksParser:
         if wshft_match:
             wshft_hour = wshft_match.group(1)
             wshft_min = wshft_match.group(2)
-            decoded["wind_shift"] = {"time": f"{wshft_hour}:{wshft_min} UTC"}
+            decoded["Wind Shift"] = f"at {wshft_hour}:{wshft_min} UTC"
 
     # =========================================================================
     # Pressure Information
@@ -385,15 +385,16 @@ class RemarksParser:
     # =========================================================================
 
     def _parse_past_weather(self, remarks: str, decoded: Dict) -> None:
-        """Parse past weather events (e.g., RAB11E24, FZRAB29E44)
+        """Parse past weather events (e.g., RAB11E24, FZRAB29E44, RAB0254E16B42)
 
         Format: [descriptor][phenomenon]B[time]E[time]...
         B = began, E = ended
+        Time can be 2-digit (MM) or 4-digit (HHMM) format
         """
         past_weather_pattern = (
             r"(MI|PR|BC|DR|BL|SH|TS|FZ)?"
             r"(TS|DZ|RA|SN|SG|IC|PL|GR|GS|UP|BR|FG|FU|VA|DU|SA|HZ|PY|PO|SQ|FC|SS|DS)"
-            r"(?:[BE]\d{2})+"
+            r"(?:[BE]\d{2,4})+"
         )
         past_weather_matches = re.finditer(past_weather_pattern, remarks)
 
@@ -411,15 +412,20 @@ class RemarksParser:
             weather_parts.append(WEATHER_PHENOMENA.get(phenomenon, phenomenon.lower()))
             weather_type = " ".join(weather_parts)
 
-            # Extract all B/E events
+            # Extract all B/E events (supports both 2-digit MM and 4-digit HHMM formats)
             events_str = full_match[len(descriptor) + len(phenomenon) :]
-            event_matches = re.findall(r"([BE])(\d{2})", events_str)
+            event_matches = re.findall(r"([BE])(\d{2,4})", events_str)
 
             # Build event descriptions
             event_descriptions = []
             for action, time in event_matches:
                 action_text = "began" if action == "B" else "ended"
-                event_descriptions.append(f"{action_text} at minute {time}")
+                if len(time) == 4:
+                    # 4-digit HHMM format
+                    event_descriptions.append(f"{action_text} at {time[:2]}:{time[2:]} UTC")
+                else:
+                    # 2-digit MM format
+                    event_descriptions.append(f"{action_text} at minute {time}")
 
             if event_descriptions:
                 past_weather_events.append(f"{weather_type} {', '.join(event_descriptions)}")
@@ -433,12 +439,11 @@ class RemarksParser:
         Format: [FRQ|OCNL|CONS] LTG[IC|CC|CG|CA]* [DSNT|VC|OHD] [directions]
         """
         ltg_match = re.search(
-            r"(FRQ|OCNL|CONS)?\s*LTG((?:IC|CC|CG|CA)*)\s*"
-            r"(?:(DSNT|VC|OHD)\s+)?"
-            r"(?:(ALQDS)|"
-            r"((?:NE|NW|SE|SW|N|E|S|W)(?:-(?:NE|NW|SE|SW|N|E|S|W))?"
-            r"(?:\s+AND\s+(?:NE|NW|SE|SW|N|E|S|W)(?:-(?:NE|NW|SE|SW|N|E|S|W))?)*)|"
-            r"(DSNT|VC|OHD))(?=\s|$)",
+            r"(FRQ|OCNL|CONS)?\s*LTG((?:IC|CC|CG|CA)+)"
+            r"(?:\s+(DSNT|VC|OHD))?"
+            r"(?:\s+(ALQDS))?"
+            r"(?:\s+((?:NE|NW|SE|SW|N|E|S|W)(?:-(?:NE|NW|SE|SW|N|E|S|W))?"
+            r"(?:\s+AND\s+(?:NE|NW|SE|SW|N|E|S|W)(?:-(?:NE|NW|SE|SW|N|E|S|W))?)*))?",
             remarks,
         )
         if ltg_match:
@@ -461,7 +466,7 @@ class RemarksParser:
                 ltg_parts.append("lightning")
 
             # Distance/location
-            distance = ltg_match.group(3) or ltg_match.group(6)
+            distance = ltg_match.group(3)
             if distance:
                 ltg_parts.append(LOCATION_INDICATORS.get(distance, distance))
 
@@ -510,13 +515,21 @@ class RemarksParser:
     def _parse_thunderstorm_location(self, remarks: str, decoded: Dict) -> None:
         """Parse thunderstorm location and movement
 
-        Format: TS [DSNT|VC|OHD|ALQDS] [directions] [MOV direction]
+        Format: TS [DSNT|VC|OHD|ALQDS] [AND] [directions] [MOV direction]
+        Examples:
+          - TS OHD MOV NE
+          - TS DSNT NW
+          - TS OHD AND NW -N-E MOV NE (overhead and northwest through north to east, moving northeast)
         """
+        # Single direction: NE, NW, SE, SW, N, E, S, W
+        single_dir = r"(?:NE|NW|SE|SW|N|E|S|W)"
+
         ts_match = re.search(
             r"\bTS\s+(DSNT|VC|OHD|ALQDS)?\s*"
-            r"((?:(?:NE|NW|SE|SW|N|E|S|W)(?:-(?:NE|NW|SE|SW|N|E|S|W))?)"
-            r"(?:\s+AND\s+(?:NE|NW|SE|SW|N|E|S|W)(?:-(?:NE|NW|SE|SW|N|E|S|W))?)*)?\s*"
-            r"(?:MOV\s+((?:NE|NW|SE|SW|N|E|S|W)(?:-(?:NE|NW|SE|SW|N|E|S|W))?))?",
+            r"(?:AND\s+)?"  # Optional "AND" after location
+            # Capture direction string: everything up to MOV or end, but be non-greedy
+            rf"((?:{single_dir}(?:\s*-{single_dir})*(?:\s+AND\s+{single_dir}(?:\s*-{single_dir})*)*)?)?\s*"
+            rf"(?:MOV\s+({single_dir}(?:-{single_dir})?))?",
             remarks,
         )
         if ts_match:
@@ -534,18 +547,21 @@ class RemarksParser:
                 }
                 ts_parts.append(loc_map.get(location, location))
 
-            if direction:
-                dir_text = direction
-                for abbr, full in DIRECTION_ABBREV.items():
-                    dir_text = dir_text.replace(abbr, full)
-                dir_text = dir_text.replace("-", " to ").replace("AND", "and")
+            if direction and direction.strip():
+                dir_text = direction.strip()
+                # Replace direction abbreviations with full names (longer first to avoid partial matches)
+                for abbr, full in sorted(DIRECTION_ABBREV.items(), key=lambda x: -len(x[0])):
+                    dir_text = re.sub(rf"\b{abbr}\b", full, dir_text)
+                # Clean up: replace dashes with "through" and "AND" with "and"
+                dir_text = re.sub(r"\s*-\s*", " through ", dir_text)
+                dir_text = dir_text.replace(" AND ", " and ")
                 ts_parts.append(f"to the {dir_text}")
 
             if movement:
                 mov_text = movement
-                for abbr, full in DIRECTION_ABBREV.items():
-                    mov_text = mov_text.replace(abbr, full)
-                mov_text = mov_text.replace("-", " to ")
+                for abbr, full in sorted(DIRECTION_ABBREV.items(), key=lambda x: -len(x[0])):
+                    mov_text = re.sub(rf"\b{abbr}\b", full, mov_text)
+                mov_text = mov_text.replace("-", " through ")
                 ts_parts.append(f"moving {mov_text}")
 
             decoded["Thunderstorm Location"] = " ".join(ts_parts)
