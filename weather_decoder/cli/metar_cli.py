@@ -41,7 +41,7 @@ Examples:
 
         parser.add_argument("-f", "--file", help="File containing METAR strings (one per line)")
 
-        parser.add_argument("--version", action="version", version="METAR Decoder 1.1.3")
+        parser.add_argument("--version", action="version", version="METAR Decoder 1.1.4")
 
         return parser
 
@@ -78,7 +78,7 @@ Examples:
 
     def _interactive_mode(self):
         """Run in interactive mode"""
-        print("METAR Decoder 1.1.3 - Interactive Mode")
+        print("METAR Decoder 1.1.4 - Interactive Mode")
         print("Enter METAR strings to decode (press Ctrl+C to exit):")
         print("Example: METAR KJFK 061751Z 28008KT 10SM FEW250 22/18 A2992")
         print()

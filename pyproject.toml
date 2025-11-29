@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 # Project metadata
 [project]
 name = "weather-decoder"
-version = "1.1.3"
+version = "1.1.4"
 description = "A comprehensive METAR and TAF decoder for aviation weather reports"
 readme = "README.md"
 license = {text = "MIT"}
