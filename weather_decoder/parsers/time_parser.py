@@ -1,5 +1,6 @@
 """Time and date parsing utilities"""
 
+import calendar
 import re
 from datetime import datetime, timezone
 from typing import Dict, Optional, Tuple
@@ -11,6 +12,35 @@ class TimeParser:
     """Parser for time and date information in weather reports"""
 
     @staticmethod
+    def _resolve_month_year(current_date: datetime, day: int) -> Tuple[int, int]:
+        """Resolve a day-of-month to a month/year near the current date.
+
+        Uses a midpoint heuristic so day values close to today stay in the
+        current month, while values far ahead/behind roll across months.
+        """
+        year, month = current_date.year, current_date.month
+        day_delta = day - current_date.day
+
+        if day_delta > 15:
+            month -= 1
+            if month < 1:
+                month = 12
+                year -= 1
+        elif day_delta < -15:
+            month += 1
+            if month > 12:
+                month = 1
+                year += 1
+
+        return year, month
+
+    @staticmethod
+    def _build_datetime(current_date: datetime, day: int, hour: int, minute: int = 0) -> datetime:
+        """Build a datetime from a day-of-month with rollover handling."""
+        year, month = TimeParser._resolve_month_year(current_date, day)
+        return datetime(year, month, day, hour, minute, tzinfo=timezone.utc)
+
+    @staticmethod
     def parse_observation_time(time_str: str) -> Optional[datetime]:
         """Parse observation time from METAR/TAF (format: DDHHMMZ)"""
         match = re.match(DATETIME_PATTERN, time_str)
@@ -19,16 +49,7 @@ class TimeParser:
 
             # Create datetime object
             current_date = datetime.now(timezone.utc)
-            year, month = current_date.year, current_date.month
-
-            # Handle month rollover if needed
-            if day > current_date.day:
-                month -= 1
-                if month < 1:
-                    month = 12
-                    year -= 1
-
-            return datetime(year, month, day, hour, minute, tzinfo=timezone.utc)
+            return TimeParser._build_datetime(current_date, day, hour, minute)
 
         return None
 
@@ -48,25 +69,12 @@ class TimeParser:
                 to_day += 1
 
             current_date = datetime.now(timezone.utc)
-            year, month = current_date.year, current_date.month
+            from_time = TimeParser._build_datetime(current_date, from_day, from_hour)
 
-            # Handle month rollover for from_time
-            if from_day > current_date.day:
-                if month == 1:
-                    from_time = datetime(year - 1, 12, from_day, from_hour, 0, tzinfo=timezone.utc)
-                else:
-                    from_time = datetime(year, month - 1, from_day, from_hour, 0, tzinfo=timezone.utc)
-            else:
-                from_time = datetime(year, month, from_day, from_hour, 0, tzinfo=timezone.utc)
-
-            # Handle month rollover for to_time
-            if to_day < from_day:
-                if month == 12:
-                    to_time = datetime(year + 1, 1, to_day, to_hour, 0, tzinfo=timezone.utc)
-                else:
-                    to_time = datetime(year, month + 1, to_day, to_hour, 0, tzinfo=timezone.utc)
-            else:
-                to_time = datetime(year, month, to_day, to_hour, 0, tzinfo=timezone.utc)
+            # Resolve to_time relative to from_time to preserve ordering.
+            to_time = TimeParser._build_datetime(from_time, to_day, to_hour)
+            if to_time < from_time:
+                to_time = TimeParser._add_month(to_time)
 
             return {"from": from_time, "to": to_time}
 
@@ -80,18 +88,7 @@ class TimeParser:
             day, hour, minute = map(int, match.groups())
 
             current_date = datetime.now(timezone.utc)
-            year, month = current_date.year, current_date.month
-
-            # Handle month rollover
-            if day > current_date.day:
-                if month == 1:
-                    from_time = datetime(year - 1, 12, day, hour, minute, tzinfo=timezone.utc)
-                else:
-                    from_time = datetime(year, month - 1, day, hour, minute, tzinfo=timezone.utc)
-            else:
-                from_time = datetime(year, month, day, hour, minute, tzinfo=timezone.utc)
-
-            return from_time
+            return TimeParser._build_datetime(current_date, day, hour, minute)
 
         return None
 
@@ -112,27 +109,21 @@ class TimeParser:
             to_day += 1
 
         current_date = datetime.now(timezone.utc)
-        year, month = current_date.year, current_date.month
-
-        # Handle month rollover for from_time
-        if from_day > current_date.day:
-            if month == 1:
-                from_time = datetime(year - 1, 12, from_day, from_hour, 0, tzinfo=timezone.utc)
-            else:
-                from_time = datetime(year, month - 1, from_day, from_hour, 0, tzinfo=timezone.utc)
-        else:
-            from_time = datetime(year, month, from_day, from_hour, 0, tzinfo=timezone.utc)
-
-        # Handle month rollover for to_time
-        if to_day < from_day:
-            if month == 12:
-                to_time = datetime(year + 1, 1, to_day, to_hour, 0, tzinfo=timezone.utc)
-            else:
-                to_time = datetime(year, month + 1, to_day, to_hour, 0, tzinfo=timezone.utc)
-        else:
-            to_time = datetime(year, month, to_day, to_hour, 0, tzinfo=timezone.utc)
+        from_time = TimeParser._build_datetime(current_date, from_day, from_hour)
+        to_time = TimeParser._build_datetime(from_time, to_day, to_hour)
+        if to_time < from_time:
+            to_time = TimeParser._add_month(to_time)
 
         return from_time, to_time
+
+    @staticmethod
+    def _add_month(dt: datetime) -> datetime:
+        """Add one month to a datetime, preserving day/time where possible."""
+        year = dt.year + (1 if dt.month == 12 else 0)
+        month = 1 if dt.month == 12 else dt.month + 1
+        last_day = calendar.monthrange(year, month)[1]
+        day = min(dt.day, last_day)
+        return datetime(year, month, day, dt.hour, dt.minute, tzinfo=timezone.utc)
 
     @staticmethod
     def get_current_utc_time() -> datetime:

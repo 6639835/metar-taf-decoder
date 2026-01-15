@@ -134,16 +134,10 @@ class TemperatureParser:
         Returns:
             Datetime object for the forecast time
         """
+        from ..parsers.time_parser import TimeParser
+
         current_date = datetime.now(timezone.utc)
-        year, month = current_date.year, current_date.month
-
-        # Handle month rollover (forecast day > current day suggests previous month)
-        if day > current_date.day:
-            if month == 1:
-                return datetime(year - 1, 12, day, hour, 0, tzinfo=timezone.utc)
-            return datetime(year, month - 1, day, hour, 0, tzinfo=timezone.utc)
-
-        return datetime(year, month, day, hour, 0, tzinfo=timezone.utc)
+        return TimeParser._build_datetime(current_date, day, hour, 0)
 
     @staticmethod
     def _add_temp_to_period(period: Dict, temp_data: Dict, temp_type: str) -> None:

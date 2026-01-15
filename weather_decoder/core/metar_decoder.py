@@ -315,8 +315,10 @@ class MetarDecoder:
                 # Collect all parts of the wind shear group
                 while (
                     i < len(parts)
-                    and parts[i] in ["RWY", "ALL", "TKOF", "LDG"]
-                    or (i < len(parts) and re.match(r"\d{2}[LCR]?", parts[i]))
+                    and (
+                        parts[i] in ["RWY", "ALL", "TKOF", "LDG"]
+                        or re.fullmatch(r"\d{2}[LCR]?", parts[i])
+                    )
                 ):
                     ws_parts.append(parts.pop(i))
 

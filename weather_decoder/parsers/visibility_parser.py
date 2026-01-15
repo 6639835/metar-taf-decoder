@@ -46,7 +46,11 @@ class VisibilityParser(TokenParser):
 
         # Check for standard 4-digit meter format
         if len(token) == 4 and token.isdigit():
-            return {"value": int(token), "unit": "M", "is_cavok": False}
+            value = int(token)
+            result: Dict[str, Union[int, str, bool]] = {"value": value, "unit": "M", "is_cavok": False}
+            if value == 0:
+                result["is_less_than"] = True
+            return result
 
         # Check for NDV format (e.g., 9999NDV)
         if token.endswith("NDV"):

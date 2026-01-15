@@ -795,19 +795,20 @@ class RemarksParser:
 
     def _sort_by_position(self, remarks: str, decoded: Dict, positions: Dict) -> Dict:
         """Sort decoded dict by position in original remarks string"""
+        regex_chars = set(r"\d[]{}+*?()|^$")
+
         # Find positions for keys not already tracked
         for key in decoded:
             if key not in positions:
                 patterns = self._key_patterns.get(key, [])
                 min_pos = len(remarks)  # Default to end
                 for pattern in patterns:
-                    if pattern.startswith(r"") or any(c in pattern for c in r"\d[]{}+*?"):
-                        # It's a regex pattern
+                    is_regex = any(char in regex_chars for char in pattern)
+                    if is_regex:
                         match = re.search(pattern, remarks)
                         if match:
                             min_pos = min(min_pos, match.start())
                     else:
-                        # It's a literal string
                         pos = remarks.find(pattern)
                         if pos >= 0:
                             min_pos = min(min_pos, pos)
