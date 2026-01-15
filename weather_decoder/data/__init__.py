@@ -1,4 +1,4 @@
-"""Data classes for parsed weather reports"""
+"""Report data classes for decoded weather reports."""
 
 from .metar_data import MetarData
 from .taf_data import TafData

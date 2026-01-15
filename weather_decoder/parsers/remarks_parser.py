@@ -59,6 +59,7 @@ class RemarksParser:
             "Cloud Types": ["SC", "AC", "ST", "CU", "CB", "CI", "AS", "NS", "SN", "TCU", "CC", "CS"],
             "Density Altitude": ["DENSITY ALT"],
             "Obscuration": ["OBSC"],
+            "QBB": ["QBB"],
             "Ceiling": ["CIG"],
             "variable_ceiling": ["CIG"],
             "Pressure Change": ["PRESFR", "PRESRR"],
@@ -113,6 +114,7 @@ class RemarksParser:
         self._parse_cloud_types(remarks, decoded)
         self._parse_density_altitude(remarks, decoded)
         self._parse_obscuration(remarks, decoded)
+        self._parse_qbb(remarks, decoded)
         self._parse_ceiling(remarks, decoded)
         self._parse_pressure_change(remarks, decoded)
         self._parse_frontal_passage(remarks, decoded)
@@ -243,11 +245,30 @@ class RemarksParser:
             decoded["Pressure Tendency"] = f"{char_desc}; change: {change_hpa:.1f} hPa"
 
     def _parse_qfe(self, remarks: str, decoded: Dict) -> None:
-        """Parse QFE (field elevation pressure)"""
-        qfe_match = re.search(r"QFE(\d{3,4})", remarks)
+        """Parse QFE (field elevation pressure) - Russian METAR format
+
+        Russian METARs use the format QFEnnn/xxxx where:
+        - nnn = pressure in mmHg (millimeters of mercury)
+        - xxxx = pressure in hPa (hectopascals), with leading zero if < 1000
+
+        Example: QFE728/0971 means 728 mmHg = 971 hPa
+        Some reports may only include QFEnnn without the hPa value.
+        """
+        # Try to match QFE with both mmHg and hPa values
+        qfe_match = re.search(r"QFE(\d{3,4})(?:/(\d{4}))?", remarks)
         if qfe_match:
-            qfe_value = int(qfe_match.group(1))
-            decoded["QFE"] = f"{qfe_value} hPa"
+            qfe_mmhg = int(qfe_match.group(1))
+            qfe_hpa_str = qfe_match.group(2)
+
+            if qfe_hpa_str:
+                # Both values provided
+                qfe_hpa = int(qfe_hpa_str)
+                decoded["QFE"] = f"{qfe_mmhg} mmHg ({qfe_hpa} hPa)"
+            else:
+                # Only mmHg value provided, calculate approximate hPa
+                # 1 mmHg ≈ 1.33322 hPa
+                qfe_hpa_calc = int(qfe_mmhg * 1.33322)
+                decoded["QFE"] = f"{qfe_mmhg} mmHg (~{qfe_hpa_calc} hPa)"
 
     def _parse_altimeter_remarks(self, remarks: str, decoded: Dict) -> None:
         """Parse altimeter setting in remarks (Axxxx format)"""
@@ -654,6 +675,21 @@ class RemarksParser:
             decoded["Obscuration"] = "Mountain obscured"
         elif re.search(r"\bMTNS\s+OBSC\b", remarks):
             decoded["Obscuration"] = "Mountains obscured"
+
+    def _parse_qbb(self, remarks: str, decoded: Dict) -> None:
+        """Parse QBB (cloud base height in meters) - Russian METAR format
+
+        QBB is used in Russian METARs to report the height of the lower
+        boundary of clouds in meters above ground level.
+        Format: QBBnnn where nnn is the height in meters
+        Example: QBB220 = cloud base at 220 meters AGL
+        """
+        qbb_match = re.search(r"\bQBB(\d{2,4})\b", remarks)
+        if qbb_match:
+            height_meters = int(qbb_match.group(1))
+            # Convert meters to feet for reference (1 meter ≈ 3.28084 feet)
+            height_feet = int(height_meters * 3.28084)
+            decoded["QBB"] = f"Cloud base at {height_meters} meters ({height_feet} feet) AGL"
 
     def _parse_density_altitude(self, remarks: str, decoded: Dict) -> None:
         """Parse density altitude (Canadian remarks)"""

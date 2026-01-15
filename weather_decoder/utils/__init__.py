@@ -1,8 +1,6 @@
-"""Utility functions and constants"""
+"""Compatibility exports for legacy utils imports."""
 
 from . import constants, formatters, patterns
-
-# Re-export all symbols from submodules for backward compatibility
 from .constants import (
     CHANGE_INDICATORS,
     CLOUD_TYPE_CODES,
@@ -61,11 +59,9 @@ from .patterns import (
 )
 
 __all__ = [
-    # Submodules
     "constants",
     "formatters",
     "patterns",
-    # Constants
     "CHANGE_INDICATORS",
     "CLOUD_TYPE_CODES",
     "CLOUD_TYPES",
@@ -87,14 +83,12 @@ __all__ = [
     "WEATHER_DESCRIPTORS",
     "WEATHER_INTENSITY",
     "WEATHER_PHENOMENA",
-    # Formatters
     "format_pressure",
     "format_sky_condition",
     "format_temperature",
     "format_visibility",
     "format_weather_group",
     "format_wind",
-    # Patterns
     "ALT_PATTERN",
     "ALT_QNH_PATTERN",
     "ALTIMETER_PATTERN",

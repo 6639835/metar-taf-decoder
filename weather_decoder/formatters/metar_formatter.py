@@ -1,197 +1,141 @@
-"""METAR-specific formatting utilities
+"""Formatting utilities for METAR reports."""
 
-This module provides formatting functions for METAR data output.
-"""
+from __future__ import annotations
 
-from typing import TYPE_CHECKING, Dict, List
+from typing import Dict, List
 
 from .common import (
+    format_pressure,
     format_sky_conditions_list,
+    format_temperature,
     format_visibility,
     format_weather_groups_list,
     format_wind,
 )
-
-if TYPE_CHECKING:
-    from ..data.metar_data import MetarData
+from ..models import MetarReport, RunwayState, RunwayVisualRange
 
 
 class MetarFormatter:
-    """Formatter for METAR data output
-
-    This class handles the conversion of MetarData objects into
-    human-readable string representations.
-    """
+    """Formatter for MetarReport objects."""
 
     @staticmethod
-    def format(metar: "MetarData") -> str:
-        """Format a MetarData object into a human-readable string
-
-        Args:
-            metar: The MetarData object to format
-
-        Returns:
-            Human-readable METAR string
-        """
+    def format(metar: MetarReport) -> str:
         formatter = MetarFormatter()
         return formatter._format_metar(metar)
 
-    def _format_metar(self, metar: "MetarData") -> str:
-        """Internal formatting method"""
+    def _format_metar(self, metar: MetarReport) -> str:
         lines = [
             f"METAR for {metar.station_id} issued "
             f"{metar.observation_time.day:02d} "
             f"{metar.observation_time.hour:02d}:{metar.observation_time.minute:02d} UTC",
         ]
 
-        # Handle NIL (missing) report
         if metar.is_nil:
             lines.append("Status: NIL (Missing report)")
             return "\n".join(lines)
 
-        # Basic info
         lines.extend(
             [
-                f"Type: {'AUTO' if metar.auto else 'Manual'} {metar.metar_type}",
+                f"Type: {'AUTO' if metar.is_automated else 'Manual'} {metar.report_type}",
                 f"Wind: {format_wind(metar.wind)}",
                 f"Visibility: {format_visibility(metar.visibility)}",
             ]
         )
 
-        # RVR
-        if metar.runway_visual_range:
-            lines.extend(self._format_rvr(metar.runway_visual_range))
+        if metar.runway_visual_ranges:
+            lines.extend(self._format_rvr(metar.runway_visual_ranges))
 
-        # Runway conditions
-        if metar.runway_conditions:
-            lines.extend(self._format_runway_conditions(metar.runway_conditions))
+        if metar.runway_states:
+            lines.extend(self._format_runway_states(metar.runway_states))
 
-        # Runway state reports
-        if metar.runway_state_reports:
-            lines.extend(self._format_runway_state_reports(metar.runway_state_reports))
-
-        # Weather phenomena
-        if metar.weather_groups:
-            wx_lines = format_weather_groups_list(metar.weather_groups)
+        if metar.weather:
+            wx_lines = format_weather_groups_list(metar.weather)
             if wx_lines:
                 lines.append("Weather Phenomena:")
                 lines.extend([f"  {line}" for line in wx_lines])
 
-        # Sky conditions
-        if metar.sky_conditions:
-            sky_lines = format_sky_conditions_list(metar.sky_conditions)
+        if metar.sky:
+            sky_lines = format_sky_conditions_list(metar.sky)
             if sky_lines:
                 lines.append("Sky Conditions:")
                 lines.extend([f"  {line}" for line in sky_lines])
 
-        # Windshear
         if metar.windshear:
-            ws_descriptions = [ws.get("description", ws.get("raw", "Wind shear reported")) for ws in metar.windshear]
-            lines.append(f"Windshear: {', '.join(ws_descriptions)}")
+            descriptions = [ws.description for ws in metar.windshear]
+            lines.append(f"Windshear: {', '.join(descriptions)}")
 
-        # Temperature and dewpoint
-        lines.append(f"Temperature: {metar.temperature}°C")
-        if metar.dewpoint is not None:
-            lines.append(f"Dew Point: {metar.dewpoint}°C")
-        else:
-            lines.append("Dew Point: Not available")
+        lines.append(f"Temperature: {format_temperature(metar.temperature)}")
+        lines.append(f"Dew Point: {format_temperature(metar.dewpoint)}")
 
-        # Altimeter
-        lines.append(f"Altimeter: {metar.altimeter['value']} {metar.altimeter['unit']}")
+        lines.append(f"Altimeter: {format_pressure(metar.altimeter)}")
 
-        # Trends
         if metar.trends:
             for i, trend in enumerate(metar.trends):
                 prefix = "Trend: " if i == 0 else "       "
-                lines.append(f"{prefix}{trend['description']}")
+                lines.append(f"{prefix}{trend.description}")
 
-        # Military color codes
         if metar.military_color_codes:
             lines.append("Military Color Codes:")
             for code in metar.military_color_codes:
-                lines.append(f"  {code['code']}: {code['description']}")
+                lines.append(f"  {code.code}: {code.description}")
 
-        # Remarks
         if metar.remarks:
-            lines.extend(self._format_remarks(metar))
+            lines.extend(self._format_remarks(metar.remarks, metar.remarks_decoded))
 
         return "\n".join(lines)
 
-    def _format_rvr(self, rvr_list: List[Dict]) -> List[str]:
-        """Format runway visual range information"""
+    def _format_rvr(self, rvr_list: List[RunwayVisualRange]) -> List[str]:
         lines = ["Runway Visual Range:"]
 
         for rvr in rvr_list:
-            if rvr.get("variable_range"):
-                # Variable RVR format
-                min_prefix = ""
-                max_prefix = ""
-
-                if rvr.get("is_less_than"):
-                    min_prefix = "less than "
-                elif rvr.get("is_more_than"):
-                    min_prefix = "more than "
-
-                if rvr.get("variable_less_than"):
-                    max_prefix = "less than "
-                elif rvr.get("variable_more_than"):
-                    max_prefix = "more than "
-
+            if rvr.variable_range is not None:
+                min_prefix = "less than " if rvr.is_less_than else "more than " if rvr.is_more_than else ""
+                max_prefix = (
+                    "less than "
+                    if rvr.variable_less_than
+                    else "more than "
+                    if rvr.variable_more_than
+                    else ""
+                )
                 rvr_line = (
-                    f"  Runway {rvr['runway']}: "
-                    f"{min_prefix}{rvr['visual_range']} to "
-                    f"{max_prefix}{rvr['variable_range']} {rvr['unit']}"
+                    f"  Runway {rvr.runway}: "
+                    f"{min_prefix}{rvr.visual_range} to {max_prefix}{rvr.variable_range} {rvr.unit}"
                 )
             else:
-                # Regular RVR format
-                if rvr.get("is_more_than"):
-                    rvr_line = f"  Runway {rvr['runway']}: More than {rvr['visual_range']} {rvr['unit']}"
-                elif rvr.get("is_less_than"):
-                    rvr_line = f"  Runway {rvr['runway']}: Less than {rvr['visual_range']} {rvr['unit']}"
+                if rvr.is_more_than:
+                    rvr_line = f"  Runway {rvr.runway}: More than {rvr.visual_range} {rvr.unit}"
+                elif rvr.is_less_than:
+                    rvr_line = f"  Runway {rvr.runway}: Less than {rvr.visual_range} {rvr.unit}"
                 else:
-                    rvr_line = f"  Runway {rvr['runway']}: {rvr['visual_range']} {rvr['unit']}"
+                    rvr_line = f"  Runway {rvr.runway}: {rvr.visual_range} {rvr.unit}"
 
-            if rvr.get("trend"):
-                rvr_line += f" ({rvr['trend']})"
+            if rvr.trend:
+                rvr_line += f" ({rvr.trend})"
 
             lines.append(rvr_line)
 
         return lines
 
-    def _format_runway_conditions(self, conditions: List[Dict]) -> List[str]:
-        """Format runway conditions"""
-        lines = ["Runway Conditions:"]
-        for cond in conditions:
-            lines.append(f"  Runway {cond['runway']}: {cond['description']}")
-        return lines
-
-    def _format_runway_state_reports(self, reports: List[Dict]) -> List[str]:
-        """Format runway state reports"""
+    def _format_runway_states(self, reports: List[RunwayState]) -> List[str]:
         lines = ["Runway State Reports:"]
         for report in reports:
             lines.append(
-                f"  Runway {report['runway']}: {report['deposit']}, "
-                f"{report['contamination']}, {report['depth']}, {report['braking']}"
+                f"  Runway {report.runway}: {report.deposit}, {report.contamination}, {report.depth}, {report.braking}"
             )
         return lines
 
-    def _format_remarks(self, metar: "MetarData") -> List[str]:
-        """Format remarks section"""
+    def _format_remarks(self, remarks: str, decoded: Dict) -> List[str]:
         lines = []
 
-        # Add raw remarks
-        if metar.remarks.strip():
-            lines.append(f"Remarks: {metar.remarks}")
+        if remarks.strip():
+            lines.append(f"Remarks: {remarks}")
 
-        # Add decoded remarks
-        if metar.remarks_decoded:
-            decoded_lines = self._format_decoded_remarks(metar.remarks_decoded)
-            lines.extend(decoded_lines)
+        if decoded:
+            lines.extend(self._format_decoded_remarks(decoded))
 
         return lines
 
     def _format_decoded_remarks(self, decoded: Dict) -> List[str]:
-        """Format decoded remarks"""
         lines: List[str] = []
 
         for key, value in decoded.items():
@@ -219,14 +163,13 @@ class MetarFormatter:
                     for item in value:
                         lines.append(f"    {', '.join([f'{k}: {v}' for k, v in item.items()])}")
                 else:
-                    lines.append(f"  {key}: {', '.join(value)}")
+                    lines.append(f"  {key}: {', '.join(str(item) for item in value)}")
             else:
                 lines.append(f"  {key}: {value}")
 
         return lines
 
     def _format_directional_info(self, info_list: List[Dict]) -> List[str]:
-        """Format directional information"""
         lines = ["  Directional information:"]
 
         for info in info_list:
@@ -254,7 +197,6 @@ class MetarFormatter:
         return lines
 
     def _format_runway_winds(self, winds: List[Dict]) -> List[str]:
-        """Format runway-specific winds"""
         lines = ["  Runway-specific winds:"]
 
         for wind in winds:
@@ -278,7 +220,6 @@ class MetarFormatter:
         return lines
 
     def _format_altitude_winds(self, winds: List[Dict]) -> List[str]:
-        """Format altitude-specific winds"""
         lines = ["  Altitude-specific winds:"]
 
         for wind in winds:
@@ -299,7 +240,6 @@ class MetarFormatter:
         return lines
 
     def _format_location_winds(self, winds: List[Dict]) -> List[str]:
-        """Format location-specific winds"""
         lines = ["  Location-specific winds:"]
 
         for wind in winds:
@@ -319,7 +259,6 @@ class MetarFormatter:
         return lines
 
     def _format_runway_state_remarks(self, reports: List[Dict]) -> List[str]:
-        """Format runway state reports in remarks"""
         lines = ["  Runway State Reports in Remarks:"]
 
         for report in reports:

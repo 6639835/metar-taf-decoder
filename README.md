@@ -27,13 +27,15 @@ from weather_decoder import MetarDecoder, TafDecoder
 
 # Decode METAR
 metar_decoder = MetarDecoder()
-metar_data = metar_decoder.decode("METAR KJFK 061751Z 28008KT 10SM FEW250 22/18 A2992")
-print(metar_data)
+metar_report = metar_decoder.decode("METAR KJFK 061751Z 28008KT 10SM FEW250 22/18 A2992")
+print(metar_report)
+print(metar_report.wind)
 
 # Decode TAF
 taf_decoder = TafDecoder()
-taf_data = taf_decoder.decode("TAF KJFK 061730Z 0618/0724 28008KT 9999 FEW250")
-print(taf_data)
+taf_report = taf_decoder.decode("TAF KJFK 061730Z 0618/0724 28008KT 9999 FEW250")
+print(taf_report)
+print(taf_report.forecast_periods)
 ```
 
 ### Command Line
@@ -111,15 +113,14 @@ weather_decoder/
 
 ## Migration from Version 1.x
 
-The new modular structure maintains API compatibility while providing better organization:
+The refactored API returns strongly-typed report models and clearer field names:
 
 ```python
-# Old way (still works)
-from weather_decoder import MetarDecoder, TafDecoder
+from weather_decoder import MetarDecoder
 
-# New way (recommended for advanced usage)
-from weather_decoder.core.metar_decoder import MetarDecoder
-from weather_decoder.parsers.wind_parser import WindParser
+report = MetarDecoder().decode("METAR KJFK 061751Z 28008KT 10SM FEW250 22/18 A2992")
+print(report.report_type, report.is_automated)
+print(report.wind, report.visibility)
 ```
 
 ## Contributing

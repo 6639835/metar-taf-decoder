@@ -1,30 +1,13 @@
-"""TAF Data class for holding decoded TAF information"""
+"""TAF report data container and formatting helpers."""
 
-from dataclasses import dataclass
-from datetime import datetime
-from typing import Dict, List
+from __future__ import annotations
 
 from ..formatters.taf_formatter import TafFormatter
+from ..models import TafReport
 
 
-@dataclass
-class TafData:
-    """Class to hold decoded TAF data
+class TafData(TafReport):
+    """Decoded TAF report with convenience formatting helpers."""
 
-    This is a pure data container. Formatting logic is handled by TafFormatter.
-    """
-
-    raw_taf: str
-    station_id: str
-    issue_time: datetime
-    valid_period: Dict
-    forecast_periods: List[Dict]
-    remarks: str
-    remarks_decoded: Dict
-
-    def __str__(self) -> str:
-        """Return a human-readable string of the decoded TAF
-
-        Delegates to TafFormatter for the actual formatting.
-        """
+    def __str__(self) -> str:  # pragma: no cover - formatting wrapper
         return TafFormatter.format(self)

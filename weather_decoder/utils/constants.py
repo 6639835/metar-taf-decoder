@@ -1,11 +1,10 @@
-"""Constants and lookup tables for weather decoding
+"""Constants and lookup tables for weather decoding.
 
 This module is maintained for backward compatibility.
 New code should import from weather_decoder.constants instead.
 """
 
-# Re-export all constants from the new location
-from ..constants import (  # Weather; Sky; Runway; Pressure; Location; Change codes; Military
+from ..constants import (
     CHANGE_INDICATORS,
     CLOUD_TYPE_CODES,
     CLOUD_TYPES,
@@ -30,15 +29,12 @@ from ..constants import (  # Weather; Sky; Runway; Pressure; Location; Change co
 )
 
 __all__ = [
-    # Weather
     "WEATHER_DESCRIPTORS",
     "WEATHER_INTENSITY",
     "WEATHER_PHENOMENA",
-    # Sky
     "CLOUD_TYPE_CODES",
     "CLOUD_TYPES",
     "SKY_CONDITIONS",
-    # Runway
     "RUNWAY_BRAKING",
     "RUNWAY_BRAKING_REMARKS",
     "RUNWAY_DEPOSIT_TYPES",
@@ -46,16 +42,12 @@ __all__ = [
     "RUNWAY_STATE_DEPOSIT_TYPES_REMARKS",
     "RUNWAY_STATE_EXTENT_REMARKS",
     "RVR_TRENDS",
-    # Pressure
     "PRESSURE_TENDENCY_CHARACTERISTICS",
-    # Location
     "DIRECTION_ABBREV",
     "LIGHTNING_FREQUENCY",
     "LIGHTNING_TYPES",
     "LOCATION_INDICATORS",
-    # Change codes
     "CHANGE_INDICATORS",
     "TREND_TYPES",
-    # Military
     "MILITARY_COLOR_CODES",
 ]

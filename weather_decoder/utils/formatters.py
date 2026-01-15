@@ -1,10 +1,9 @@
-"""Formatting utilities for weather data
+"""Formatting utilities for weather data.
 
 This module is maintained for backward compatibility.
 New code should import from weather_decoder.formatters instead.
 """
 
-# Re-export from the new location for backward compatibility
 from ..formatters.common import (
     format_pressure,
     format_sky_condition,

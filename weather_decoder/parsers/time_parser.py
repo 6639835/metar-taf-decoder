@@ -1,23 +1,21 @@
-"""Time and date parsing utilities"""
+"""Time and date parsing utilities."""
+
+from __future__ import annotations
 
 import calendar
 import re
 from datetime import datetime, timezone
-from typing import Dict, Optional, Tuple
+from typing import Optional, Tuple
 
+from ..models import TimeRange
 from ..utils.patterns import DATETIME_PATTERN, FM_PATTERN, VALID_PERIOD_PATTERN
 
 
 class TimeParser:
-    """Parser for time and date information in weather reports"""
+    """Parser for time and date information in weather reports."""
 
     @staticmethod
     def _resolve_month_year(current_date: datetime, day: int) -> Tuple[int, int]:
-        """Resolve a day-of-month to a month/year near the current date.
-
-        Uses a midpoint heuristic so day values close to today stay in the
-        current month, while values far ahead/behind roll across months.
-        """
         year, month = current_date.year, current_date.month
         day_delta = day - current_date.day
 
@@ -36,31 +34,24 @@ class TimeParser:
 
     @staticmethod
     def _build_datetime(current_date: datetime, day: int, hour: int, minute: int = 0) -> datetime:
-        """Build a datetime from a day-of-month with rollover handling."""
         year, month = TimeParser._resolve_month_year(current_date, day)
         return datetime(year, month, day, hour, minute, tzinfo=timezone.utc)
 
     @staticmethod
     def parse_observation_time(time_str: str) -> Optional[datetime]:
-        """Parse observation time from METAR/TAF (format: DDHHMMZ)"""
         match = re.match(DATETIME_PATTERN, time_str)
         if match:
             day, hour, minute = map(int, match.groups())
-
-            # Create datetime object
             current_date = datetime.now(timezone.utc)
             return TimeParser._build_datetime(current_date, day, hour, minute)
-
         return None
 
     @staticmethod
-    def parse_valid_period(period_str: str) -> Optional[Dict]:
-        """Parse valid period from TAF (format: DDHH/DDHH)"""
+    def parse_valid_period(period_str: str) -> Optional[TimeRange]:
         match = re.match(VALID_PERIOD_PATTERN, period_str)
         if match:
             from_day, from_hour, to_day, to_hour = map(int, match.groups())
 
-            # Handle special case where hours are 24
             if from_hour == 24:
                 from_hour = 0
                 from_day += 1
@@ -69,38 +60,32 @@ class TimeParser:
                 to_day += 1
 
             current_date = datetime.now(timezone.utc)
-            from_time = TimeParser._build_datetime(current_date, from_day, from_hour)
+            start_time = TimeParser._build_datetime(current_date, from_day, from_hour)
 
-            # Resolve to_time relative to from_time to preserve ordering.
-            to_time = TimeParser._build_datetime(from_time, to_day, to_hour)
-            if to_time < from_time:
-                to_time = TimeParser._add_month(to_time)
+            end_time = TimeParser._build_datetime(start_time, to_day, to_hour)
+            if end_time < start_time:
+                end_time = TimeParser._add_month(end_time)
 
-            return {"from": from_time, "to": to_time}
+            return TimeRange(start=start_time, end=end_time)
 
         return None
 
     @staticmethod
     def parse_fm_time(fm_str: str) -> Optional[datetime]:
-        """Parse FM (FROM) time from TAF (format: FM061200)"""
         match = re.match(FM_PATTERN, fm_str)
         if match:
             day, hour, minute = map(int, match.groups())
-
             current_date = datetime.now(timezone.utc)
             return TimeParser._build_datetime(current_date, day, hour, minute)
-
         return None
 
     @staticmethod
     def parse_time_range(time_group: str) -> Tuple[datetime, datetime]:
-        """Parse a time range string (like '0609/0610') into datetime objects"""
         from_day = int(time_group[0:2])
         from_hour = int(time_group[2:4])
         to_day = int(time_group[5:7])
         to_hour = int(time_group[7:9])
 
-        # Handle special case where hours are 24
         if from_hour == 24:
             from_hour = 0
             from_day += 1
@@ -118,7 +103,6 @@ class TimeParser:
 
     @staticmethod
     def _add_month(dt: datetime) -> datetime:
-        """Add one month to a datetime, preserving day/time where possible."""
         year = dt.year + (1 if dt.month == 12 else 0)
         month = 1 if dt.month == 12 else dt.month + 1
         last_day = calendar.monthrange(year, month)[1]
@@ -127,10 +111,8 @@ class TimeParser:
 
     @staticmethod
     def get_current_utc_time() -> datetime:
-        """Get current UTC time"""
         return datetime.now(timezone.utc)
 
     @staticmethod
     def format_time(dt: datetime) -> str:
-        """Format datetime for display"""
         return dt.strftime("%d %H:%M UTC")
