@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Dict, List
 
 from .common import (
@@ -12,7 +13,14 @@ from .common import (
     format_weather_groups_list,
     format_wind,
 )
+from ..constants.change_codes import TREND_TYPES
 from ..models import MetarReport, RunwayState, RunwayVisualRange
+from ..parsers.sky_parser import SkyParser
+from ..parsers.visibility_parser import VisibilityParser
+from ..parsers.weather_parser import WeatherParser
+from ..parsers.wind_parser import WindParser
+from ..utils.constants import MILITARY_COLOR_CODES
+from ..utils.patterns import COMPILED_PATTERNS
 
 
 class MetarFormatter:
@@ -34,55 +42,164 @@ class MetarFormatter:
             lines.append("Status: NIL (Missing report)")
             return "\n".join(lines)
 
-        lines.extend(
-            [
-                f"Type: {'AUTO' if metar.is_automated else 'Manual'} {metar.report_type}",
-                f"Wind: {format_wind(metar.wind)}",
-                f"Visibility: {format_visibility(metar.visibility)}",
-            ]
-        )
+        lines.append(f"Type: {'AUTO' if metar.is_automated else 'Manual'} {metar.report_type}")
+
+        sections: Dict[str, List[str]] = {}
+        sections["wind"] = [f"Wind: {format_wind(metar.wind)}"]
+        sections["visibility"] = [f"Visibility: {format_visibility(metar.visibility)}"]
 
         if metar.runway_visual_ranges:
-            lines.extend(self._format_rvr(metar.runway_visual_ranges))
+            sections["runway_visual_range"] = self._format_rvr(metar.runway_visual_ranges)
 
         if metar.runway_states:
-            lines.extend(self._format_runway_states(metar.runway_states))
+            sections["runway_state"] = self._format_runway_states(metar.runway_states)
 
         if metar.weather:
             wx_lines = format_weather_groups_list(metar.weather)
             if wx_lines:
-                lines.append("Weather Phenomena:")
-                lines.extend([f"  {line}" for line in wx_lines])
+                sections["weather"] = ["Weather Phenomena:"] + [f"  {line}" for line in wx_lines]
 
         if metar.sky:
             sky_lines = format_sky_conditions_list(metar.sky)
             if sky_lines:
-                lines.append("Sky Conditions:")
-                lines.extend([f"  {line}" for line in sky_lines])
+                sections["sky"] = ["Sky Conditions:"] + [f"  {line}" for line in sky_lines]
 
         if metar.windshear:
             descriptions = [ws.description for ws in metar.windshear]
-            lines.append(f"Windshear: {', '.join(descriptions)}")
+            sections["windshear"] = [f"Windshear: {', '.join(descriptions)}"]
 
-        lines.append(f"Temperature: {format_temperature(metar.temperature)}")
-        lines.append(f"Dew Point: {format_temperature(metar.dewpoint)}")
+        sections["temperature"] = [
+            f"Temperature: {format_temperature(metar.temperature)}",
+            f"Dew Point: {format_temperature(metar.dewpoint)}",
+        ]
 
-        lines.append(f"Altimeter: {format_pressure(metar.altimeter)}")
+        sections["altimeter"] = [f"Altimeter: {format_pressure(metar.altimeter)}"]
 
         if metar.trends:
+            trend_lines: List[str] = []
             for i, trend in enumerate(metar.trends):
                 prefix = "Trend: " if i == 0 else "       "
-                lines.append(f"{prefix}{trend.description}")
+                trend_lines.append(f"{prefix}{trend.description}")
+            sections["trends"] = trend_lines
 
         if metar.military_color_codes:
-            lines.append("Military Color Codes:")
+            code_lines = ["Military Color Codes:"]
             for code in metar.military_color_codes:
-                lines.append(f"  {code.code}: {code.description}")
+                code_lines.append(f"  {code.code}: {code.description}")
+            sections["military_color_codes"] = code_lines
+
+        ordered_sections = self._order_sections(metar, list(sections.keys()))
+        for section in ordered_sections:
+            lines.extend(sections[section])
 
         if metar.remarks:
             lines.extend(self._format_remarks(metar.remarks, metar.remarks_decoded))
 
         return "\n".join(lines)
+
+    def _order_sections(self, metar: MetarReport, available_sections: List[str]) -> List[str]:
+        tokens = metar.raw_metar.strip().split()
+        if "RMK" in tokens:
+            tokens = tokens[: tokens.index("RMK")]
+        if "NIL" in tokens:
+            tokens = tokens[: tokens.index("NIL")]
+
+        wind_parser = WindParser()
+        visibility_parser = VisibilityParser()
+        weather_parser = WeatherParser()
+        sky_parser = SkyParser()
+
+        ordered: List[str] = []
+
+        def add(section: str) -> None:
+            if section in available_sections and section not in ordered:
+                ordered.append(section)
+
+        i = 0
+        while i < len(tokens):
+            token = tokens[i]
+
+            if wind_parser.parse(token):
+                add("wind")
+                i += 1
+                continue
+
+            if visibility_parser.parse(token):
+                add("visibility")
+                i += 1
+                continue
+
+            if token.isdigit() and i + 1 < len(tokens) and re.match(r"^\d+/\d+SM$", tokens[i + 1]):
+                add("visibility")
+                i += 1
+                continue
+
+            if COMPILED_PATTERNS["rvr"].match(token):
+                add("runway_visual_range")
+                i += 1
+                continue
+
+            if COMPILED_PATTERNS["runway_state"].match(token):
+                add("runway_state")
+                i += 1
+                continue
+
+            if weather_parser.parse(token):
+                add("weather")
+                i += 1
+                continue
+
+            if sky_parser.parse(token):
+                add("sky")
+                i += 1
+                continue
+
+            if COMPILED_PATTERNS["temperature"].match(token):
+                add("temperature")
+                i += 1
+                continue
+
+            if COMPILED_PATTERNS["altimeter"].match(token):
+                add("altimeter")
+                i += 1
+                continue
+
+            if token == "WS" or token.startswith("WS"):
+                add("windshear")
+                i += 1
+                continue
+
+            if token in TREND_TYPES:
+                add("trends")
+                i += 1
+                continue
+
+            if token in MILITARY_COLOR_CODES:
+                add("military_color_codes")
+                i += 1
+                continue
+
+            i += 1
+
+        default_order = [
+            "wind",
+            "visibility",
+            "runway_visual_range",
+            "runway_state",
+            "weather",
+            "sky",
+            "windshear",
+            "temperature",
+            "altimeter",
+            "trends",
+            "military_color_codes",
+        ]
+
+        for section in default_order:
+            if section in available_sections and section not in ordered:
+                ordered.append(section)
+
+        return ordered
 
     def _format_rvr(self, rvr_list: List[RunwayVisualRange]) -> List[str]:
         lines = ["Runway Visual Range:"]
