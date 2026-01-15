@@ -8,16 +8,20 @@ main body of the report.
 import re
 from typing import Dict, Tuple
 
-from ..utils.constants import (
+from ..constants import (
     CLOUD_TYPE_CODES,
     DIRECTION_ABBREV,
     LIGHTNING_FREQUENCY,
     LIGHTNING_TYPES,
     LOCATION_INDICATORS,
+    MAINTENANCE_INDICATOR,
     PRESSURE_TENDENCY_CHARACTERISTICS,
     RUNWAY_BRAKING_REMARKS,
+    RUNWAY_DEPTH_SPECIAL,
     RUNWAY_STATE_DEPOSIT_TYPES_REMARKS,
     RUNWAY_STATE_EXTENT_REMARKS,
+    SENSOR_STATUS,
+    STATION_TYPES,
     WEATHER_DESCRIPTORS,
     WEATHER_PHENOMENA,
 )
@@ -35,7 +39,8 @@ class RemarksParser:
         """Initialize the remarks parser"""
         # Mapping of decoded keys to their search patterns for position tracking
         self._key_patterns = {
-            "Station Type": ["AO2", "AO1"],
+            # Prefer AO2 over AO1 when both appear
+            "Station Type": ["A02A", "AO2", "AO1", "A02", "A01"],
             "Sea Level Pressure": ["SLP"],
             "Pressure Tendency": [r"5[0-8]\d{3}"],
             "Temperature (tenths)": ["T0", "T1"],
@@ -68,8 +73,8 @@ class RemarksParser:
             "SLP Status": ["SLPNO"],
             "RVR Status": ["RVRNO"],
             "Runway State (Remarks)": [r"8\d{7}"],
-            "Sensor Status": ["PWINO", "TSNO", "FZRANO", "PNO", "VISNO", "CHINO", "RVRNO"],
-            "Maintenance Indicator": ["$"],
+            "Sensor Status": list(SENSOR_STATUS.keys()),
+            "Maintenance Indicator": [MAINTENANCE_INDICATOR],
             "runway_winds": ["RWY", "WIND"],
         }
 
@@ -136,15 +141,13 @@ class RemarksParser:
 
     def _parse_station_type(self, remarks: str, decoded: Dict, positions: Dict) -> None:
         """Parse station type (AO1/AO2)"""
-        ao2_pos = remarks.find("AO2")
-        ao1_pos = remarks.find("AO1")
-
-        if ao2_pos >= 0:
-            decoded["Station Type"] = "Automated station with precipitation discriminator"
-            positions["Station Type"] = ao2_pos
-        elif ao1_pos >= 0:
-            decoded["Station Type"] = "Automated station without precipitation discriminator"
-            positions["Station Type"] = ao1_pos
+        # Longest-first to avoid matching A02 within A02A
+        for code in ["A02A", "AO2", "AO1", "A02", "A01"]:
+            pos = remarks.find(code)
+            if pos >= 0:
+                decoded["Station Type"] = STATION_TYPES.get(code, code)
+                positions["Station Type"] = pos
+                return
 
     # =========================================================================
     # Wind Information
@@ -657,15 +660,15 @@ class RemarksParser:
             decoded["Cloud Types"] = "; ".join(cloud_types_found)
 
     def _parse_ceiling(self, remarks: str, decoded: Dict) -> None:
-        """Parse ceiling information (CIG xxx or CIG xxxVxxx)"""
-        cig_match = re.search(r"\bCIG\s+(\d{3})(?:V(\d{3}))?", remarks)
+        """Parse ceiling information (CIGxxx or CIG xxxVxxx)"""
+        cig_match = re.search(r"\bCIG\s*(\d{3})(?:\s*V\s*(\d{3}))?\b", remarks)
         if cig_match:
             cig_low = int(cig_match.group(1)) * 100
             if cig_match.group(2):
                 cig_high = int(cig_match.group(2)) * 100
-                decoded["variable_ceiling"] = f"{cig_low} to {cig_high} feet"
+                decoded["variable_ceiling"] = f"{cig_low} to {cig_high} feet AGL"
             else:
-                decoded["Ceiling"] = f"{cig_low} feet"
+                decoded["Ceiling"] = f"{cig_low} feet AGL"
 
     def _parse_obscuration(self, remarks: str, decoded: Dict) -> None:
         """Parse obscuration remarks"""
@@ -734,8 +737,7 @@ class RemarksParser:
             extent_desc = RUNWAY_STATE_EXTENT_REMARKS.get(extent, f"Unknown ({extent})")
 
             # Depth of deposit
-            depth_val = int(depth_raw)
-            depth_desc = self._decode_runway_depth(depth_val)
+            depth_desc = self._decode_runway_depth(depth_raw)
 
             # Braking action
             braking_val = int(braking_raw)
@@ -746,28 +748,15 @@ class RemarksParser:
             )
 
     @staticmethod
-    def _decode_runway_depth(depth_val: int) -> str:
+    def _decode_runway_depth(depth_raw: str) -> str:
         """Decode runway depth value"""
-        if depth_val == 0:
-            return "Less than 1mm"
-        elif depth_val <= 90:
+        special_desc = RUNWAY_DEPTH_SPECIAL.get(depth_raw)
+        if special_desc:
+            return special_desc[:1].upper() + special_desc[1:]
+
+        depth_val = int(depth_raw)
+        if depth_val <= 90:
             return f"{depth_val}mm"
-        elif depth_val == 92:
-            return "10cm"
-        elif depth_val == 93:
-            return "15cm"
-        elif depth_val == 94:
-            return "20cm"
-        elif depth_val == 95:
-            return "25cm"
-        elif depth_val == 96:
-            return "30cm"
-        elif depth_val == 97:
-            return "35cm"
-        elif depth_val == 98:
-            return "40cm or more"
-        elif depth_val == 99:
-            return "Runway not operational"
         return f"{depth_val}mm"
 
     @staticmethod
@@ -801,18 +790,7 @@ class RemarksParser:
     def _parse_sensor_status(self, remarks: str, decoded: Dict) -> None:
         """Parse sensor status indicators"""
         sensor_status = []
-
-        sensor_indicators = {
-            "PWINO": "Present Weather Identifier not operational",
-            "TSNO": "Thunderstorm sensor not operational",
-            "FZRANO": "Freezing rain sensor not operational",
-            "PNO": "Precipitation sensor not operational",
-            "VISNO": "Visibility sensor not operational",
-            "CHINO": "Ceiling height indicator not operational",
-            "RVRNO": "RVR sensor not operational",
-        }
-
-        for code, description in sensor_indicators.items():
+        for code, description in SENSOR_STATUS.items():
             if code in remarks:
                 sensor_status.append(description)
 
@@ -821,9 +799,9 @@ class RemarksParser:
 
     def _parse_maintenance_indicator(self, remarks: str, decoded: Dict, positions: Dict) -> None:
         """Parse maintenance indicator ($)"""
-        if "$" in remarks:
+        if MAINTENANCE_INDICATOR in remarks:
             decoded["Maintenance Indicator"] = "Station requires maintenance"
-            positions["Maintenance Indicator"] = remarks.find("$")
+            positions["Maintenance Indicator"] = remarks.find(MAINTENANCE_INDICATOR)
 
     # =========================================================================
     # Utility Methods

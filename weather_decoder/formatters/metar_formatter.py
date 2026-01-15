@@ -259,7 +259,7 @@ class MetarFormatter:
             if key == "directional_info":
                 lines.extend(self._format_directional_info(value))
             elif key == "variable_ceiling":
-                lines.append(f"  {key}: {value}")
+                lines.append(f"  Variable Ceiling: {value}")
             elif key == "runway_winds":
                 lines.extend(self._format_runway_winds(value))
             elif key == "cloud_layers":

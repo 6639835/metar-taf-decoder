@@ -33,6 +33,7 @@ from .runway_codes import (
     RUNWAY_BRAKING,
     RUNWAY_BRAKING_REMARKS,
     RUNWAY_DEPOSIT_TYPES,
+    RUNWAY_DEPTH_SPECIAL,
     RUNWAY_EXTENT,
     RUNWAY_STATE_DEPOSIT_TYPES_REMARKS,
     RUNWAY_STATE_EXTENT_REMARKS,
@@ -53,6 +54,21 @@ from .weather_codes import (
     WEATHER_PHENOMENA,
 )
 
+# Report/station related codes (shared by METAR/TAF/remarks)
+from .report_codes import (
+    REPORT_MODIFIERS,
+    SPECIAL_CONDITIONS,
+    SPECIAL_VALUES,
+)
+from .station_codes import (
+    MAINTENANCE_INDICATOR,
+    SENSOR_STATUS,
+    STATION_TYPES,
+)
+from .glossary_codes import (
+    CODE_GLOSSARY,
+)
+
 __all__ = [
     # Weather
     "WEATHER_DESCRIPTORS",
@@ -66,6 +82,7 @@ __all__ = [
     "RUNWAY_BRAKING",
     "RUNWAY_BRAKING_REMARKS",
     "RUNWAY_DEPOSIT_TYPES",
+    "RUNWAY_DEPTH_SPECIAL",
     "RUNWAY_EXTENT",
     "RUNWAY_STATE_DEPOSIT_TYPES_REMARKS",
     "RUNWAY_STATE_EXTENT_REMARKS",
@@ -82,4 +99,12 @@ __all__ = [
     "TREND_TYPES",
     # Military
     "MILITARY_COLOR_CODES",
+    # Report / station
+    "REPORT_MODIFIERS",
+    "SPECIAL_CONDITIONS",
+    "SPECIAL_VALUES",
+    "STATION_TYPES",
+    "SENSOR_STATUS",
+    "MAINTENANCE_INDICATOR",
+    "CODE_GLOSSARY",
 ]

@@ -121,6 +121,9 @@ class TafFormatter:
 
         if decoded:
             for key, value in decoded.items():
+                if key == "variable_ceiling":
+                    lines.append(f"  Variable Ceiling: {value}")
+                    continue
                 if isinstance(value, dict):
                     lines.append(f"  {key}: {', '.join([f'{k}: {v}' for k, v in value.items()])}")
                 elif isinstance(value, list):

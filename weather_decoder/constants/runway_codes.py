@@ -7,7 +7,7 @@ RVR_TRENDS = {
     "N": "no change",
 }
 
-# Runway state report - deposit types (MOTNE format)
+# Runway state report - deposit types
 RUNWAY_DEPOSIT_TYPES = {
     "0": "clear and dry",
     "1": "damp",
@@ -42,7 +42,21 @@ RUNWAY_BRAKING = {
     "//": "not reported",
 }
 
-# Runway state deposit types (8-group remarks format)
+# Runway braking action (8-group remarks format)
+#
+# NOTE: `RemarksParser` historically uses int keys for braking values (e.g. 91),
+# while other parsers use string keys (e.g. "91"). Keep int-keyed mapping for
+# backward compatibility.
+RUNWAY_BRAKING_REMARKS = {
+    91: "Poor",
+    92: "Medium/Poor",
+    93: "Medium",
+    94: "Medium/Good",
+    95: "Good",
+    99: "Unreliable",
+}
+
+# Backward-compatible tables for remarks formatting.
 RUNWAY_STATE_DEPOSIT_TYPES_REMARKS = {
     "0": "Clear and dry",
     "1": "Damp",
@@ -57,7 +71,6 @@ RUNWAY_STATE_DEPOSIT_TYPES_REMARKS = {
     "/": "Not reported",
 }
 
-# Runway state extent types (8-group remarks format)
 RUNWAY_STATE_EXTENT_REMARKS = {
     "1": "10% or less",
     "2": "11% to 25%",
@@ -66,12 +79,16 @@ RUNWAY_STATE_EXTENT_REMARKS = {
     "/": "Not reported",
 }
 
-# Runway braking action (8-group remarks format)
-RUNWAY_BRAKING_REMARKS = {
-    91: "Poor",
-    92: "Medium/Poor",
-    93: "Medium",
-    94: "Medium/Good",
-    95: "Good",
-    99: "Unreliable",
+# Runway depth special values used in runway state groups (e.g. 8-group remarks).
+RUNWAY_DEPTH_SPECIAL = {
+    "00": "less than 1mm",
+    "92": "10cm",
+    "93": "15cm",
+    "94": "20cm",
+    "95": "25cm",
+    "96": "30cm",
+    "97": "35cm",
+    "98": "40cm or more",
+    "99": "runway not operational",
+    "//": "not reported or not measurable",
 }
