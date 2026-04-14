@@ -27,6 +27,10 @@ jobs:
         python -m pip install --upgrade pip
         pip install -e .
         pip install pytest pytest-cov
+
+    - name: Run test suite
+      run: |
+        pytest
     
     - name: Test package imports
       run: |
@@ -50,8 +54,9 @@ jobs:
         complex_metar = 'METAR KORD 121856Z 09014G23KT 3SM -SN BKN016 OVC030 M03/M08 A2968 RMK AO2 SLP049'
         result = metar.decode(complex_metar)
         assert result.station_id == 'KORD'
-        assert result.wind['speed'] == 14
-        assert result.wind['gust'] == 23
+        assert result.wind is not None
+        assert result.wind.speed == 14
+        assert result.wind.gust == 23
         print('[OK] Complex METAR parsing successful')
         
         # Test complex TAF  
@@ -88,25 +93,30 @@ jobs:
         
         # Test wind parser
         wp = WindParser()
-        wind1 = wp.parse_wind_string('VRB05KT')
-        assert wind1['direction'] == 'VRB'
-        assert wind1['speed'] == 5
+        wind1 = wp.parse('VRB05KT')
+        assert wind1 is not None
+        assert wind1.direction is None
+        assert wind1.is_variable is True
+        assert wind1.speed == 5
         
-        wind2 = wp.parse_wind_string('28045G65KT')
-        assert wind2['direction'] == 280
-        assert wind2['gust'] == 65
+        wind2 = wp.parse('28045G65KT')
+        assert wind2 is not None
+        assert wind2.direction == 280
+        assert wind2.gust == 65
         
         # Test visibility parser
         vp = VisibilityParser()
-        vis1 = vp.parse_visibility_string('P6SM')
-        assert vis1['is_greater_than'] == True
-        assert vis1['value'] == 6.0
+        vis1 = vp.parse('P6SM')
+        assert vis1 is not None
+        assert vis1.is_greater_than == True
+        assert vis1.value == 6.0
         
         # Test weather parser
         wxp = WeatherParser()
-        wx1 = wxp.parse_weather_string('-RA')
-        assert wx1['intensity'] == 'light'
-        assert 'rain' in wx1['phenomena']
+        wx1 = wxp.parse('-RA')
+        assert wx1 is not None
+        assert wx1.intensity == 'light'
+        assert 'rain' in wx1.phenomena
         
         print('[OK] Individual parser tests passed')
         "

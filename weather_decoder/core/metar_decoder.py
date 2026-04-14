@@ -21,7 +21,7 @@ from ..parsers.visibility_parser import VisibilityParser
 from ..parsers.weather_parser import WeatherParser
 from ..parsers.wind_parser import WindParser
 from ..parsers.windshear_parser import WindShearParser
-from ..utils.constants import MILITARY_COLOR_CODES
+from ..constants import MILITARY_COLOR_CODES
 from ..utils.patterns import COMPILED_PATTERNS
 
 

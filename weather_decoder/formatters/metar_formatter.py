@@ -13,6 +13,7 @@ from .common import (
     format_weather_groups_list,
     format_wind,
 )
+from ..constants import MILITARY_COLOR_CODES
 from ..constants.change_codes import TREND_TYPES
 from ..models import MetarReport, RunwayState, RunwayVisualRange
 from ..parsers.sky_parser import SkyParser
@@ -20,7 +21,6 @@ from ..parsers.visibility_parser import VisibilityParser
 from ..parsers.weather_parser import WeatherParser
 from ..parsers.wind_parser import WindParser
 from ..parsers.sea_parser import SeaParser
-from ..utils.constants import MILITARY_COLOR_CODES
 from ..utils.patterns import COMPILED_PATTERNS
 
 

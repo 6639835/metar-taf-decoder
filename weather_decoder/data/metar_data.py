@@ -1,4 +1,4 @@
-"""METAR report data container and formatting helpers."""
+"""METAR convenience wrapper returned by :class:`weather_decoder.MetarDecoder`."""
 
 from __future__ import annotations
 
@@ -8,7 +8,12 @@ from ..models import MetarReport
 
 
 class MetarData(MetarReport):
-    """Decoded METAR report with convenience formatting helpers."""
+    """Public METAR report wrapper with formatting helpers.
+
+    ``MetarData`` subclasses :class:`weather_decoder.models.MetarReport` so the
+    structured model fields remain available while preserving the printable API
+    used by the CLI and README examples.
+    """
 
     def __str__(self) -> str:  # pragma: no cover - formatting wrapper
         return MetarFormatter.format(self)

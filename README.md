@@ -1,4 +1,4 @@
-# Weather Decoder 1.0
+# Weather Decoder
 
 A comprehensive, modular Python library for parsing and decoding aviation weather reports (METAR and TAF).
 
@@ -58,14 +58,17 @@ decode-taf
 
 ## Architecture
 
-The Weather Decoder 1.0 features a clean, modular architecture:
+The package is organized around decoders, structured models, and presentation helpers:
 
 ```
 weather_decoder/
 ├── core/           # Main decoder classes
-├── data/           # Data classes for parsed reports
+├── models.py       # Canonical structured report/component models
+├── data/           # Convenience wrappers returned by decoders
 ├── parsers/        # Specialized component parsers
-├── utils/          # Constants, patterns, and formatters
+├── formatters/     # Human-readable output helpers
+├── constants/      # Organized code tables and lookup values
+├── utils/          # Regex patterns and compatibility exports
 └── cli/            # Command line interfaces
 ```
 
@@ -73,8 +76,9 @@ weather_decoder/
 
 - **Core Decoders**: Orchestrate the parsing process
 - **Specialized Parsers**: Handle specific weather components (wind, visibility, etc.)
-- **Data Classes**: Structured representation of parsed data
-- **Utilities**: Shared constants, patterns, and formatting functions
+- **Models**: Structured dataclasses for reports and report components
+- **Convenience Wrappers**: Printable report objects returned by the decoders
+- **Utilities**: Shared regex patterns and legacy compatibility exports
 - **CLI**: User-friendly command line interfaces
 
 ## Benefits of the Modular Design
@@ -113,7 +117,8 @@ weather_decoder/
 
 ## Migration from Version 1.x
 
-The refactored API returns strongly-typed report models and clearer field names:
+The refactored API returns `MetarData` and `TafData`, convenience wrappers around
+the strongly-typed `MetarReport` and `TafReport` models:
 
 ```python
 from weather_decoder import MetarDecoder

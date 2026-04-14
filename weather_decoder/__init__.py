@@ -1,5 +1,8 @@
-"""
-Weather Decoder Package - A comprehensive METAR and TAF decoder.
+"""Weather Decoder public package exports.
+
+``MetarData`` and ``TafData`` are the convenience report objects returned by the
+decoders. They subclass the canonical report models exported from
+``weather_decoder.models``.
 """
 
 from .core.metar_decoder import MetarDecoder

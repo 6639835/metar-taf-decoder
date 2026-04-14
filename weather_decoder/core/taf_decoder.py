@@ -19,7 +19,7 @@ from ..parsers.visibility_parser import VisibilityParser
 from ..parsers.weather_parser import WeatherParser
 from ..parsers.wind_parser import WindParser
 from ..parsers.windshear_parser import WindShearParser
-from ..utils.constants import CHANGE_INDICATORS
+from ..constants import CHANGE_INDICATORS
 from ..utils.patterns import COMPILED_PATTERNS, FM_PATTERN
 
 # Validation limits (WMO FM 51 / ICAO Annex 3 best practice)

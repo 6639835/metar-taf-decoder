@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import re
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
+from ..constants import TREND_TYPES, WEATHER_DESCRIPTORS, WEATHER_PHENOMENA
 from ..models import WeatherPhenomenon
-from ..utils.constants import TREND_TYPES, WEATHER_DESCRIPTORS, WEATHER_PHENOMENA
 from ..constants.weather_codes import COMPOUND_WEATHER_PHENOMENA
 from .base_parser import BaseParser, StopConditionMixin
 from .token_stream import TokenStream
