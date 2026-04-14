@@ -86,45 +86,32 @@ class MetarDecoder:
 
         # Report type keyword validation (WMO Reg. 15.1.1)
         if not COMPILED_PATTERNS["metar_type"].match(parts[0] if parts else ""):
-            validation_warnings.append(
-                "METAR or SPECI keyword not found at start of report per WMO Reg. 15.1.1"
-            )
+            validation_warnings.append("METAR or SPECI keyword not found at start of report per WMO Reg. 15.1.1")
 
         # Sky condition code warnings
         for sky in sky_conditions:
             if sky.coverage in ("SKC", "CLR"):
-                validation_warnings.append(
-                    "SKC/CLR are US FAA codes; WMO METAR uses NSC (no significant cloud)"
-                )
+                validation_warnings.append("SKC/CLR are US FAA codes; WMO METAR uses NSC (no significant cloud)")
                 break
         if not is_automated and any(s.coverage == "NCD" for s in sky_conditions):
             validation_warnings.append(
-                "NCD (No Cloud Detected) is only valid in AUTO (automated) METARs "
-                "per ICAO Annex 3 §4.5.4.6"
+                "NCD (No Cloud Detected) is only valid in AUTO (automated) METARs " "per ICAO Annex 3 §4.5.4.6"
             )
 
         # Wind unit warning (WMO Reg. 15.5.1 — only KT or MPS)
         if wind and wind.unit == "KMH":
-            validation_warnings.append(
-                "KMH is not a valid WMO METAR wind speed unit (only KT or MPS per WMO Reg. 15.5.1)"
-            )
+            validation_warnings.append("KMH is not a valid WMO METAR wind speed unit (only KT or MPS per WMO Reg. 15.5.1)")
 
         # Metric RVR warning (FMH-1 §12.6.7 — requires FT suffix)
         if any(rvr.unit == "M" for rvr in runway_visual_ranges):
-            validation_warnings.append(
-                "Metric RVR (no FT suffix) — FMH-1 §12.6.7 requires FT for US METAR"
-            )
+            validation_warnings.append("Metric RVR (no FT suffix) — FMH-1 §12.6.7 requires FT for US METAR")
 
         # UK stations do not use runway state groups since CAP 746 Issue 6
         if runway_states and station_id and station_id.upper().startswith("E"):
-            validation_warnings.append(
-                "Runway state groups (MOTNE) are not used in UK METARs since CAP 746 Issue 6"
-            )
+            validation_warnings.append("Runway state groups (MOTNE) are not used in UK METARs since CAP 746 Issue 6")
 
         if is_automated and visibility and visibility.is_cavok:
-            validation_warnings.append(
-                "CAVOK should not appear in automated METAR/SPECI — use NSC or NCD instead"
-            )
+            validation_warnings.append("CAVOK should not appear in automated METAR/SPECI — use NSC or NCD instead")
 
         if len(sky_conditions) > 6:
             validation_warnings.append(
@@ -140,8 +127,7 @@ class MetarDecoder:
 
         if len(weather_groups) > 3:
             validation_warnings.append(
-                f"More than 3 present weather groups ({len(weather_groups)}); "
-                "ICAO/WMO specifications allow a maximum of 3"
+                f"More than 3 present weather groups ({len(weather_groups)}); " "ICAO/WMO specifications allow a maximum of 3"
             )
 
         # Weather intensity and descriptor validation (WMO 306 Vol I.1, Reg. 15.8.4, 15.8.9, FMH-1 §12.6.8)
@@ -149,8 +135,18 @@ class MetarDecoder:
             # Intensity (-, +, VC) only valid for precipitation, FC, SS, DS
             # NOTE: "hail" (GR) is intentionally EXCLUDED — GR cannot take intensity per FMH-1 §12.6.8.a(1)
             valid_intensity_phenomena = {
-                "drizzle", "rain", "snow", "snow grains", "ice pellets", "small hail",
-                "unknown precipitation", "funnel cloud", "duststorm", "sandstorm", "shower", "thunderstorm"
+                "drizzle",
+                "rain",
+                "snow",
+                "snow grains",
+                "ice pellets",
+                "small hail",
+                "unknown precipitation",
+                "funnel cloud",
+                "duststorm",
+                "sandstorm",
+                "shower",
+                "thunderstorm",
             }
             if wx.intensity and wx.intensity != "recent":
                 # GR (hail) cannot take intensity per FMH-1 §12.6.8.a(1)
@@ -202,20 +198,16 @@ class MetarDecoder:
 
         if len(runway_visual_ranges) > 4:
             validation_warnings.append(
-                f"More than 4 RVR groups ({len(runway_visual_ranges)}); "
-                "ICAO/EU specifications allow a maximum of 4"
+                f"More than 4 RVR groups ({len(runway_visual_ranges)}); " "ICAO/EU specifications allow a maximum of 4"
             )
 
         # TS in present weather but no CB in sky (CAP 746 §4.112)
         has_ts = any(
-            (w.descriptor == "thunderstorm" or (w.phenomena and "thunderstorm" in w.phenomena))
-            for w in weather_groups
+            (w.descriptor == "thunderstorm" or (w.phenomena and "thunderstorm" in w.phenomena)) for w in weather_groups
         )
         has_cb = any(s.cb for s in sky_conditions)
         if has_ts and not has_cb:
-            validation_warnings.append(
-                "Thunderstorm (TS) present weather reported without a CB cloud layer (CAP 746 §4.112)"
-            )
+            validation_warnings.append("Thunderstorm (TS) present weather reported without a CB cloud layer (CAP 746 §4.112)")
 
         # Wind variation validation (ICAO Annex 3 §4.1.5.2, CAP 746 §4.11-4.13)
         if wind:
@@ -244,29 +236,22 @@ class MetarDecoder:
                 # Direction should be a multiple of 10° (CAP 746 §4.16)
                 if wind.direction % 10 != 0:
                     validation_warnings.append(
-                        f"Wind direction {wind.direction:03d}° is not rounded to the nearest 10° "
-                        "(CAP 746 §4.16)"
+                        f"Wind direction {wind.direction:03d}° is not rounded to the nearest 10° " "(CAP 746 §4.16)"
                     )
                 # Direction must be 010-360°
                 if not (10 <= wind.direction <= 360):
-                    validation_warnings.append(
-                        f"Wind direction {wind.direction:03d}° is outside valid range 010-360°"
-                    )
+                    validation_warnings.append(f"Wind direction {wind.direction:03d}° is outside valid range 010-360°")
 
         # CAVOK cross-field: weather/cloud groups must be absent when CAVOK is set
         if visibility and visibility.is_cavok:
             if weather_groups or any(s.height is not None for s in sky_conditions):
-                validation_warnings.append(
-                    "CAVOK used but weather/cloud groups present — these are mutually exclusive"
-                )
+                validation_warnings.append("CAVOK used but weather/cloud groups present — these are mutually exclusive")
 
         # NOSIG and BECMG/TEMPO are mutually exclusive (WMO Reg. 15.14.15)
         has_nosig = any(t.kind == "NOSIG" for t in trends)
         has_becmg_tempo = any(t.kind in ("BECMG", "TEMPO") for t in trends)
         if has_nosig and has_becmg_tempo:
-            validation_warnings.append(
-                "NOSIG and BECMG/TEMPO are mutually exclusive per WMO Reg. 15.14.15"
-            )
+            validation_warnings.append("NOSIG and BECMG/TEMPO are mutually exclusive per WMO Reg. 15.14.15")
 
         # NSW in METAR body (WMO Reg. 15.14.13) — NSW is TREND-only
         _trend_starts = {"BECMG", "TEMPO", "NOSIG"}
@@ -279,15 +264,13 @@ class MetarDecoder:
                 break
         if _nsw_in_body:
             validation_warnings.append(
-                "NSW (no significant weather) is not valid in METAR body — "
-                "only in TREND section per WMO Reg. 15.14.13"
+                "NSW (no significant weather) is not valid in METAR body — " "only in TREND section per WMO Reg. 15.14.13"
             )
 
         # Dew point cannot exceed temperature (physically impossible)
         if temperature is not None and dewpoint is not None and dewpoint > temperature:
             validation_warnings.append(
-                f"Dew point ({dewpoint}°C) exceeds temperature ({temperature}°C) — "
-                "physically impossible"
+                f"Dew point ({dewpoint}°C) exceeds temperature ({temperature}°C) — " "physically impossible"
             )
 
         # Descriptor + phenomenon constraint validation (WMO Code Table 4678 Notes 7–13)
@@ -366,18 +349,19 @@ class MetarDecoder:
     def _validate_descriptor_phenomena(weather_groups, validation_warnings):
         """Validate descriptor+phenomenon combinations per WMO Code Table 4678 Notes 7–13."""
         from ..constants.weather_codes import WEATHER_PHENOMENA as _WP
+
         _code_for = {v: k for k, v in _WP.items()}
 
         # Descriptor → set of allowed phenomenon codes (WMO Code Table 4678 Notes 7–13)
         _desc_allowed = {
-            "shallow":       {"FG"},
-            "partial":       {"FG"},
-            "patches":       {"FG"},
-            "low drifting":  {"DU", "SA", "SN"},
-            "blowing":       {"DU", "SA", "SN"},
-            "shower":        {"RA", "SN", "GS", "GR", "UP"},
-            "thunderstorm":  {"RA", "SN", "GS", "GR", "UP"},
-            "freezing":      {"FG", "DZ", "RA", "UP"},
+            "shallow": {"FG"},
+            "partial": {"FG"},
+            "patches": {"FG"},
+            "low drifting": {"DU", "SA", "SN"},
+            "blowing": {"DU", "SA", "SN"},
+            "shower": {"RA", "SN", "GS", "GR", "UP"},
+            "thunderstorm": {"RA", "SN", "GS", "GR", "UP"},
+            "freezing": {"FG", "DZ", "RA", "UP"},
         }
         # VC (vicinity) valid phenomena (Note 13)
         _vc_allowed = {"TS", "DS", "SS", "FG", "FC", "SH", "PO", "BLDU", "BLSA", "BLSN", "VA"}

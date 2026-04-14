@@ -8,7 +8,6 @@ from typing import List, Optional
 from ..models import SeaCondition
 from .token_stream import TokenStream
 
-
 SEA_STATE_DESCRIPTIONS = {
     "0": "calm (glassy)",
     "1": "calm (rippled)",
@@ -39,7 +38,9 @@ class SeaParser:
         sea_surface_temperature = None
         temperature_missing = temperature_token == "//"
         if not temperature_missing:
-            sea_surface_temperature = -int(temperature_token[1:]) if temperature_token.startswith("M") else int(temperature_token)
+            sea_surface_temperature = (
+                -int(temperature_token[1:]) if temperature_token.startswith("M") else int(temperature_token)
+            )
 
         state_of_sea = None
         significant_wave_height_m = None

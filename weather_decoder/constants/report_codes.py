@@ -14,8 +14,7 @@ REPORT_MODIFIERS = {
 SPECIAL_CONDITIONS = {
     "NSW": "No significant weather",
     "CAVOK": (
-        "Ceiling and visibility OK (visibility ≥10 km, no clouds below 5000 ft/1500 m, "
-        "no CB/TCU, no significant weather)"
+        "Ceiling and visibility OK (visibility ≥10 km, no clouds below 5000 ft/1500 m, " "no CB/TCU, no significant weather)"
     ),
     "NOSIG": "No significant change expected (trend/TAF context)",
 }

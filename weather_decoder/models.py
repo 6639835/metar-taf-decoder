@@ -179,10 +179,10 @@ class IcingForecast:
        HH  = height in hundreds of feet
     """
 
-    intensity: str          # "none", "light", "moderate", "severe", "extreme"
-    base_ft: int            # base altitude in feet
-    top_ft: Optional[int]   # top altitude in feet (base + depth), None if not specified
-    icing_type: str         # "none", "rime", "mixed", "freezing precipitation", "clear ice"
+    intensity: str  # "none", "light", "moderate", "severe", "extreme"
+    base_ft: int  # base altitude in feet
+    top_ft: Optional[int]  # top altitude in feet (base + depth), None if not specified
+    icing_type: str  # "none", "rime", "mixed", "freezing precipitation", "clear ice"
     raw: str
 
 
@@ -210,10 +210,10 @@ class TurbulenceForecast:
        [/HHH] = optional top in hundreds of feet
     """
 
-    intensity: str          # "none", "light", "moderate", "severe", "extreme"
-    base_ft: int            # base altitude in feet
-    top_ft: Optional[int]   # top altitude in feet (base + depth), None if not specified
-    in_cloud: bool          # True when turbulence is in-cloud (not CAT)
+    intensity: str  # "none", "light", "moderate", "severe", "extreme"
+    base_ft: int  # base altitude in feet
+    top_ft: Optional[int]  # top altitude in feet (base + depth), None if not specified
+    in_cloud: bool  # True when turbulence is in-cloud (not CAT)
     raw: str
 
 

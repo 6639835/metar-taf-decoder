@@ -94,7 +94,7 @@ class WeatherParser(BaseParser[WeatherPhenomenon], StopConditionMixin):
         for desc_code, desc_value in WEATHER_DESCRIPTORS.items():
             if remaining.startswith(desc_code):
                 descriptor = desc_value
-                remaining = remaining[len(desc_code):]
+                remaining = remaining[len(desc_code) :]
                 has_weather = True
                 break
 

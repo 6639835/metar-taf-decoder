@@ -40,8 +40,8 @@ RUNWAY_STATE_PATTERN = r"R(\d{2}[LCR]?)/(\d|/)(\d|/)(\d{2}|//)(\d{2}|//)$"
 SNOCLO_PATTERN = r"^R/SNOCLO$"
 
 # AUTO station element-unavailable sentinels
-MISSING_VISIBILITY_PATTERN = r"^/{4}$"   # //// — visibility not observable
-MISSING_WEATHER_PATTERN = r"^//$"         # // — present weather not observable (standalone)
+MISSING_VISIBILITY_PATTERN = r"^/{4}$"  # //// — visibility not observable
+MISSING_WEATHER_PATTERN = r"^//$"  # // — present weather not observable (standalone)
 
 # Sky condition patterns
 # Height can be 3 digits or /// when height cannot be determined by auto system

@@ -230,16 +230,9 @@ class MetarFormatter:
         for rvr in rvr_list:
             if rvr.variable_range is not None:
                 min_prefix = "less than " if rvr.is_less_than else "more than " if rvr.is_more_than else ""
-                max_prefix = (
-                    "less than "
-                    if rvr.variable_less_than
-                    else "more than "
-                    if rvr.variable_more_than
-                    else ""
-                )
+                max_prefix = "less than " if rvr.variable_less_than else "more than " if rvr.variable_more_than else ""
                 rvr_line = (
-                    f"  Runway {rvr.runway}: "
-                    f"{min_prefix}{rvr.visual_range} to {max_prefix}{rvr.variable_range} {rvr.unit}"
+                    f"  Runway {rvr.runway}: " f"{min_prefix}{rvr.visual_range} to {max_prefix}{rvr.variable_range} {rvr.unit}"
                 )
             else:
                 if rvr.is_more_than:
@@ -290,9 +283,7 @@ class MetarFormatter:
             else:
                 runway_label = f"Runway {report.runway}"
 
-            lines.append(
-                f"  {runway_label}: {report.deposit}, {report.contamination}, {report.depth}, {report.braking}"
-            )
+            lines.append(f"  {runway_label}: {report.deposit}, {report.contamination}, {report.depth}, {report.braking}")
         return lines
 
     def _format_remarks(self, remarks: str, decoded: Dict) -> List[str]:

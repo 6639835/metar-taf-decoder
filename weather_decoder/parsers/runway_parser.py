@@ -68,16 +68,18 @@ class RunwayParser:
         while i < len(stream.tokens):
             # R/SNOCLO: aerodrome closed due to extreme snow (WMO FM 15 Reg. 15.13.6.1)
             if stream.tokens[i] == SNOCLO_TOKEN:
-                state_list.append(RunwayState(
-                    runway=None,
-                    deposit="aerodrome closed due to extreme snow deposit",
-                    contamination="all runways",
-                    depth="not applicable",
-                    braking="not applicable",
-                    raw=SNOCLO_TOKEN,
-                    all_runways=True,
-                    aerodrome_closed=True,
-                ))
+                state_list.append(
+                    RunwayState(
+                        runway=None,
+                        deposit="aerodrome closed due to extreme snow deposit",
+                        contamination="all runways",
+                        depth="not applicable",
+                        braking="not applicable",
+                        raw=SNOCLO_TOKEN,
+                        all_runways=True,
+                        aerodrome_closed=True,
+                    )
+                )
                 stream.pop(i)
                 continue
 

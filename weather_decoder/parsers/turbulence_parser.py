@@ -28,12 +28,12 @@ from .token_stream import TokenStream
 _INTENSITY_MAP = {
     "0": "none",
     "1": "light",
-    "2": "moderate",   # moderate in cloud
-    "3": "moderate",   # moderate in clear air
-    "4": "moderate",   # moderate — other
+    "2": "moderate",  # moderate in cloud
+    "3": "moderate",  # moderate in clear air
+    "4": "moderate",  # moderate — other
     "5": "severe",
-    "6": "severe",     # severe in clear air
-    "7": "severe",     # severe — other
+    "6": "severe",  # severe in clear air
+    "7": "severe",  # severe — other
     "8": "extreme",
 }
 
@@ -120,13 +120,16 @@ class TurbulenceParser:
 
         raw = token if not consumed_next else f"{token} {next_token}"
 
-        return TurbulenceForecast(
-            intensity=intensity,
-            base_ft=base_ft,
-            top_ft=top_ft,
-            in_cloud=False,
-            raw=raw,
-        ), consumed_next
+        return (
+            TurbulenceForecast(
+                intensity=intensity,
+                base_ft=base_ft,
+                top_ft=top_ft,
+                in_cloud=False,
+                raw=raw,
+            ),
+            consumed_next,
+        )
 
     def extract_all(self, stream: TokenStream) -> List[TurbulenceForecast]:
         """Extract all turbulence groups from *stream*, consuming matched tokens."""

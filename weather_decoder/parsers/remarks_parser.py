@@ -556,9 +556,7 @@ class RemarksParser:
         return " ".join(weather_parts)
 
     @staticmethod
-    def _resolve_event_time(
-        time_token: str, report_time: Optional[Tuple[int, int, int]]
-    ) -> Tuple[Tuple[int, int, int], str]:
+    def _resolve_event_time(time_token: str, report_time: Optional[Tuple[int, int, int]]) -> Tuple[Tuple[int, int, int], str]:
         """Resolve a precipitation timing token to sortable UTC clock time."""
         if len(time_token) == 4:
             event_hour = int(time_token[:2])
@@ -950,9 +948,7 @@ class RemarksParser:
                 decoded["24-Hour Precipitation"] = "Indeterminate (gauge frozen or inaccessible)"
             else:
                 val = int(raw)
-                decoded["24-Hour Precipitation"] = (
-                    "Trace or none" if val == 0 else f"{val / 100.0:.2f} inches"
-                )
+                decoded["24-Hour Precipitation"] = "Trace or none" if val == 0 else f"{val / 100.0:.2f} inches"
 
     def _parse_snow_depth(self, remarks: str, decoded: Dict) -> None:
         """Parse snow depth on ground — FMH-1 §12.7.2.a(4)
@@ -1101,9 +1097,7 @@ class RemarksParser:
             low_cov = m.group(1)
             height_ft = int(m.group(2)) * 100
             high_cov = m.group(3)
-            decoded["Variable Sky"] = (
-                f"Variable between {low_cov} and {high_cov} at {height_ft} feet"
-            )
+            decoded["Variable Sky"] = f"Variable between {low_cov} and {high_cov} at {height_ft} feet"
 
     def _parse_cloud_type_8group(self, remarks: str, decoded: Dict) -> None:
         """Parse cloud type additive data (8/CLCMCH format) — FMH-1 §12.7.2.b / WMO
@@ -1114,25 +1108,45 @@ class RemarksParser:
         """
         # WMO Code Table 0513 (low clouds)
         cl_codes = {
-            "0": "No low clouds", "1": "Cu (fair weather)", "2": "Cu (towering)",
-            "3": "Cb (no top)", "4": "Sc (spread from Cu)", "5": "Sc (not from Cu)",
-            "6": "St or Fs (not associated with fog)", "7": "Fs/St (associated with fog/precip)",
-            "8": "Cu and Sc at different levels", "9": "Cb with anvil top",
+            "0": "No low clouds",
+            "1": "Cu (fair weather)",
+            "2": "Cu (towering)",
+            "3": "Cb (no top)",
+            "4": "Sc (spread from Cu)",
+            "5": "Sc (not from Cu)",
+            "6": "St or Fs (not associated with fog)",
+            "7": "Fs/St (associated with fog/precip)",
+            "8": "Cu and Sc at different levels",
+            "9": "Cb with anvil top",
             "/": "Not observed",
         }
         # WMO Code Table 0515 (middle clouds)
         cm_codes = {
-            "0": "No middle clouds", "1": "As (thin)", "2": "As (thick) or Ns",
-            "3": "Ac (thin at single level)", "4": "Ac patches (thin)", "5": "Ac (thin in bands)",
-            "6": "Ac formed from Cu spreading", "7": "Ac (double layer or thick)",
-            "8": "Ac with Cb", "9": "Ac (chaotic sky)", "/": "Not observed",
+            "0": "No middle clouds",
+            "1": "As (thin)",
+            "2": "As (thick) or Ns",
+            "3": "Ac (thin at single level)",
+            "4": "Ac patches (thin)",
+            "5": "Ac (thin in bands)",
+            "6": "Ac formed from Cu spreading",
+            "7": "Ac (double layer or thick)",
+            "8": "Ac with Cb",
+            "9": "Ac (chaotic sky)",
+            "/": "Not observed",
         }
         # WMO Code Table 0521 (high clouds)
         ch_codes = {
-            "0": "No high clouds", "1": "Ci (filaments)", "2": "Ci (dense patch)",
-            "3": "Ci (anvil from Cb)", "4": "Ci (thickening)", "5": "Ci and Cs (< 45° altitude)",
-            "6": "Ci and Cs (> 45° altitude)", "7": "Cs covering sky", "8": "Cs not covering sky",
-            "9": "Cc", "/": "Not observed",
+            "0": "No high clouds",
+            "1": "Ci (filaments)",
+            "2": "Ci (dense patch)",
+            "3": "Ci (anvil from Cb)",
+            "4": "Ci (thickening)",
+            "5": "Ci and Cs (< 45° altitude)",
+            "6": "Ci and Cs (> 45° altitude)",
+            "7": "Cs covering sky",
+            "8": "Cs not covering sky",
+            "9": "Cc",
+            "/": "Not observed",
         }
         m = re.search(r"(?<!\d)8/([0-9/])([0-9/])([0-9/])(?!\d)", remarks)
         if m:
@@ -1151,9 +1165,7 @@ class RemarksParser:
         if m:
             hourly = m.group(1)
             total = m.group(2)
-            decoded["Snow Increasing Rapidly"] = (
-                f"{hourly} inch(es) in past hour; {total} inch(es) total depth"
-            )
+            decoded["Snow Increasing Rapidly"] = f"{hourly} inch(es) in past hour; {total} inch(es) total depth"
 
     def _parse_volcanic_eruption(self, remarks: str, decoded: Dict) -> None:
         """Parse volcanic eruption plain language — FMH-1 §12.7.1.a
@@ -1265,9 +1277,7 @@ class RemarksParser:
         Format: wx_code coverage hshshs
         Example: FG SCT000  FU BKN020  HZ FEW005
         """
-        obs_wx = (
-            r"FG|FU|VA|DU|SA|HZ|PY|BR|BLSN|BLDU|BLSA|IC|GR|GS|SN|PL|RA|DZ|FZFG"
-        )
+        obs_wx = r"FG|FU|VA|DU|SA|HZ|PY|BR|BLSN|BLDU|BLSA|IC|GR|GS|SN|PL|RA|DZ|FZFG"
         coverage_levels = r"FEW|SCT|BKN|OVC"
         pattern = rf"\b({obs_wx})\s+({coverage_levels})(\d{{3}})\b"
         matches = re.findall(pattern, remarks)
@@ -1275,15 +1285,31 @@ class RemarksParser:
             return
 
         wx_labels = {
-            "FG": "Fog", "FU": "Smoke", "VA": "Volcanic ash", "DU": "Widespread dust",
-            "SA": "Sand", "HZ": "Haze", "PY": "Spray", "BR": "Mist",
-            "BLSN": "Blowing snow", "BLDU": "Blowing dust", "BLSA": "Blowing sand",
-            "IC": "Ice crystals", "GR": "Hail", "GS": "Snow pellets",
-            "SN": "Snow", "PL": "Ice pellets", "RA": "Rain", "DZ": "Drizzle",
+            "FG": "Fog",
+            "FU": "Smoke",
+            "VA": "Volcanic ash",
+            "DU": "Widespread dust",
+            "SA": "Sand",
+            "HZ": "Haze",
+            "PY": "Spray",
+            "BR": "Mist",
+            "BLSN": "Blowing snow",
+            "BLDU": "Blowing dust",
+            "BLSA": "Blowing sand",
+            "IC": "Ice crystals",
+            "GR": "Hail",
+            "GS": "Snow pellets",
+            "SN": "Snow",
+            "PL": "Ice pellets",
+            "RA": "Rain",
+            "DZ": "Drizzle",
             "FZFG": "Freezing fog",
         }
         coverage_labels = {
-            "FEW": "few", "SCT": "scattered", "BKN": "broken", "OVC": "overcast",
+            "FEW": "few",
+            "SCT": "scattered",
+            "BKN": "broken",
+            "OVC": "overcast",
         }
 
         parts_list = []

@@ -154,7 +154,9 @@ class TafDecoder:
 
         return station_id, issue_time, valid_period, is_amended, is_corrected, is_cancelled, is_nil
 
-    def _decode_forecast_periods(self, parts: List[str], reference_time: datetime) -> Tuple[List[TafForecastPeriod], List[str]]:
+    def _decode_forecast_periods(
+        self, parts: List[str], reference_time: datetime
+    ) -> Tuple[List[TafForecastPeriod], List[str]]:
         if not parts:
             return [], []
 
@@ -190,9 +192,7 @@ class TafDecoder:
         # NOSIG in TAF body — NOSIG is only valid in METAR TREND sections
         for tok in parts:
             if tok == "NOSIG":
-                warnings.append(
-                    "NOSIG is not valid in a TAF body — it is only for METAR TREND forecasts"
-                )
+                warnings.append("NOSIG is not valid in a TAF body — it is only for METAR TREND forecasts")
                 break
 
         # Per-period validations
@@ -223,7 +223,9 @@ class TafDecoder:
                 change_indices.append(i)
         return change_indices
 
-    def _parse_change_group(self, tokens: List[str], reference_time: datetime) -> Tuple[Optional[TafForecastPeriod], List[str]]:
+    def _parse_change_group(
+        self, tokens: List[str], reference_time: datetime
+    ) -> Tuple[Optional[TafForecastPeriod], List[str]]:
         if not tokens:
             return None, []
 
@@ -237,9 +239,7 @@ class TafDecoder:
             probability = int(change_indicator[4:]) if change_indicator[4:].isdigit() else None
             # Tier 4: PROB must be 30 or 40 (WMO FM 51 Reg. 51.9.1, EU Appendix 3)
             if probability is not None and probability not in (30, 40):
-                warnings.append(
-                    f"PROB{probability} is invalid — only PROB30 and PROB40 are permitted"
-                )
+                warnings.append(f"PROB{probability} is invalid — only PROB30 and PROB40 are permitted")
             qualifier = None
             remainder = tokens[1:]
             if remainder and remainder[0] == "TEMPO":

@@ -57,11 +57,15 @@ class TrendParser:
 
         description = self._build_trend_description(trend_type, time_info, weather_changes)
 
-        time = TrendTime(
-            from_time=time_info.get("from"),
-            until_time=time_info.get("until"),
-            at_time=time_info.get("at"),
-        ) if time_info else None
+        time = (
+            TrendTime(
+                from_time=time_info.get("from"),
+                until_time=time_info.get("until"),
+                at_time=time_info.get("at"),
+            )
+            if time_info
+            else None
+        )
 
         return Trend(
             kind=trend_type,
@@ -114,8 +118,7 @@ class TrendParser:
                 return self._format_sky_change(sky_info)
 
         wx_match = re.match(
-            r"^[-+]?(VC)?(MI|PR|BC|DR|BL|SH|TS|FZ)?"
-            r"(DZ|RA|SN|SG|IC|PL|GR|GS|UP|BR|FG|FU|VA|DU|SA|HZ|PY|PO|SQ|FC|SS|DS)+",
+            r"^[-+]?(VC)?(MI|PR|BC|DR|BL|SH|TS|FZ)?" r"(DZ|RA|SN|SG|IC|PL|GR|GS|UP|BR|FG|FU|VA|DU|SA|HZ|PY|PO|SQ|FC|SS|DS)+",
             element,
         )
         if wx_match and self.weather_parser:

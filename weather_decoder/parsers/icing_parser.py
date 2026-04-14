@@ -28,11 +28,11 @@ _INTENSITY_MAP = {
     "0": "none",
     "1": "light",
     "2": "moderate",
-    "3": "moderate",   # moderate in precipitation
-    "4": "moderate",   # moderate freezing
+    "3": "moderate",  # moderate in precipitation
+    "4": "moderate",  # moderate freezing
     "5": "severe",
-    "6": "severe",     # severe in precipitation
-    "7": "severe",     # severe freezing
+    "6": "severe",  # severe in precipitation
+    "7": "severe",  # severe freezing
     "8": "extreme",
 }
 

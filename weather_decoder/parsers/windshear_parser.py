@@ -22,12 +22,8 @@ class WindShearParser:
             if token == "WS":
                 ws_parts = [stream.pop(i)]
 
-                while (
-                    i < len(stream.tokens)
-                    and (
-                        stream.tokens[i] in ["RWY", "ALL", "TKOF", "LDG"]
-                        or re.fullmatch(r"R?\d{2}[LCR]?", stream.tokens[i])
-                    )
+                while i < len(stream.tokens) and (
+                    stream.tokens[i] in ["RWY", "ALL", "TKOF", "LDG"] or re.fullmatch(r"R?\d{2}[LCR]?", stream.tokens[i])
                 ):
                     ws_parts.append(stream.pop(i))
 
