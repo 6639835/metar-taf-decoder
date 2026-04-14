@@ -11,8 +11,8 @@ RVR_TRENDS = {
 RUNWAY_DEPOSIT_TYPES = {
     "0": "clear and dry",
     "1": "damp",
-    "2": "wet or water patches",
-    "3": "rime or frost covered",
+    "2": "wet and water patches",
+    "3": "rime and frost covered (depth normally less than 1 mm)",
     "4": "dry snow",
     "5": "wet snow",
     "6": "slush",
@@ -38,9 +38,15 @@ RUNWAY_BRAKING = {
     "93": "medium",
     "94": "medium/good",
     "95": "good",
-    "99": "unreliable or unmeasurable",
-    "//": "not reported",
+    "99": "unreliable",
+    "//": "braking conditions not reported and/or runway not operational",
 }
+
+# WMO Code Table 0366: braking codes 96-98 are Reserved (must not be decoded as coefficients)
+RUNWAY_BRAKING_RESERVED = {96, 97, 98}
+
+# WMO Code Table 1079: depth code 91 is Reserved
+RUNWAY_DEPTH_RESERVED = {91}
 
 # Runway braking action (8-group remarks format)
 #

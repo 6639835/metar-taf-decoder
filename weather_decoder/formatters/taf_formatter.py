@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import Dict, List
 
-from .common import format_pressure, format_sky_conditions_list, format_visibility, format_weather_groups_list, format_wind
-from ..models import TafForecastPeriod, TafReport
+from .common import format_sky_conditions_list, format_visibility, format_weather_groups_list, format_wind
+from ..models import IcingForecast, TafForecastPeriod, TafReport, TurbulenceForecast, WindShear
 
 
 class TafFormatter:
@@ -17,15 +17,31 @@ class TafFormatter:
         return formatter._format_taf(taf)
 
     def _format_taf(self, taf: TafReport) -> str:
+        status_parts = []
+        if taf.is_amended:
+            status_parts.append("AMD")
+        if taf.is_corrected:
+            status_parts.append("COR")
+        if taf.is_cancelled:
+            status_parts.append("CNL")
+        if taf.is_nil:
+            status_parts.append("NIL")
+
+        header_suffix = f" ({' '.join(status_parts)})" if status_parts else ""
         lines = [
-            f"TAF for {taf.station_id} issued "
+            f"{taf.report_type} for {taf.station_id} issued "
             f"{taf.issue_time.day:02d} "
-            f"{taf.issue_time.hour:02d}:{taf.issue_time.minute:02d} UTC",
+            f"{taf.issue_time.hour:02d}:{taf.issue_time.minute:02d} UTC{header_suffix}",
             f"Valid from {taf.valid_period.start.day:02d} "
             f"{taf.valid_period.start.hour:02d}:{taf.valid_period.start.minute:02d} UTC",
             f"Valid to {taf.valid_period.end.day:02d} "
             f"{taf.valid_period.end.hour:02d}:{taf.valid_period.end.minute:02d} UTC",
         ]
+
+        if taf.is_cancelled:
+            lines.append("Status: Forecast cancelled")
+        elif taf.is_nil:
+            lines.append("Status: NIL (Missing forecast)")
 
         for i, period in enumerate(taf.forecast_periods):
             lines.extend(self._format_forecast_period(period, i))
@@ -61,12 +77,27 @@ class TafFormatter:
                 lines.append("  Sky Conditions:")
                 lines.extend([f"    {line}" for line in sky_lines])
 
-        if period.qnh:
-            lines.append(f"  Pressure: {format_pressure(period.qnh)}")
-
         temp_line = self._format_temperature(period)
         if temp_line:
             lines.append(temp_line)
+
+        # Wind shear
+        if getattr(period, "windshear", None):
+            lines.append("  Wind Shear:")
+            for ws in period.windshear:
+                lines.append(f"    {self._format_windshear(ws)}")
+
+        # Icing
+        if getattr(period, "icing", None):
+            lines.append("  Icing:")
+            for ice in period.icing:
+                lines.append(f"    {self._format_icing(ice)}")
+
+        # Turbulence
+        if getattr(period, "turbulence", None):
+            lines.append("  Turbulence:")
+            for turb in period.turbulence:
+                lines.append(f"    {self._format_turbulence(turb)}")
 
         if period.unparsed_tokens:
             lines.append(f"  Unparsed tokens: {' '.join(period.unparsed_tokens)}")
@@ -91,6 +122,8 @@ class TafFormatter:
             return f"From (unknown time){prob_text}:"
         if change_type == "PROB":
             prob = period.probability or 0
+            if period.qualifier == "TEMPO":
+                return f"Probability {prob}% temporary conditions{time_desc}:"
             return f"Probability {prob}%{time_desc}:"
 
         return f"Change group ({change_type}){time_desc}{prob_text}:"
@@ -115,6 +148,36 @@ class TafFormatter:
             parts.append(f" {temp.kind} {temp.value}°C at {temp.time.strftime('%d/%H:%M')} UTC")
 
         return f"  Temperature:{','.join(parts)}"
+
+    @staticmethod
+    def _format_windshear(ws: WindShear) -> str:
+        """Format a WindShear model into a human-readable string."""
+        if ws.description:
+            return ws.description
+        if ws.runway:
+            return f"Wind shear on runway {ws.runway}"
+        return "Wind shear"
+
+    @staticmethod
+    def _format_icing(ice: IcingForecast) -> str:
+        """Format an IcingForecast model into a human-readable string."""
+        parts = [f"{ice.intensity.capitalize()} icing"]
+        if ice.icing_type and ice.icing_type not in ("none", "not specified"):
+            parts.append(f"({ice.icing_type})")
+        parts.append(f"from {ice.base_ft:,} ft")
+        if ice.top_ft is not None:
+            parts.append(f"to {ice.top_ft:,} ft")
+        return " ".join(parts)
+
+    @staticmethod
+    def _format_turbulence(turb: TurbulenceForecast) -> str:
+        """Format a TurbulenceForecast model into a human-readable string."""
+        cloud_tag = " in cloud" if turb.in_cloud else ""
+        parts = [f"{turb.intensity.capitalize()}{cloud_tag} turbulence"]
+        parts.append(f"from {turb.base_ft:,} ft")
+        if turb.top_ft is not None:
+            parts.append(f"to {turb.top_ft:,} ft")
+        return " ".join(parts)
 
     def _format_remarks(self, remarks: str, decoded: Dict) -> List[str]:
         lines = [f"\nRemarks: {remarks}"]

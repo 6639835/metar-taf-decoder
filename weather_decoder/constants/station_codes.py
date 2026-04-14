@@ -15,7 +15,8 @@ STATION_TYPES = {
 # NOTE: Some tokens end with "NO" and mean "not available".
 SENSOR_STATUS = {
     "PWINO": "Precipitation identifier sensor not available",
-    "TSNO": "Thunderstorm information not available",
+    "TSNO": "Lightning detection system not available",
+    "TSCBNO": "Thunderstorm and significant convective cloud information not available",
     "FZRANO": "Freezing rain information not available",
     "PNO": "Precipitation amount not available",
     "VISNO": "Visibility at secondary location not available",

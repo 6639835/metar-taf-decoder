@@ -19,6 +19,7 @@ from ..parsers.sky_parser import SkyParser
 from ..parsers.visibility_parser import VisibilityParser
 from ..parsers.weather_parser import WeatherParser
 from ..parsers.wind_parser import WindParser
+from ..parsers.sea_parser import SeaParser
 from ..utils.constants import MILITARY_COLOR_CODES
 from ..utils.patterns import COMPILED_PATTERNS
 
@@ -33,7 +34,7 @@ class MetarFormatter:
 
     def _format_metar(self, metar: MetarReport) -> str:
         lines = [
-            f"METAR for {metar.station_id} issued "
+            f"{metar.report_type} for {metar.station_id} issued "
             f"{metar.observation_time.day:02d} "
             f"{metar.observation_time.hour:02d}:{metar.observation_time.minute:02d} UTC",
         ]
@@ -42,7 +43,8 @@ class MetarFormatter:
             lines.append("Status: NIL (Missing report)")
             return "\n".join(lines)
 
-        lines.append(f"Type: {'AUTO' if metar.is_automated else 'Manual'} {metar.report_type}")
+        report_suffix = " COR" if metar.is_corrected else ""
+        lines.append(f"Type: {'AUTO' if metar.is_automated else 'Manual'} {metar.report_type}{report_suffix}")
 
         sections: Dict[str, List[str]] = {}
         sections["wind"] = [f"Wind: {format_wind(metar.wind)}"]
@@ -59,6 +61,11 @@ class MetarFormatter:
             if wx_lines:
                 sections["weather"] = ["Weather Phenomena:"] + [f"  {line}" for line in wx_lines]
 
+        if metar.recent_weather:
+            recent_lines = format_weather_groups_list(metar.recent_weather)
+            if recent_lines:
+                sections["recent_weather"] = ["Recent Weather:"] + [f"  {line}" for line in recent_lines]
+
         if metar.sky:
             sky_lines = format_sky_conditions_list(metar.sky)
             if sky_lines:
@@ -74,6 +81,9 @@ class MetarFormatter:
         ]
 
         sections["altimeter"] = [f"Altimeter: {format_pressure(metar.altimeter)}"]
+
+        if metar.sea_conditions:
+            sections["sea_conditions"] = self._format_sea_conditions(metar.sea_conditions)
 
         if metar.trends:
             trend_lines: List[str] = []
@@ -108,6 +118,7 @@ class MetarFormatter:
         visibility_parser = VisibilityParser()
         weather_parser = WeatherParser()
         sky_parser = SkyParser()
+        sea_parser = SeaParser()
 
         ordered: List[str] = []
 
@@ -144,6 +155,11 @@ class MetarFormatter:
                 i += 1
                 continue
 
+            if weather_parser.is_recent_weather_token(token):
+                add("recent_weather")
+                i += 1
+                continue
+
             if weather_parser.parse(token):
                 add("weather")
                 i += 1
@@ -161,6 +177,11 @@ class MetarFormatter:
 
             if COMPILED_PATTERNS["altimeter"].match(token):
                 add("altimeter")
+                i += 1
+                continue
+
+            if sea_parser.parse(token):
+                add("sea_conditions")
                 i += 1
                 continue
 
@@ -187,10 +208,12 @@ class MetarFormatter:
             "runway_visual_range",
             "runway_state",
             "weather",
+            "recent_weather",
             "sky",
             "windshear",
             "temperature",
             "altimeter",
+            "sea_conditions",
             "trends",
             "military_color_codes",
         ]
@@ -233,11 +256,42 @@ class MetarFormatter:
 
         return lines
 
+    def _format_sea_conditions(self, sea_conditions) -> List[str]:
+        lines = ["Sea Conditions:"]
+        for condition in sea_conditions:
+            parts: List[str] = []
+
+            if condition.temperature_missing:
+                parts.append("sea-surface temperature not reported")
+            elif condition.sea_surface_temperature is not None:
+                parts.append(f"sea-surface temperature {condition.sea_surface_temperature}°C")
+
+            if condition.state_missing:
+                parts.append("state of sea not reported")
+            elif condition.state_of_sea is not None:
+                parts.append(f"state of sea {condition.state_of_sea}")
+
+            if condition.wave_height_missing:
+                parts.append("significant wave height not reported")
+            elif condition.significant_wave_height_m is not None:
+                parts.append(f"significant wave height {condition.significant_wave_height_m:.1f} m")
+
+            lines.append(f"  {', '.join(parts) if parts else condition.raw}")
+
+        return lines
+
     def _format_runway_states(self, reports: List[RunwayState]) -> List[str]:
         lines = ["Runway State Reports:"]
         for report in reports:
+            if report.all_runways:
+                runway_label = "All runways"
+            elif report.from_previous_report:
+                runway_label = "Previous report"
+            else:
+                runway_label = f"Runway {report.runway}"
+
             lines.append(
-                f"  Runway {report.runway}: {report.deposit}, {report.contamination}, {report.depth}, {report.braking}"
+                f"  {runway_label}: {report.deposit}, {report.contamination}, {report.depth}, {report.braking}"
             )
         return lines
 

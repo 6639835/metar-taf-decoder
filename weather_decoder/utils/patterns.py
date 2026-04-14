@@ -13,7 +13,8 @@ AUTO_PATTERN = r"\bAUTO\b"
 
 # Wind patterns
 # Supports normal format and extreme wind speeds (P99KT, ABV49MPS, ABV99KT)
-WIND_PATTERN = r"(P)?(\d{3}|VRB)(\d{2,3})(G(\d{2,3}))?(?:KT|MPS|KMH)"
+# Gust group allows P-prefix for above-max gust (e.g. 27070GP99KT per CAP 746 §4.19)
+WIND_PATTERN = r"(P)?(\d{3}|VRB)(\d{2,3})(G(P)?(\d{2,3}))?(?:KT|MPS|KMH)"
 WIND_EXTREME_PATTERN = r"ABV(\d{2,3})(KT|MPS)"
 WIND_VAR_PATTERN = r"(\d{3})V(\d{3})"
 
@@ -35,19 +36,26 @@ RVR_PATTERN = r"R(\d{2}[LCR]?)/([PM])?(\d{4})(?:V([PM])?(\d{4}))?(?:FT)?([UDN])?
 # - braking: 2 digits (coefficient, 91=poor, 92=medium/poor, 93=medium, 94=medium/good, 95=good, 99=unreliable)
 RUNWAY_STATE_PATTERN = r"R(\d{2}[LCR]?)/(\d|/)(\d|/)(\d{2}|//)(\d{2}|//)$"
 
+# Aerodrome closure due to snow (WMO FM 15, Reg. 15.13.6.1)
+SNOCLO_PATTERN = r"^R/SNOCLO$"
+
+# AUTO station element-unavailable sentinels
+MISSING_VISIBILITY_PATTERN = r"^/{4}$"   # //// — visibility not observable
+MISSING_WEATHER_PATTERN = r"^//$"         # // — present weather not observable (standalone)
+
 # Sky condition patterns
 # Height can be 3 digits or /// when height cannot be determined by auto system
 SKY_PATTERN = r"(SKC|CLR|FEW|SCT|BKN|OVC|VV|///)(\d{3}|///)(CB|TCU|///)?"
 
 # Temperature patterns
 # Dewpoint is optional (e.g., 17/ when dewpoint not available)
-TEMPERATURE_PATTERN = r"(M)?(\d{2})/(?:(M)?(\d{2}))?"
+TEMPERATURE_PATTERN = r"^(?:M?\d{2}|//)/(?:M?\d{2}|//)$"
 TAF_TEMPERATURE_PATTERN = r"T([MX])([M]?)(\d{2})/(\d{2})(\d{2})Z"
 
 # Pressure patterns
 ALTIMETER_PATTERN = r"(A|Q)(\d{4})"
 QNH_PATTERN = r"Q(\d{4})"
-ALT_QNH_PATTERN = r"QNH(\d{4})(?:INS|HPa)?"
+ALT_QNH_PATTERN = r"QNH(\d{4})(?:INS|HPA|HPa)?"
 ALT_PATTERN = r"A(\d{4})"
 
 # Change group patterns
@@ -73,6 +81,9 @@ COMPILED_PATTERNS = {
     "visibility": re.compile(VISIBILITY_PATTERN),
     "rvr": re.compile(RVR_PATTERN),
     "runway_state": re.compile(RUNWAY_STATE_PATTERN),
+    "snoclo": re.compile(SNOCLO_PATTERN),
+    "missing_visibility": re.compile(MISSING_VISIBILITY_PATTERN),
+    "missing_weather": re.compile(MISSING_WEATHER_PATTERN),
     "sky": re.compile(SKY_PATTERN),
     "temperature": re.compile(TEMPERATURE_PATTERN),
     "taf_temperature": re.compile(TAF_TEMPERATURE_PATTERN),

@@ -18,6 +18,10 @@ def format_wind(wind: Optional[Wind]) -> str:
     if wind is None:
         return "Not reported"
 
+    # Calm wind: 00000KT per ICAO/WMO
+    if wind.is_calm or (wind.direction == 0 and wind.speed == 0 and not wind.is_variable):
+        return "Calm"
+
     if wind.is_variable or wind.direction is None:
         direction_text = "Variable"
     else:
@@ -29,7 +33,8 @@ def format_wind(wind: Optional[Wind]) -> str:
         speed_text = f"{wind.speed} {wind.unit}"
 
     if wind.gust:
-        speed_text += f", gusting to {wind.gust} {wind.unit}"
+        gust_prefix = "at least " if wind.gust_is_above else ""
+        speed_text += f", gusting to {gust_prefix}{wind.gust} {wind.unit}"
 
     if wind.variable_range:
         from_dir, to_dir = wind.variable_range
@@ -41,6 +46,9 @@ def format_wind(wind: Optional[Wind]) -> str:
 def format_visibility(visibility: Optional[Visibility]) -> str:
     if visibility is None:
         return "Not reported"
+
+    if visibility.unavailable:
+        return "Not available (automated system)"
 
     if visibility.is_cavok:
         return "CAVOK (Ceiling and Visibility OK)"
@@ -87,6 +95,9 @@ def format_pressure(pressure) -> str:
 
 
 def format_sky_condition(sky: SkyCondition) -> str:
+    if sky.system_unavailable:
+        return "Cloud observation system not operating (automated station)"
+
     sky_type = sky.coverage
 
     if sky_type in ["CLR", "SKC"]:
@@ -118,6 +129,9 @@ def format_sky_condition(sky: SkyCondition) -> str:
 
 
 def format_weather_group(weather: WeatherPhenomenon) -> str:
+    if weather.unavailable:
+        return "Not observable (automated system)"
+
     parts: List[str] = []
 
     if weather.intensity:
@@ -167,6 +181,8 @@ def _format_km_visibility(vis_value: float) -> str:
 def _format_greater_than_visibility(vis_value: float, vis_unit: str) -> str:
     if vis_unit == "SM":
         return f"Greater than {vis_value} {vis_unit}"
+    if vis_unit == "KM":
+        return f"Greater than {vis_value} km"
     if vis_value >= 1000:
         km_value = vis_value / 1000
         if km_value % 1 != 0:
@@ -180,6 +196,10 @@ def _format_standard_visibility(vis_value: float, vis_unit: str) -> str:
         if isinstance(vis_value, float) and vis_value.is_integer():
             return f"{int(vis_value)} {vis_unit}"
         return f"{vis_value} {vis_unit}"
+    if vis_unit == "KM":
+        if isinstance(vis_value, float) and vis_value.is_integer():
+            return f"{int(vis_value)} km"
+        return f"{vis_value} km"
     if vis_unit == "M" and vis_value >= 1000:
         km_value = vis_value / 1000
         if km_value % 1 != 0:

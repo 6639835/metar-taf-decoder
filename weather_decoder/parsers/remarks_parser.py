@@ -6,7 +6,7 @@ main body of the report.
 """
 
 import re
-from typing import Dict, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from ..constants import (
     CLOUD_TYPE_CODES,
@@ -51,7 +51,8 @@ class RemarksParser:
             "6-Hour Minimum Temperature": [r"2[01]\d{3}"],
             "6-Hour Precipitation": [r"6\d{4}"],
             "Variable Visibility": ["VIS"],
-            "Past Weather": ["B", "E"],
+            "Precipitation Begin/End Times": ["B", "E"],
+            "Unknown Precipitation": ["UP"],
             "QFE": ["QFE"],
             "Precipitation Amount": [r"P\d{4}"],
             "Peak Wind": ["PK WND"],
@@ -104,11 +105,22 @@ class RemarksParser:
         self._parse_24hr_temperature_extremes(remarks, decoded)
         self._parse_6hr_temperatures(remarks, decoded)
         self._parse_6hr_precipitation(remarks, decoded)
+        self._parse_24hr_precipitation(remarks, decoded)
+        self._parse_snow_depth(remarks, decoded)
+        self._parse_water_equivalent_snow(remarks, decoded)
+        self._parse_sunshine_duration(remarks, decoded)
+        self._parse_ice_accretion(remarks, decoded)
         self._parse_variable_visibility(remarks, decoded)
-        self._parse_past_weather(remarks, decoded)
+        self._parse_sector_visibility(remarks, decoded)
+        self._parse_visibility_second_location(remarks, decoded)
+        report_time = self._extract_report_time(metar)
+        self._parse_past_weather(remarks, decoded, report_time)
         self._parse_qfe(remarks, decoded)
         self._parse_altimeter_remarks(remarks, decoded)
         self._parse_precipitation_amount(remarks, decoded)
+        self._parse_hailstone_size(remarks, decoded)
+        self._parse_snow_pellet_intensity(remarks, decoded)
+        self._parse_snincr(remarks, decoded)
         self._parse_peak_wind(remarks, decoded)
         self._parse_surface_visibility(remarks, decoded)
         self._parse_tower_visibility(remarks, decoded)
@@ -117,17 +129,27 @@ class RemarksParser:
         self._parse_thunderstorm_location(remarks, decoded)
         self._parse_acsl(remarks, decoded)
         self._parse_cloud_types(remarks, decoded)
+        self._parse_cloud_type_8group(remarks, decoded)
+        self._parse_variable_sky_condition(remarks, decoded)
+        self._parse_ceiling(remarks, decoded)
+        self._parse_ceiling_second_location(remarks, decoded)
         self._parse_density_altitude(remarks, decoded)
         self._parse_obscuration(remarks, decoded)
+        self._parse_obscuration_coded(remarks, decoded)
         self._parse_qbb(remarks, decoded)
-        self._parse_ceiling(remarks, decoded)
         self._parse_pressure_change(remarks, decoded)
+        self._parse_p_fr_p_rr(remarks, decoded)
         self._parse_frontal_passage(remarks, decoded)
         self._parse_wind_shift(remarks, decoded)
         self._parse_slp_status(remarks, decoded)
         self._parse_rvr_status(remarks, decoded)
         self._parse_runway_state_remarks(remarks, decoded)
         self._parse_sensor_status(remarks, decoded)
+        self._parse_ri_precip_intensity(remarks, decoded)
+        self._parse_acft_mshp(remarks, decoded)
+        self._parse_nospeci(remarks, decoded)
+        self._parse_tornadic_activity(remarks, decoded)
+        self._parse_volcanic_eruption(remarks, decoded)
         self._parse_maintenance_indicator(remarks, decoded, positions)
 
         # Sort decoded dict by position in original remarks string
@@ -199,22 +221,40 @@ class RemarksParser:
                 decoded["runway_winds"].append(wind_info)
 
     def _parse_peak_wind(self, remarks: str, decoded: Dict) -> None:
-        """Parse peak wind information (PK WND dddss/hhmm)"""
-        pk_wnd_match = re.search(r"PK\s+WND\s+(\d{3})(\d{2,3})/(\d{2})(\d{2})", remarks)
+        """Parse peak wind information — FMH-1 §12.7.1.d.
+
+        Format: PK WND dddff(f)/(hh)mm
+        Time field may be 4 digits (HHMM) or 2 digits (MM of current hour).
+        """
+        pk_wnd_match = re.search(r"PK\s+WND\s+(\d{3})(\d{2,3})/(\d{2,4})", remarks)
         if pk_wnd_match:
             pk_direction = int(pk_wnd_match.group(1))
             pk_speed = int(pk_wnd_match.group(2))
-            pk_hour = pk_wnd_match.group(3)
-            pk_minute = pk_wnd_match.group(4)
-            decoded["Peak Wind"] = f"{pk_direction}° at {pk_speed} KT at {pk_hour}:{pk_minute} UTC"
+            time_raw = pk_wnd_match.group(3)
+            if len(time_raw) == 4:
+                time_display = f"{time_raw[:2]}:{time_raw[2:]} UTC"
+            else:
+                time_display = f":{time_raw} UTC (current hour)"
+            decoded["Peak Wind"] = f"{pk_direction}° at {pk_speed} KT at {time_display}"
 
     def _parse_wind_shift(self, remarks: str, decoded: Dict) -> None:
-        """Parse wind shift information (WSHFT hhmm)"""
-        wshft_match = re.search(r"WSHFT\s+(\d{2})(\d{2})", remarks)
+        """Parse wind shift information — FMH-1 §12.7.1.e.
+
+        Format: WSHFT (hh)mm [FROPA]
+        Time field may be 4 digits (HHMM) or 2 digits (MM of current hour).
+        """
+        wshft_match = re.search(r"WSHFT\s+(\d{2,4})(?:\s+(FROPA))?", remarks)
         if wshft_match:
-            wshft_hour = wshft_match.group(1)
-            wshft_min = wshft_match.group(2)
-            decoded["Wind Shift"] = f"at {wshft_hour}:{wshft_min} UTC"
+            time_raw = wshft_match.group(1)
+            fropa = wshft_match.group(2)
+            if len(time_raw) == 4:
+                time_display = f"{time_raw[:2]}:{time_raw[2:]} UTC"
+            else:
+                time_display = f":{time_raw} UTC (current hour)"
+            value = f"at {time_display}"
+            if fropa:
+                value += " (frontal passage)"
+            decoded["Wind Shift"] = value
 
     # =========================================================================
     # Pressure Information
@@ -342,15 +382,25 @@ class RemarksParser:
     # =========================================================================
 
     def _parse_6hr_precipitation(self, remarks: str, decoded: Dict) -> None:
-        """Parse 6-hour precipitation (6xxxx format)"""
-        precip_6hr_match = re.search(r"(?<!\d)6(\d{4})(?!\d)", remarks)
+        """Parse 6-hour precipitation (6xxxx format)
+
+        FMH-1 §12.7.2.a(3): 6R24R24R24R24
+        - 6//// = indeterminate amount (e.g., gage frozen)
+        - 60000 = trace or none
+        - 6xxxx = amount in hundredths of inches
+        """
+        precip_6hr_match = re.search(r"(?<!\d)6(/{4}|\d{4})(?!\d)", remarks)
         if precip_6hr_match:
-            precip_hundredths = int(precip_6hr_match.group(1))
-            if precip_hundredths == 0:
-                decoded["6-Hour Precipitation"] = "Trace or none"
+            raw = precip_6hr_match.group(1)
+            if raw == "////":
+                decoded["6-Hour Precipitation"] = "Indeterminate (gauge frozen or inaccessible)"
             else:
-                precip_inches = precip_hundredths / 100.0
-                decoded["6-Hour Precipitation"] = f"{precip_inches:.2f} inches"
+                precip_hundredths = int(raw)
+                if precip_hundredths == 0:
+                    decoded["6-Hour Precipitation"] = "Trace or none"
+                else:
+                    precip_inches = precip_hundredths / 100.0
+                    decoded["6-Hour Precipitation"] = f"{precip_inches:.2f} inches"
 
     def _parse_precipitation_amount(self, remarks: str, decoded: Dict) -> None:
         """Parse precipitation amount (Pxxxx format)"""
@@ -408,8 +458,8 @@ class RemarksParser:
     # Weather Phenomena
     # =========================================================================
 
-    def _parse_past_weather(self, remarks: str, decoded: Dict) -> None:
-        """Parse past weather events (e.g., RAB11E24, FZRAB29E44, RAB0254E16B42)
+    def _parse_past_weather(self, remarks: str, decoded: Dict, report_time: Optional[Tuple[int, int, int]]) -> None:
+        """Parse precipitation begin/end remarks (e.g., RAB11E24, FZRAB29E44, RAB0254E16B42)
 
         Format: [descriptor][phenomenon]B[time]E[time]...
         B = began, E = ended
@@ -422,40 +472,120 @@ class RemarksParser:
         )
         past_weather_matches = re.finditer(past_weather_pattern, remarks)
 
-        past_weather_events = []
+        timeline_events = []
+        found_unknown_precipitation = False
 
-        for match in past_weather_matches:
+        for match_index, match in enumerate(past_weather_matches):
             full_match = match.group(0)
             descriptor = match.group(1) or ""
             phenomenon = match.group(2)
 
-            # Build weather type string
-            weather_parts = []
-            if descriptor:
-                weather_parts.append(WEATHER_DESCRIPTORS.get(descriptor, descriptor.lower()))
-            weather_parts.append(WEATHER_PHENOMENA.get(phenomenon, phenomenon.lower()))
-            weather_type = " ".join(weather_parts)
+            weather_type = self._build_weather_type(descriptor, phenomenon)
+            found_unknown_precipitation = found_unknown_precipitation or phenomenon == "UP"
 
             # Extract all B/E events (supports both 2-digit MM and 4-digit HHMM formats)
             events_str = full_match[len(descriptor) + len(phenomenon) :]
             event_matches = re.findall(r"([BE])(\d{2,4})", events_str)
 
-            # Build event descriptions
-            event_descriptions = []
-            for action, time in event_matches:
+            for event_index, (action, time) in enumerate(event_matches):
                 action_text = "began" if action == "B" else "ended"
-                if len(time) == 4:
-                    # 4-digit HHMM format
-                    event_descriptions.append(f"{action_text} at {time[:2]}:{time[2:]} UTC")
+                sort_key, display_time = self._resolve_event_time(time, report_time)
+                timeline_events.append(
+                    {
+                        "sort_key": sort_key,
+                        "match_index": match_index,
+                        "event_index": event_index,
+                        "display_time": display_time,
+                        "description": f"{weather_type} {action_text}",
+                    }
+                )
+
+        if timeline_events:
+            timeline_events.sort(
+                key=lambda event: (
+                    event["sort_key"],
+                    event["match_index"],
+                    event["event_index"],
+                )
+            )
+
+            timeline_parts: List[str] = []
+            current_time = None
+            current_descriptions: List[str] = []
+
+            for event in timeline_events:
+                if event["display_time"] != current_time:
+                    if current_time is not None:
+                        timeline_parts.append(f"{current_time}: {', '.join(current_descriptions)}")
+                    current_time = event["display_time"]
+                    current_descriptions = [event["description"]]
                 else:
-                    # 2-digit MM format
-                    event_descriptions.append(f"{action_text} at minute {time}")
+                    current_descriptions.append(event["description"])
 
-            if event_descriptions:
-                past_weather_events.append(f"{weather_type} {', '.join(event_descriptions)}")
+            if current_time is not None:
+                timeline_parts.append(f"{current_time}: {', '.join(current_descriptions)}")
 
-        if past_weather_events:
-            decoded["Past Weather"] = "; ".join(past_weather_events)
+            decoded["Precipitation Begin/End Times"] = "; ".join(timeline_parts)
+
+        if found_unknown_precipitation:
+            decoded["Unknown Precipitation"] = (
+                "Automated station detected precipitation, but the precipitation discriminator could not identify the type"
+            )
+
+    @staticmethod
+    def _extract_report_time(metar: str) -> Optional[Tuple[int, int, int]]:
+        """Extract the observation day/hour/minute from the METAR header."""
+        match = re.search(r"\b(\d{2})(\d{2})(\d{2})Z\b", metar)
+        if not match:
+            return None
+
+        return int(match.group(1)), int(match.group(2)), int(match.group(3))
+
+    @staticmethod
+    def _build_weather_type(descriptor: str, phenomenon: str) -> str:
+        """Build a human-readable precipitation type for precipitation timing remarks."""
+        weather_parts = []
+        if descriptor:
+            weather_parts.append(WEATHER_DESCRIPTORS.get(descriptor, descriptor.lower()))
+
+        if phenomenon == "UP":
+            weather_parts.append("unknown precipitation")
+        else:
+            weather_parts.append(WEATHER_PHENOMENA.get(phenomenon, phenomenon.lower()))
+
+        return " ".join(weather_parts)
+
+    @staticmethod
+    def _resolve_event_time(
+        time_token: str, report_time: Optional[Tuple[int, int, int]]
+    ) -> Tuple[Tuple[int, int, int], str]:
+        """Resolve a precipitation timing token to sortable UTC clock time."""
+        if len(time_token) == 4:
+            event_hour = int(time_token[:2])
+            event_minute = int(time_token[2:])
+
+            if report_time is None:
+                return (0, event_hour, event_minute), f"{event_hour:02d}:{event_minute:02d} UTC"
+
+            _, report_hour, report_minute = report_time
+            day_offset = -1 if (event_hour, event_minute) > (report_hour, report_minute) else 0
+            suffix = " (previous day)" if day_offset == -1 and report_hour == 0 else ""
+            return (day_offset, event_hour, event_minute), f"{event_hour:02d}:{event_minute:02d} UTC{suffix}"
+
+        event_minute = int(time_token)
+        if report_time is None:
+            return (0, 0, event_minute), f"minute {event_minute:02d}"
+
+        _, report_hour, report_minute = report_time
+        event_hour = report_hour
+        day_offset = 0
+
+        if event_minute > report_minute:
+            event_hour = (report_hour - 1) % 24
+            day_offset = -1 if report_hour == 0 else 0
+
+        suffix = " (previous day)" if day_offset == -1 else ""
+        return (day_offset, event_hour, event_minute), f"{event_hour:02d}:{event_minute:02d} UTC{suffix}"
 
     def _parse_lightning(self, remarks: str, decoded: Dict) -> None:
         """Parse lightning information
@@ -807,6 +937,257 @@ class RemarksParser:
     # Utility Methods
     # =========================================================================
 
+    def _parse_24hr_precipitation(self, remarks: str, decoded: Dict) -> None:
+        """Parse 24-hour precipitation (7R24R24R24R24 format) — FMH-1 §12.7.2.a(3)(c)
+
+        7xxxx = amount in hundredths of inches over previous 24 hours
+        7//// = indeterminate amount
+        """
+        m = re.search(r"(?<!\d)7(/{4}|\d{4})(?!\d)", remarks)
+        if m:
+            raw = m.group(1)
+            if raw == "////":
+                decoded["24-Hour Precipitation"] = "Indeterminate (gauge frozen or inaccessible)"
+            else:
+                val = int(raw)
+                decoded["24-Hour Precipitation"] = (
+                    "Trace or none" if val == 0 else f"{val / 100.0:.2f} inches"
+                )
+
+    def _parse_snow_depth(self, remarks: str, decoded: Dict) -> None:
+        """Parse snow depth on ground — FMH-1 §12.7.2.a(4)
+
+        Standard format: 4/sss  (4/ is group indicator, sss = depth in whole inches)
+        ASOS variant:    /sss   (some older ASOS units omit the leading '4')
+
+        4//// or //// = not measurable
+        """
+        m = re.search(r"(?<!\d)4(/(/{3}|\d{3}))(?!\d)", remarks)
+        if not m:
+            # Fallback: bare /sss without leading 4 (common in ASOS transmissions)
+            m = re.search(r"(?<![4\d])(/)(/{3}|\d{3})(?!\d)", remarks)
+        if m:
+            raw = m.group(2) if m.lastindex >= 2 else m.group(1)
+            if raw in ("///", "////"):
+                decoded["Snow Depth"] = "Not measurable"
+            else:
+                depth = int(raw)
+                decoded["Snow Depth"] = f"{depth} inch{'es' if depth != 1 else ''} on ground"
+
+    def _parse_water_equivalent_snow(self, remarks: str, decoded: Dict) -> None:
+        """Parse water equivalent of snow on ground (933RRR format) — FMH-1 §12.7.2.a(5)
+
+        933RRR where RRR is tenths of inches (e.g., 933017 = 1.7 inches)
+        """
+        m = re.search(r"(?<!\d)933(\d{3})(?!\d)", remarks)
+        if m:
+            val_tenths = int(m.group(1))
+            decoded["Water Equivalent of Snow"] = f"{val_tenths / 10.0:.1f} inches"
+
+    def _parse_sunshine_duration(self, remarks: str, decoded: Dict) -> None:
+        """Parse sunshine duration (98mmm format) — FMH-1 §12.7.2.c
+
+        98mmm = minutes of sunshine in previous calendar day; 98/// = missing
+        """
+        m = re.search(r"(?<!\d)98(/{3}|\d{3})(?!\d)", remarks)
+        if m:
+            raw = m.group(1)
+            if raw == "///":
+                decoded["Sunshine Duration"] = "Missing"
+            else:
+                decoded["Sunshine Duration"] = f"{int(raw)} minutes"
+
+    def _parse_ice_accretion(self, remarks: str, decoded: Dict) -> None:
+        """Parse ice accretion on unshielded sensor (I1nnn/I3nnn/I6nnn) — FMH-1 §12.7.2.i
+
+        I1nnn = 1-hour accretion; I3nnn = 3-hour; I6nnn = 6-hour
+        nnn = hundredths of inch (e.g., I1015 = 0.15 inches in 1 hour)
+        """
+        ice_matches = re.findall(r"\bI([136])(\d{3})\b", remarks)
+        if ice_matches:
+            parts = []
+            for period, raw in ice_matches:
+                val_in = int(raw) / 100.0
+                parts.append(f"{val_in:.2f} inches over {period} hour(s)")
+            decoded["Ice Accretion"] = "; ".join(parts)
+
+    def _parse_hailstone_size(self, remarks: str, decoded: Dict) -> None:
+        """Parse hailstone size (GR [size]) — FMH-1 §12.7.1.n
+
+        GR 3/4 = 3/4 inch; GR 1 1/2 = 1.5 inch; GR LESS THAN 1/4 = <1/4 inch
+        """
+        # GR LESS THAN fraction
+        m = re.search(r"\bGR\s+LESS\s+THAN\s+(\d+/\d+|\d+)\b", remarks)
+        if m:
+            decoded["Hailstone Size"] = f"Less than {m.group(1)} inch in diameter"
+            return
+        # GR whole [fraction]
+        m = re.search(r"\bGR\s+(\d+)(?:\s+(\d+/\d+))?\b", remarks)
+        if m:
+            if m.group(2):
+                num, den = m.group(2).split("/")
+                size = int(m.group(1)) + int(num) / int(den)
+                decoded["Hailstone Size"] = f"{size:.2f} inches in diameter"
+            else:
+                decoded["Hailstone Size"] = f"{m.group(1)} inch(es) in diameter"
+            return
+        # GR fraction only
+        m = re.search(r"\bGR\s+(\d+/\d+)\b", remarks)
+        if m:
+            decoded["Hailstone Size"] = f"{m.group(1)} inch in diameter"
+
+    def _parse_snow_pellet_intensity(self, remarks: str, decoded: Dict) -> None:
+        """Parse snow pellet/small hail intensity (GS LGT|MOD|HVY) — FMH-1 §12.7.1.o"""
+        m = re.search(r"\bGS\s+(LGT|MOD|HVY)\b", remarks)
+        if m:
+            intensity_map = {"LGT": "light", "MOD": "moderate", "HVY": "heavy"}
+            decoded["Snow Pellet Intensity"] = f"{intensity_map[m.group(1)]} snow pellets/small hail"
+
+    def _parse_sector_visibility(self, remarks: str, decoded: Dict) -> None:
+        """Parse sector visibility (VIS [DIR] vvvvv) — FMH-1 §12.7.1.h
+
+        Reports visibility in a specific compass direction sector.
+        Example: VIS NE 1 1/2 SM or VIS W 3SM
+        """
+        m = re.search(
+            r"\bVIS\s+(N|NE|E|SE|S|SW|W|NW)\s+(\d+(?:\s+\d+/\d+)?(?:SM)?|\d/\d+\s*SM?|M?\d+(?:\s*SM)?)\b",
+            remarks,
+        )
+        if m:
+            direction = m.group(1)
+            vis_raw = m.group(2).strip()
+            decoded.setdefault("Sector Visibility", [])
+            if isinstance(decoded["Sector Visibility"], list):
+                decoded["Sector Visibility"].append(f"{vis_raw} to the {direction}")
+            if len(decoded["Sector Visibility"]) == 1:
+                decoded["Sector Visibility"] = decoded["Sector Visibility"][0]
+
+    def _parse_visibility_second_location(self, remarks: str, decoded: Dict) -> None:
+        """Parse visibility at a second location (VIS vvvvv LOC) — FMH-1 §12.7.1.i
+
+        Example: VIS 3 RWY11 — visibility at runway 11 threshold
+        Must not overlap with variable-visibility (minVmax) or sector-visibility (VIS DIR ...) patterns.
+        """
+        m = re.search(
+            r"\bVIS\s+(\d+(?:\s+\d+/\d+)?(?:SM)?|\d/\d+\s*SM?)\s+(RWY\w+|TWR|SFC)\b",
+            remarks,
+        )
+        if m:
+            vis_raw = m.group(1).strip()
+            location = m.group(2)
+            decoded["Visibility (2nd Location)"] = f"{vis_raw} at {location}"
+
+    def _parse_ceiling_second_location(self, remarks: str, decoded: Dict) -> None:
+        """Parse ceiling at a second location (CIG hhh LOC) — FMH-1 §12.7.1.u
+
+        Example: CIG 002 RWY11 — ceiling 200 ft at runway 11
+        """
+        m = re.search(r"\bCIG\s+(\d{3})\s+(RWY\w+|TWR|SFC)\b", remarks)
+        if m:
+            cig_ft = int(m.group(1)) * 100
+            location = m.group(2)
+            decoded["Ceiling (2nd Location)"] = f"{cig_ft} feet AGL at {location}"
+
+    def _parse_variable_sky_condition(self, remarks: str, decoded: Dict) -> None:
+        """Parse variable sky condition (NsNsNs hshshs V NsNsNs) — FMH-1 §12.7.1.s
+
+        Example: SCT025 V BKN — ceiling variable between scattered and broken at 2500 ft
+        """
+        m = re.search(
+            r"\b(FEW|SCT|BKN|OVC)(\d{3})\s+V\s+(FEW|SCT|BKN|OVC)\b",
+            remarks,
+        )
+        if m:
+            low_cov = m.group(1)
+            height_ft = int(m.group(2)) * 100
+            high_cov = m.group(3)
+            decoded["Variable Sky"] = (
+                f"Variable between {low_cov} and {high_cov} at {height_ft} feet"
+            )
+
+    def _parse_cloud_type_8group(self, remarks: str, decoded: Dict) -> None:
+        """Parse cloud type additive data (8/CLCMCH format) — FMH-1 §12.7.2.b / WMO
+
+        8/CL CM CH where each digit is a WMO cloud genus code:
+        CL = 0-9 per Code Table 0513; CM = Code Table 0515; CH = Code Table 0521
+        / = observation not made
+        """
+        # WMO Code Table 0513 (low clouds)
+        cl_codes = {
+            "0": "No low clouds", "1": "Cu (fair weather)", "2": "Cu (towering)",
+            "3": "Cb (no top)", "4": "Sc (spread from Cu)", "5": "Sc (not from Cu)",
+            "6": "St or Fs (not associated with fog)", "7": "Fs/St (associated with fog/precip)",
+            "8": "Cu and Sc at different levels", "9": "Cb with anvil top",
+            "/": "Not observed",
+        }
+        # WMO Code Table 0515 (middle clouds)
+        cm_codes = {
+            "0": "No middle clouds", "1": "As (thin)", "2": "As (thick) or Ns",
+            "3": "Ac (thin at single level)", "4": "Ac patches (thin)", "5": "Ac (thin in bands)",
+            "6": "Ac formed from Cu spreading", "7": "Ac (double layer or thick)",
+            "8": "Ac with Cb", "9": "Ac (chaotic sky)", "/": "Not observed",
+        }
+        # WMO Code Table 0521 (high clouds)
+        ch_codes = {
+            "0": "No high clouds", "1": "Ci (filaments)", "2": "Ci (dense patch)",
+            "3": "Ci (anvil from Cb)", "4": "Ci (thickening)", "5": "Ci and Cs (< 45° altitude)",
+            "6": "Ci and Cs (> 45° altitude)", "7": "Cs covering sky", "8": "Cs not covering sky",
+            "9": "Cc", "/": "Not observed",
+        }
+        m = re.search(r"(?<!\d)8/([0-9/])([0-9/])([0-9/])(?!\d)", remarks)
+        if m:
+            cl = cl_codes.get(m.group(1), f"Unknown ({m.group(1)})")
+            cm = cm_codes.get(m.group(2), f"Unknown ({m.group(2)})")
+            ch = ch_codes.get(m.group(3), f"Unknown ({m.group(3)})")
+            decoded["Cloud Types (Additive)"] = f"Low: {cl}; Middle: {cm}; High: {ch}"
+
+    def _parse_snincr(self, remarks: str, decoded: Dict) -> None:
+        """Parse snow increasing rapidly (SNINCR nh/ns) — FMH-1 §12.7.1.z
+
+        nh = inches of snow in past hour; ns = total snow depth on ground
+        Example: SNINCR 2/8 — 2 inches of snow in past hour, 8 inches total
+        """
+        m = re.search(r"\bSNINCR\s+(\d+)/(\d+)\b", remarks)
+        if m:
+            hourly = m.group(1)
+            total = m.group(2)
+            decoded["Snow Increasing Rapidly"] = (
+                f"{hourly} inch(es) in past hour; {total} inch(es) total depth"
+            )
+
+    def _parse_volcanic_eruption(self, remarks: str, decoded: Dict) -> None:
+        """Parse volcanic eruption plain language — FMH-1 §12.7.1.a
+
+        Captures 'VOLCANO ERUPTED' or 'ERUPTED' plain language blocks.
+        """
+        m = re.search(r"\b(VOLCANO|ERUPTION|ERUPTED)\b.*", remarks, re.IGNORECASE)
+        if m:
+            decoded["Volcanic Activity"] = m.group(0).strip()
+
+    def _parse_ri_precip_intensity(self, remarks: str, decoded: Dict) -> None:
+        """Parse JMA precipitation intensity in RMK (RIxxx) — JMA Attachment 2
+
+        RIxxx where xxx is precipitation intensity in tenths of mm/hr
+        (e.g., RI035 = 3.5 mm/hr; RI300 = 30.0 mm/hr)
+        Reported when intensity ≥ 3 mm/hr (RI030 and above).
+        """
+        m = re.search(r"\bRI(\d{3})\b", remarks)
+        if m:
+            val = int(m.group(1))
+            decoded["Precipitation Intensity (JMA)"] = f"{val / 10.0:.1f} mm/hr"
+
+    def _parse_p_fr_p_rr(self, remarks: str, decoded: Dict) -> None:
+        """Parse JMA local report rapid pressure change (P/FR, P/RR) — JMA Attachment 2
+
+        P/FR = pressure falling rapidly (equivalent to PRESFR)
+        P/RR = pressure rising rapidly (equivalent to PRESRR)
+        Used in JMA local routine/special METAR-format reports.
+        """
+        if re.search(r"\bP/FR\b", remarks):
+            decoded.setdefault("Pressure Change", "Pressure falling rapidly")
+        elif re.search(r"\bP/RR\b", remarks):
+            decoded.setdefault("Pressure Change", "Pressure rising rapidly")
+
     def _sort_by_position(self, remarks: str, decoded: Dict, positions: Dict) -> Dict:
         """Sort decoded dict by position in original remarks string"""
         regex_chars = set(r"\d[]{}+*?()|^$")
@@ -830,3 +1211,100 @@ class RemarksParser:
 
         # Sort decoded dict by position
         return dict(sorted(decoded.items(), key=lambda x: positions.get(x[0], len(remarks))))
+
+    # =========================================================================
+    # New methods: Tornadic Activity, Coded Obscurations, ACFT MSHP, NOSPECI
+    # =========================================================================
+
+    def _parse_tornadic_activity(self, remarks: str, decoded: Dict) -> None:
+        """Parse tornadic activity remarks — FMH-1 §12.7.1.b (highest priority in RMK section).
+
+        Format: (TORNADO|FUNNEL CLOUD|WATERSPOUT) B(hh)(mm) [E(hh)(mm)] [dist] [dir] [MOV dir]
+        Examples:
+          TORNADO B13 6 NE
+          FUNNEL CLOUD B1330 5 SW MOV NE
+          WATERSPOUT B04E09
+        """
+        pattern = (
+            r"\b(TORNADO|FUNNEL\s+CLOUD|WATERSPOUT)"
+            r"\s+B(\d{2,4})"
+            r"(?:E(\d{2,4}))?"
+            r"(?:\s+(\d+))?"
+            r"(?:\s+(N|NE|E|SE|S|SW|W|NW))?"
+            r"(?:\s+MOV\s+(N|NE|E|SE|S|SW|W|NW))?"
+        )
+        m = re.search(pattern, remarks, re.IGNORECASE)
+        if not m:
+            return
+
+        phenomenon = m.group(1).replace("  ", " ")
+        begin_raw = m.group(2)
+        end_raw = m.group(3)
+        distance = m.group(4)
+        direction = m.group(5)
+        mov_direction = m.group(6)
+
+        def _fmt_time(t: str) -> str:
+            return f"{t[:2]}:{t[2:]} UTC" if len(t) == 4 else f":{t} UTC (current hour)"
+
+        parts_list = [f"{phenomenon} began at {_fmt_time(begin_raw)}"]
+        if end_raw:
+            parts_list.append(f"ended {_fmt_time(end_raw)}")
+        if distance and direction:
+            parts_list.append(f"{distance} SM to the {direction}")
+        elif direction:
+            parts_list.append(f"to the {direction}")
+        if mov_direction:
+            parts_list.append(f"moving {mov_direction}")
+
+        decoded["Tornadic Activity"] = "; ".join(parts_list)
+
+    def _parse_obscuration_coded(self, remarks: str, decoded: Dict) -> None:
+        """Parse FMH-1 §12.7.1.r coded obscuration remarks.
+
+        Format: wx_code coverage hshshs
+        Example: FG SCT000  FU BKN020  HZ FEW005
+        """
+        obs_wx = (
+            r"FG|FU|VA|DU|SA|HZ|PY|BR|BLSN|BLDU|BLSA|IC|GR|GS|SN|PL|RA|DZ|FZFG"
+        )
+        coverage_levels = r"FEW|SCT|BKN|OVC"
+        pattern = rf"\b({obs_wx})\s+({coverage_levels})(\d{{3}})\b"
+        matches = re.findall(pattern, remarks)
+        if not matches:
+            return
+
+        wx_labels = {
+            "FG": "Fog", "FU": "Smoke", "VA": "Volcanic ash", "DU": "Widespread dust",
+            "SA": "Sand", "HZ": "Haze", "PY": "Spray", "BR": "Mist",
+            "BLSN": "Blowing snow", "BLDU": "Blowing dust", "BLSA": "Blowing sand",
+            "IC": "Ice crystals", "GR": "Hail", "GS": "Snow pellets",
+            "SN": "Snow", "PL": "Ice pellets", "RA": "Rain", "DZ": "Drizzle",
+            "FZFG": "Freezing fog",
+        }
+        coverage_labels = {
+            "FEW": "few", "SCT": "scattered", "BKN": "broken", "OVC": "overcast",
+        }
+
+        parts_list = []
+        for wx, cov, hgt in matches:
+            wx_label = wx_labels.get(wx, wx)
+            cov_label = coverage_labels.get(cov, cov)
+            height_ft = int(hgt) * 100
+            parts_list.append(f"{wx_label} {cov_label} at {height_ft} feet")
+
+        if parts_list:
+            decoded.setdefault("Obscuration", "; ".join(parts_list))
+
+    def _parse_acft_mshp(self, remarks: str, decoded: Dict) -> None:
+        """Parse aircraft mishap report indicator — FMH-1 §12.7.1.x."""
+        if re.search(r"\bACFT\s+MSHP\b", remarks, re.IGNORECASE):
+            decoded["ACFT MSHP"] = "Aircraft mishap report"
+
+    def _parse_nospeci(self, remarks: str, decoded: Dict) -> None:
+        """Parse NOSPECI indicator — FMH-1 §12.7.1.y.
+
+        Indicates this station does not issue SPECI (special) reports.
+        """
+        if re.search(r"\bNOSPECI\b", remarks, re.IGNORECASE):
+            decoded["NOSPECI"] = "No SPECI reports issued at this station"

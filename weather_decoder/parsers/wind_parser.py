@@ -32,11 +32,14 @@ class WindParser(BaseParser[Wind]):
         is_above = match.group(1) == "P"
         direction_str = match.group(2)
         speed = int(match.group(3))
-        gust = int(match.group(5)) if match.group(5) else None
+        # Group 4 = G(P)?(digits), group 5 = optional P, group 6 = digits
+        gust_is_above = match.group(5) == "P" if match.group(5) is not None else False
+        gust = int(match.group(6)) if match.group(6) else None
         unit = self._determine_unit(token)
 
         direction = None if direction_str == "VRB" else int(direction_str)
         is_variable = direction_str == "VRB"
+        is_calm = direction == 0 and speed == 0 and not is_variable
 
         return Wind(
             direction=direction,
@@ -45,6 +48,8 @@ class WindParser(BaseParser[Wind]):
             gust=gust,
             is_variable=is_variable,
             is_above=is_above,
+            is_calm=is_calm,
+            gust_is_above=gust_is_above,
         )
 
     def extract(self, stream: TokenStream) -> Optional[Wind]:
@@ -63,6 +68,8 @@ class WindParser(BaseParser[Wind]):
                         is_variable=wind.is_variable,
                         variable_range=var_range,
                         is_above=wind.is_above,
+                        is_calm=wind.is_calm,
+                        gust_is_above=wind.gust_is_above,
                     )
                 return wind
         return None

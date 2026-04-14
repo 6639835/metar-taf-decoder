@@ -14,6 +14,9 @@ from .token_stream import TokenStream
 class PressureParser(BaseParser[Pressure]):
     """Parser for pressure/altimeter information in METAR and TAF reports."""
 
+    MISSING_ALTIMETER_PATTERN = re.compile(r"^(A|Q)/{4}$")
+    MISSING_QNH_PATTERN = re.compile(r"^(Q/{4}|QNH/{4}(?:INS|HPA|HPa)?)$")
+
     def parse(self, token: str) -> Optional[Pressure]:
         match = re.match(ALTIMETER_PATTERN, token)
         if match:
@@ -28,14 +31,15 @@ class PressureParser(BaseParser[Pressure]):
         match = re.match(QNH_PATTERN, token)
         if match:
             qnh_value = int(match.group(1))
-            if 900 <= qnh_value <= 1050:
+            if 850 <= qnh_value <= 1100:
                 return Pressure(value=qnh_value, unit="hPa")
             return Pressure(value=qnh_value / 100.0, unit="inHg")
 
         match = re.match(ALT_QNH_PATTERN, token)
         if match:
             qnh_value = int(match.group(1))
-            unit = "hPa" if "HPa" in token else "inHg"
+            normalized = token.upper()
+            unit = "hPa" if "HPA" in normalized else "inHg"
             if unit == "inHg":
                 return Pressure(value=qnh_value / 100.0, unit=unit)
             return Pressure(value=qnh_value, unit=unit)
@@ -47,10 +51,23 @@ class PressureParser(BaseParser[Pressure]):
         return None
 
     def extract_altimeter(self, stream: TokenStream) -> Optional[Pressure]:
-        return self.extract_first(stream)
+        for i, token in enumerate(stream.tokens):
+            if self.MISSING_ALTIMETER_PATTERN.match(token):
+                stream.pop(i)
+                return None
+
+            result = self.parse(token)
+            if result is not None:
+                stream.pop(i)
+                return result
+        return None
 
     def extract_qnh(self, stream: TokenStream) -> Optional[Pressure]:
         for i, token in enumerate(stream.tokens):
+            if self.MISSING_QNH_PATTERN.match(token):
+                stream.pop(i)
+                return None
+
             result = self.parse_qnh(token)
             if result is not None:
                 stream.pop(i)

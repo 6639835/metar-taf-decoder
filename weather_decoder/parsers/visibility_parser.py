@@ -16,6 +16,10 @@ class VisibilityParser(BaseParser[Visibility]):
     DIRECTIONS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
 
     def parse(self, token: str) -> Optional[Visibility]:
+        # AUTO station: visibility not observable (//// per ICAO/WMO Reg. 15.4, CAP 746 §4.151)
+        if token == "////":
+            return Visibility(value=0, unit="M", unavailable=True)
+
         if token == "CAVOK":
             return Visibility(value=9999, unit="M", is_cavok=True)
 
@@ -44,6 +48,14 @@ class VisibilityParser(BaseParser[Visibility]):
                     ndv=True,
                 )
 
+        meter_match = re.match(r"^(\d{4})M$", token)
+        if meter_match:
+            return Visibility(value=int(meter_match.group(1)), unit="M")
+
+        km_match = re.match(r"^(\d{1,2})KM$", token)
+        if km_match:
+            return Visibility(value=int(km_match.group(1)), unit="KM")
+
         sm_match = re.match(r"^([PM])?(\d+)(?:/(\d+))?SM$", token)
         if sm_match:
             return self._parse_sm_visibility(sm_match)
@@ -56,7 +68,7 @@ class VisibilityParser(BaseParser[Visibility]):
             if result is not None:
                 stream.pop(i)
 
-                if result.unit == "M" and not result.is_cavok:
+                if result.unit == "M" and not result.is_cavok and not result.unavailable:
                     result = self._check_additional_visibility(stream, i, result)
 
                 return result
@@ -93,20 +105,39 @@ class VisibilityParser(BaseParser[Visibility]):
         next_dir_match = re.match(r"^(\d{4})(N|NE|E|SE|S|SW|W|NW)$", next_token)
         if next_dir_match:
             stream.pop(index)
-            return Visibility(
-                value=result.value,
-                unit=result.unit,
-                is_cavok=result.is_cavok,
-                is_less_than=result.is_less_than,
-                is_greater_than=result.is_greater_than,
-                direction=result.direction,
-                directional_visibility=DirectionalVisibility(
-                    value=int(next_dir_match.group(1)),
-                    direction=next_dir_match.group(2),
-                ),
-                minimum_visibility=result.minimum_visibility,
-                ndv=result.ndv,
-            )
+            vis_value = int(next_dir_match.group(1))
+            vis_dir = next_dir_match.group(2)
+            # Per ICAO Annex 3 §4.2.4.4 and CAP 746 §4.29:
+            # If prevailing visibility already has a direction, this is a separate
+            # directional visibility group. Otherwise it is the minimum visibility
+            # with its direction (e.g. "2000 1200SE" → prevailing=2000, min=1200 SE).
+            if result.direction is not None:
+                return Visibility(
+                    value=result.value,
+                    unit=result.unit,
+                    is_cavok=result.is_cavok,
+                    is_less_than=result.is_less_than,
+                    is_greater_than=result.is_greater_than,
+                    direction=result.direction,
+                    directional_visibility=DirectionalVisibility(
+                        value=vis_value,
+                        direction=vis_dir,
+                    ),
+                    minimum_visibility=result.minimum_visibility,
+                    ndv=result.ndv,
+                )
+            else:
+                return Visibility(
+                    value=result.value,
+                    unit=result.unit,
+                    is_cavok=result.is_cavok,
+                    is_less_than=result.is_less_than,
+                    is_greater_than=result.is_greater_than,
+                    direction=result.direction,
+                    directional_visibility=result.directional_visibility,
+                    minimum_visibility=MinimumVisibility(value=vis_value, direction=vis_dir),
+                    ndv=result.ndv,
+                )
 
         if len(next_token) == 4 and next_token.isdigit():
             stream.pop(index)
