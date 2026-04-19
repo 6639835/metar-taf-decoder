@@ -18,6 +18,12 @@ A comprehensive, modular Python library for parsing and decoding aviation weathe
 pip install -e .
 ```
 
+Install the development toolchain:
+
+```bash
+pip install -r requirements-dev.txt
+```
+
 ## Quick Start
 
 ### Python API
@@ -58,18 +64,20 @@ decode-taf
 
 ## Architecture
 
-The package is organized around decoders, structured models, and presentation helpers:
+The package is organized around decoders, structured models, and presentation
+helpers:
 
-```
-weather_decoder/
-├── core/           # Main decoder classes
-├── models.py       # Canonical structured report/component models
-├── data/           # Convenience wrappers returned by decoders
-├── parsers/        # Specialized component parsers
-├── formatters/     # Human-readable output helpers
-├── constants/      # Organized code tables and lookup values
-├── utils/          # Regex patterns and compatibility exports
-└── cli/            # Command line interfaces
+```text
+src/
+└── weather_decoder/
+    ├── core/           # Main decoder classes
+    ├── models.py       # Canonical structured report/component models
+    ├── data/           # Convenience wrappers returned by decoders
+    ├── parsers/        # Specialized component parsers
+    ├── formatters/     # Human-readable output helpers
+    ├── constants/      # Organized code tables and lookup values
+    ├── utils/          # Regex patterns and compatibility exports
+    └── cli/            # Command line interfaces
 ```
 
 ### Components
@@ -135,6 +143,23 @@ Contributions are welcome! The modular architecture makes it easy to:
 2. Improve existing parsers
 3. Add support for new weather report formats
 4. Enhance the CLI tools
+
+## Development
+
+This project uses:
+
+- `ruff` for linting, import sorting, and formatting
+- `mypy` for type checking
+- `pytest` for tests
+
+Common commands:
+
+```bash
+ruff check .
+ruff format .
+mypy
+pytest
+```
 
 ## License
 

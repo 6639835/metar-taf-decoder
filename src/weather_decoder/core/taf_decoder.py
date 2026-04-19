@@ -87,7 +87,7 @@ class TafDecoder:
         )
         validation_warnings.extend(temperature_warnings)
 
-        forecast_periods = []
+        forecast_periods: List[TafForecastPeriod] = []
         period_warnings: List[str] = []
         if not is_cancelled and not is_nil:
             forecast_periods, period_warnings = self._decode_forecast_periods(temperature_tokens, valid_period.start)
@@ -188,10 +188,10 @@ class TafDecoder:
             start_idx = change_indices[i]
             end_idx = change_indices[i + 1]
             change_tokens = parts[start_idx:end_idx]
-            period, period_warnings = self._parse_change_group(change_tokens, reference_time)
+            change_period, period_warnings = self._parse_change_group(change_tokens, reference_time)
             warnings.extend(period_warnings)
-            if period:
-                forecast_periods.append(period)
+            if change_period is not None:
+                forecast_periods.append(change_period)
 
         # Validation: maximum 5 non-MAIN change groups (WMO FM 51 / ICAO Annex 3 best practice)
         non_main_count = sum(1 for p in forecast_periods if p.change_type != "MAIN")

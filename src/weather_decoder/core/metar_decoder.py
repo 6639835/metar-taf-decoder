@@ -163,7 +163,7 @@ class MetarDecoder:
                 # GS (small hail) in body with intensity should be warned — spec says GS intensity in RMK only
                 if "small hail" in wx.phenomena:
                     validation_warnings.append(
-                        f"GS (small hail) intensity in the METAR body — "
+                        "GS (small hail) intensity in the METAR body — "
                         "FMH-1 §12.6.8.a(1) specifies GS intensity in RMK section only (e.g. 'GS MOD')"
                     )
                 # Check if any phenomenon justifies intensity
@@ -314,17 +314,20 @@ class MetarDecoder:
         is_automated = False
         is_corrected = False
 
-        if stream.peek() and COMPILED_PATTERNS["metar_type"].match(stream.peek()):
+        next_token = stream.peek()
+        if next_token is not None and COMPILED_PATTERNS["metar_type"].match(next_token):
             report_type = stream.pop(0)
 
         if stream.peek() == "COR":
             is_corrected = True
             stream.pop(0)
 
-        if stream.peek() and COMPILED_PATTERNS["station_id"].match(stream.peek()):
+        next_token = stream.peek()
+        if next_token is not None and COMPILED_PATTERNS["station_id"].match(next_token):
             station_id = stream.pop(0)
 
-        if stream.peek() and re.match(r"\d{6}Z", stream.peek()):
+        next_token = stream.peek()
+        if next_token is not None and re.match(r"\d{6}Z", next_token):
             time_str = stream.pop(0)
             observation_time = self.time_parser.parse_observation_time(time_str) or observation_time
 

@@ -82,7 +82,7 @@ class RemarksParser:
     _VIS_VALUE_PATTERN = r"(?:\d+\s+\d+/\d+|\d+/\d+|\d+)"
     _DIRECTION_PATTERN = r"(?:NE|NW|SE|SW|N|E|S|W)"
 
-    def parse(self, metar: str) -> Tuple[str, Dict]:
+    def parse(self, metar: str) -> Tuple[str, Dict[str, object]]:
         """Parse the remarks section from a METAR string
 
         Args:
@@ -96,8 +96,8 @@ class RemarksParser:
             return "", {}
 
         remarks = match.group(1)
-        decoded = {}
-        positions = {}  # Track position of each decoded key for sorting
+        decoded: Dict[str, object] = {}
+        positions: Dict[str, int] = {}  # Track position of each decoded key for sorting
 
         # Parse all remark types
         self._parse_station_type(remarks, decoded, positions)
@@ -527,13 +527,15 @@ class RemarksParser:
             current_descriptions: List[str] = []
 
             for event in timeline_events:
-                if event["display_time"] != current_time:
+                display_time = str(event["display_time"])
+                description = str(event["description"])
+                if display_time != current_time:
                     if current_time is not None:
                         timeline_parts.append(f"{current_time}: {', '.join(current_descriptions)}")
-                    current_time = event["display_time"]
-                    current_descriptions = [event["description"]]
+                    current_time = display_time
+                    current_descriptions = [description]
                 else:
-                    current_descriptions.append(event["description"])
+                    current_descriptions.append(description)
 
             if current_time is not None:
                 timeline_parts.append(f"{current_time}: {', '.join(current_descriptions)}")
@@ -1062,7 +1064,7 @@ class RemarksParser:
             # Fallback: bare /sss without leading 4 (common in ASOS transmissions)
             m = re.search(r"(?<![4\d])(/)(/{3}|\d{3})(?!\d)", remarks)
         if m:
-            raw = m.group(2) if m.lastindex >= 2 else m.group(1)
+            raw = m.group(2) if (m.lastindex or 0) >= 2 else m.group(1)
             if raw in ("///", "////"):
                 decoded["Snow Depth"] = "Not measurable"
             else:
