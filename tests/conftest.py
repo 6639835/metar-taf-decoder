@@ -1,6 +1,8 @@
-from pathlib import Path
-import sys
+"""Pytest configuration and shared fixtures."""
 
-ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+import sys
+import os
+
+# Ensure the project root is on sys.path so imports work regardless of how
+# pytest is invoked (installed or not).
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
