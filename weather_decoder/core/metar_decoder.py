@@ -61,6 +61,7 @@ class MetarDecoder:
             nil_index = parts.index("NIL")
             parts = parts[:nil_index]
 
+        validation_tokens = list(parts)
         stream = TokenStream(parts)
 
         report_type, station_id, observation_time, is_automated, is_corrected = self._extract_header(stream)
@@ -85,7 +86,7 @@ class MetarDecoder:
         validation_warnings: List[str] = []
 
         # Report type keyword validation (WMO Reg. 15.1.1)
-        if not COMPILED_PATTERNS["metar_type"].match(parts[0] if parts else ""):
+        if not COMPILED_PATTERNS["metar_type"].match(validation_tokens[0] if validation_tokens else ""):
             validation_warnings.append("METAR or SPECI keyword not found at start of report per WMO Reg. 15.1.1")
 
         # Sky condition code warnings
@@ -103,15 +104,12 @@ class MetarDecoder:
             validation_warnings.append("KMH is not a valid WMO METAR wind speed unit (only KT or MPS per WMO Reg. 15.5.1)")
 
         # Metric RVR warning (FMH-1 §12.6.7 — requires FT suffix)
-        if any(rvr.unit == "M" for rvr in runway_visual_ranges):
+        if self._is_us_station(station_id) and any(rvr.unit == "M" for rvr in runway_visual_ranges):
             validation_warnings.append("Metric RVR (no FT suffix) — FMH-1 §12.6.7 requires FT for US METAR")
 
         # UK stations do not use runway state groups since CAP 746 Issue 6
         if runway_states and station_id and station_id.upper().startswith("E"):
             validation_warnings.append("Runway state groups (MOTNE) are not used in UK METARs since CAP 746 Issue 6")
-
-        if is_automated and visibility and visibility.is_cavok:
-            validation_warnings.append("CAVOK should not appear in automated METAR/SPECI — use NSC or NCD instead")
 
         if len(sky_conditions) > 6:
             validation_warnings.append(
@@ -267,6 +265,9 @@ class MetarDecoder:
                 "NSW (no significant weather) is not valid in METAR body — " "only in TREND section per WMO Reg. 15.14.13"
             )
 
+        order_warnings = self._validate_body_order(validation_tokens)
+        validation_warnings.extend(order_warnings)
+
         # Dew point cannot exceed temperature (physically impossible)
         if temperature is not None and dewpoint is not None and dewpoint > temperature:
             validation_warnings.append(
@@ -344,6 +345,88 @@ class MetarDecoder:
             else:
                 i += 1
         return codes
+
+    def _validate_body_order(self, tokens: List[str]) -> List[str]:
+        body_tokens = list(tokens)
+        stream = TokenStream(body_tokens)
+        self._extract_header(stream)
+        body_tokens = stream.remaining()
+
+        order = {
+            "wind": 1,
+            "visibility": 2,
+            "rvr": 3,
+            "weather": 4,
+            "sky": 5,
+            "temperature": 6,
+            "altimeter": 7,
+            "recent_weather": 8,
+            "windshear": 9,
+            "sea": 10,
+            "runway_state": 11,
+            "trend": 12,
+        }
+
+        warnings: List[str] = []
+        max_seen = 0
+        i = 0
+        while i < len(body_tokens):
+            token = body_tokens[i]
+            category = self._classify_metar_token(body_tokens, i)
+            if category is None:
+                i += 1
+                continue
+
+            if order[category] < max_seen:
+                warnings.append(
+                    f"METAR body elements are out of order near token '{token}' "
+                    "(Annex 3 / WMO FM 15 ordering violation)"
+                )
+                break
+
+            max_seen = max(max_seen, order[category])
+            i += 2 if category == "visibility" and token.isdigit() and i + 1 < len(body_tokens) and re.match(r"^\d+/\d+SM$", body_tokens[i + 1]) else 1
+
+        return warnings
+
+    def _classify_metar_token(self, tokens: List[str], index: int) -> str | None:
+        token = tokens[index]
+
+        if token in {"BECMG", "TEMPO", "NOSIG"}:
+            return "trend"
+        if self.wind_parser.parse(token) is not None or re.match(r"^\d{3}V\d{3}$", token):
+            return "wind"
+        if self.weather_parser.is_recent_weather_token(token):
+            return "recent_weather"
+        if token == "WS" or token.startswith("WS"):
+            return "windshear"
+        if self.sea_parser.parse(token) is not None:
+            return "sea"
+        if token == "R/SNOCLO" or re.match(r"^R(\d{2}[LCR]?)/(\d|/)(\d|/)(\d{2}|//)(\d{2}|//)$", token) or re.match(
+            r"^R(\d{2}[LCR]?)/CLRD//$",
+            token,
+        ):
+            return "runway_state"
+        if re.match(r"^R(\d{2}[LCR]?)/([PM])?(\d{4})(?:V([PM])?(\d{4}))?(?:FT)?([UDN])?$", token):
+            return "rvr"
+        if self.visibility_parser.parse(token) is not None:
+            return "visibility"
+        if token.isdigit() and index + 1 < len(tokens) and re.match(r"^\d+/\d+SM$", tokens[index + 1]):
+            return "visibility"
+        if self.weather_parser.parse(token) is not None:
+            return "weather"
+        if self.sky_parser.parse(token) is not None:
+            return "sky"
+        if self.temperature_parser.parse(token) is not None:
+            return "temperature"
+        if self.pressure_parser.parse(token) is not None:
+            return "altimeter"
+        return None
+
+    @staticmethod
+    def _is_us_station(station_id: str) -> bool:
+        station = station_id.upper()
+        return station.startswith(("K", "PA", "PH", "PG", "TJ"))
 
     @staticmethod
     def _validate_descriptor_phenomena(weather_groups, validation_warnings):

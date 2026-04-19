@@ -112,8 +112,7 @@ weather_decoder/
 - Sky condition forecasts
 - Temperature forecasts (TX/TN)
 - Change groups (TEMPO, BECMG, FM, PROB)
-- Pressure settings (QNH)
-- Remarks parsing
+- Local remarks parsing with standards warnings when present
 
 ## Migration from Version 1.x
 

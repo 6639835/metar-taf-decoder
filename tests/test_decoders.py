@@ -492,25 +492,27 @@ def test_taf_with_temperature_forecasts():
         "TAF KJFK 061730Z 0618/0724 28008KT 9999 FEW030 TX25/0618Z TN15/0706Z"
     )
 
-    assert any(len(p.temperatures) >= 1 for p in result.forecast_periods)
+    assert len(result.temperature_forecasts) == 2
 
 
 @pytest.mark.integration
 def test_taf_with_icing():
-    """Test TAF with icing forecast group."""
+    """Non-standard icing group should be flagged, not treated as standard TAF syntax."""
     decoder = TafDecoder()
     result = decoder.decode("TAF KJFK 061730Z 0618/0724 28008KT 9999 FEW030 620304")
 
-    assert any(len(p.icing) >= 1 for p in result.forecast_periods)
+    assert "620304" in result.forecast_periods[0].unparsed_tokens
+    assert any("non-standard TAF extension groups" in w for w in result.validation_warnings)
 
 
 @pytest.mark.integration
 def test_taf_with_turbulence():
-    """Test TAF with turbulence forecast group."""
+    """Non-standard turbulence group should be flagged, not treated as standard TAF syntax."""
     decoder = TafDecoder()
     result = decoder.decode("TAF KJFK 061730Z 0618/0724 28008KT 9999 FEW030 520610")
 
-    assert any(len(p.turbulence) >= 1 for p in result.forecast_periods)
+    assert "520610" in result.forecast_periods[0].unparsed_tokens
+    assert any("non-standard TAF extension groups" in w for w in result.validation_warnings)
 
 
 @pytest.mark.integration
@@ -768,12 +770,13 @@ def test_taf_compact_spacing_multiple_issues():
 
 @pytest.mark.integration
 def test_taf_with_multiple_icing_layers():
-    """Test TAF with icing information."""
+    """Multiple non-standard icing groups stay unparsed and are warned."""
     decoder = TafDecoder()
     result = decoder.decode("TAF KJFK 061730Z 0618/0724 28008KT 9999 FEW030 620304 630507")
 
-    periods_with_icing = [p for p in result.forecast_periods if len(p.icing) > 0]
-    assert len(periods_with_icing) >= 1
+    assert "620304" in result.forecast_periods[0].unparsed_tokens
+    assert "630507" in result.forecast_periods[0].unparsed_tokens
+    assert any("non-standard TAF extension groups" in w for w in result.validation_warnings)
 
 
 @pytest.mark.integration
@@ -927,7 +930,7 @@ def test_taf_with_temperature_and_weather():
     )
 
     has_weather = any(len(p.weather) > 0 for p in result.forecast_periods)
-    has_temps = any(len(p.temperatures) > 0 for p in result.forecast_periods)
+    has_temps = len(result.temperature_forecasts) > 0
     assert has_weather or has_temps
 
 

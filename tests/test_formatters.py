@@ -428,7 +428,7 @@ class TestTafFormatterChangeGroups:
 
 @pytest.mark.integration
 class TestTafFormatterSpecialGroups:
-    """Tests for TAF special groups (temperatures, icing, turbulence, wind shear)."""
+    """Tests for standard TAF temperature formatting and non-standard token handling."""
 
     def test_taf_temperatures(self, taf_decoder):
         """TAF temperature forecast values appear in output."""
@@ -448,54 +448,55 @@ class TestTafFormatterSpecialGroups:
         assert "15" in result
 
     def test_taf_icing(self, taf_decoder):
-        """Icing forecast group produces output with 'icing' or 'Icing'."""
+        """Non-standard icing token is surfaced as unparsed text, not a standard section."""
         report = taf_decoder.decode(
             "TAF KJFK 061730Z 0618/0724 28008KT 9999 FEW030 620304"
         )
         result = TafFormatter.format(report)
-        assert "icing" in result.lower() or "Icing" in result or "620304" in result
+        assert "Unparsed tokens" in result
+        assert "620304" in result
 
     def test_taf_icing_altitude(self, taf_decoder):
-        """Icing base altitude appears in formatted output."""
+        """Non-standard icing token is not rendered as a decoded icing layer."""
         report = taf_decoder.decode(
             "TAF KJFK 061730Z 0618/0724 28008KT 9999 FEW030 620304"
         )
         result = TafFormatter.format(report)
-        # 620304: base 3000ft, top 7000ft
-        assert "3,000" in result or "3000" in result
+        assert "Icing:" not in result
 
     def test_taf_turbulence(self, taf_decoder):
-        """Turbulence forecast group produces output with 'turbulence'."""
+        """Non-standard turbulence token is surfaced as unparsed text."""
         report = taf_decoder.decode(
             "TAF KJFK 061730Z 0618/0724 28008KT 9999 FEW030 520610"
         )
         result = TafFormatter.format(report)
-        assert "turbulence" in result.lower() or "Turbulence" in result or "520610" in result
+        assert "Unparsed tokens" in result
+        assert "520610" in result
 
     def test_taf_turbulence_intensity(self, taf_decoder):
-        """Turbulence intensity appears in formatted output."""
+        """Non-standard turbulence token is not rendered as a decoded turbulence layer."""
         report = taf_decoder.decode(
             "TAF KJFK 061730Z 0618/0724 28008KT 9999 FEW030 520610"
         )
         result = TafFormatter.format(report)
-        # 520610: moderate in cloud turbulence
-        assert "moderate" in result.lower() or "Moderate" in result
+        assert "Turbulence:" not in result
 
     def test_taf_windshear(self, taf_decoder):
-        """Wind shear group produces output with 'shear'."""
+        """Non-standard wind shear token is surfaced as unparsed text."""
         report = taf_decoder.decode(
             "TAF KJFK 061730Z 0618/0724 28008KT 9999 FEW030 WS020/28035KT"
         )
         result = TafFormatter.format(report)
-        assert "shear" in result.lower() or "Wind Shear" in result
+        assert "Unparsed tokens" in result
+        assert "WS020/28035KT" in result
 
     def test_taf_windshear_section_header(self, taf_decoder):
-        """Wind Shear section header appears in formatted TAF output."""
+        """Non-standard wind shear token is not rendered as a decoded wind shear section."""
         report = taf_decoder.decode(
             "TAF KJFK 061730Z 0618/0724 28008KT 9999 FEW030 WS020/28035KT"
         )
         result = TafFormatter.format(report)
-        assert "Wind Shear" in result
+        assert "Wind Shear:" not in result
 
     def test_taf_remarks(self, taf_decoder):
         """TAF remarks appear in formatted output."""

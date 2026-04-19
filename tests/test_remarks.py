@@ -395,6 +395,13 @@ def test_tower_visibility_value():
     assert "5" in decoded["Tower Visibility"]
 
 
+@pytest.mark.unit
+def test_tower_visibility_whole_plus_fraction():
+    """TWR VIS 1 1/2 should preserve the mixed fraction."""
+    _, decoded = RemarksParser().parse(rmk("TWR VIS 1 1/2"))
+    assert decoded["Tower Visibility"] == "1 1/2 SM"
+
+
 # ===========================================================================
 # 13. Lightning
 # ===========================================================================
@@ -413,6 +420,22 @@ def test_lightning_contains_info():
     _, decoded = RemarksParser().parse(rmk("LTGCG DSNT SW"))
     val = decoded.get("Lightning", "")
     assert len(val) > 0
+
+
+@pytest.mark.unit
+def test_lightning_without_type_is_supported():
+    """LTG DSNT W is valid in FMH-1 and should still decode."""
+    _, decoded = RemarksParser().parse(rmk("LTG DSNT W"))
+    assert "Lightning" in decoded
+    assert "lightning" in decoded["Lightning"].lower()
+
+
+@pytest.mark.unit
+def test_lightning_frequency_without_type_is_supported():
+    """FRQ LTG VC is valid in FMH-1 and should still decode."""
+    _, decoded = RemarksParser().parse(rmk("FRQ LTG VC"))
+    assert "Lightning" in decoded
+    assert "frequent" in decoded["Lightning"].lower()
 
 
 # ===========================================================================
@@ -445,6 +468,14 @@ def test_ts_dsnt_contains_distant():
     """TS DSNT NW → decoded value mentions 'distant'."""
     _, decoded = RemarksParser().parse(rmk("TS DSNT NW"))
     assert "distant" in decoded["Thunderstorm Location"].lower()
+
+
+@pytest.mark.unit
+def test_thunderstorm_begin_end_remarks():
+    """TSB0159E30 should decode under a thunderstorm-specific key."""
+    _, decoded = RemarksParser().parse(rmk("TSB0159E30"))
+    assert "Thunderstorm Begin/End Times" in decoded
+    assert "thunderstorm began" in decoded["Thunderstorm Begin/End Times"].lower()
 
 
 # ===========================================================================
@@ -518,6 +549,41 @@ def test_rvrno_value_non_empty():
     """RVRNO → decoded value is non-empty."""
     _, decoded = RemarksParser().parse(rmk("RVRNO"))
     assert decoded["RVR Status"]
+
+
+@pytest.mark.unit
+def test_sensor_status_retains_secondary_location():
+    """VISNO/CHINO with a location should keep that location in the decoded text."""
+    _, decoded = RemarksParser().parse(rmk("VISNO RWY11 CHINO RWY11"))
+    assert "Sensor Status" in decoded
+    assert "RWY11" in decoded["Sensor Status"]
+
+
+@pytest.mark.unit
+def test_significant_cloud_remarks_plain_language():
+    """Plain-language FMH-1 significant cloud remarks should decode."""
+    _, decoded = RemarksParser().parse(rmk("CB W MOV E TCU NW APRNT ROTOR CLD NE"))
+    assert "Cloud Types" in decoded
+    cloud_text = decoded["Cloud Types"]
+    assert "Cumulonimbus" in cloud_text
+    assert "Towering cumulus" in cloud_text
+    assert "Apparent rotor cloud" in cloud_text
+
+
+@pytest.mark.unit
+def test_tornadic_activity_preserves_compass_direction():
+    """TORNADO B13 6 NE should decode northeast, not north."""
+    _, decoded = RemarksParser().parse(rmk("TORNADO B13 6 NE"))
+    assert "Tornadic Activity" in decoded
+    assert "northeast" in decoded["Tornadic Activity"].lower()
+
+
+@pytest.mark.unit
+def test_tornadic_activity_end_only_is_supported():
+    """TORNADO E15 6 NE should decode even without a begin time."""
+    _, decoded = RemarksParser().parse(rmk("TORNADO E15 6 NE"))
+    assert "Tornadic Activity" in decoded
+    assert "ended" in decoded["Tornadic Activity"].lower()
 
 
 # ===========================================================================

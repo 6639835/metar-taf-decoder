@@ -3,12 +3,12 @@
 import re
 
 # Station and time patterns
-STATION_ID_PATTERN = r"^([A-Z][A-Z0-9]{3})"
-DATETIME_PATTERN = r"(\d{2})(\d{2})(\d{2})Z"
-VALID_PERIOD_PATTERN = r"(\d{2})(\d{2})/(\d{2})(\d{2})"
+STATION_ID_PATTERN = r"^([A-Z][A-Z0-9]{3})$"
+DATETIME_PATTERN = r"^(\d{2})(\d{2})(\d{2})Z$"
+VALID_PERIOD_PATTERN = r"^(\d{2})(\d{2})/(\d{2})(\d{2})$"
 
 # METAR type patterns
-METAR_TYPE_PATTERN = r"^(METAR|SPECI)"
+METAR_TYPE_PATTERN = r"^(METAR|SPECI)$"
 AUTO_PATTERN = r"\bAUTO\b"
 
 # Wind patterns
@@ -53,14 +53,14 @@ TEMPERATURE_PATTERN = r"^(?:M?\d{2}|//)/(?:M?\d{2}|//)$"
 TAF_TEMPERATURE_PATTERN = r"T([MX])([M]?)(\d{2})/(\d{2})(\d{2})Z"
 
 # Pressure patterns
-ALTIMETER_PATTERN = r"(A|Q)(\d{4})"
-QNH_PATTERN = r"Q(\d{4})"
-ALT_QNH_PATTERN = r"QNH(\d{4})(?:INS|HPA|HPa)?"
-ALT_PATTERN = r"A(\d{4})"
+ALTIMETER_PATTERN = r"^(A|Q)(\d{4})$"
+QNH_PATTERN = r"^Q(\d{4})$"
+ALT_QNH_PATTERN = r"^QNH(\d{4})(?:INS|HPA|HPa)?$"
+ALT_PATTERN = r"^A(\d{4})$"
 
 # Change group patterns
 CHANGE_GROUP_PATTERN = r"(BECMG|TEMPO|FM|PROB|TAF AMD)"
-FM_PATTERN = r"FM(\d{2})(\d{2})(\d{2})"
+FM_PATTERN = r"^FM(\d{2})(\d{2})(\d{2})$"
 
 # Remarks pattern
 REMARKS_PATTERN = r"RMK\s+(.+)$"

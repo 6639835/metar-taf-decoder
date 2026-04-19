@@ -336,6 +336,7 @@ class TestModelDefaults:
         assert tfp.weather == []
         assert tfp.sky == []
         assert tfp.temperatures == []
+        assert tfp.nsw is False
         assert tfp.windshear == []
         assert tfp.icing == []
         assert tfp.turbulence == []
@@ -372,6 +373,7 @@ class TestModelDefaults:
         assert tr.is_nil is False
         assert tr.remarks == ""
         assert tr.remarks_decoded == {}
+        assert tr.temperature_forecasts == []
         assert tr.previous_valid_period is None
         assert tr.validation_warnings == []
 
@@ -994,13 +996,13 @@ class TestCompiledPatterns:
             assert hasattr(pat, "search"), f"Pattern for '{key}' is not a compiled regex"
 
     def test_metar_type_matches_metar(self):
-        assert COMPILED_PATTERNS["metar_type"].search("METAR EGLL")
+        assert COMPILED_PATTERNS["metar_type"].match("METAR")
 
     def test_metar_type_matches_speci(self):
-        assert COMPILED_PATTERNS["metar_type"].search("SPECI EGLL")
+        assert COMPILED_PATTERNS["metar_type"].match("SPECI")
 
     def test_metar_type_no_match_taf(self):
-        assert not COMPILED_PATTERNS["metar_type"].search("TAF EGLL")
+        assert not COMPILED_PATTERNS["metar_type"].match("TAF")
 
     def test_wind_pattern_normal(self):
         assert COMPILED_PATTERNS["wind"].search("28045G65KT")

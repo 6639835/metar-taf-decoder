@@ -227,6 +227,7 @@ class TafForecastPeriod:
     weather: List[WeatherPhenomenon] = field(default_factory=list)
     sky: List[SkyCondition] = field(default_factory=list)
     temperatures: List[TemperatureForecast] = field(default_factory=list)
+    nsw: bool = False
     windshear: List[WindShear] = field(default_factory=list)
     icing: List[IcingForecast] = field(default_factory=list)
     turbulence: List[TurbulenceForecast] = field(default_factory=list)
@@ -279,5 +280,6 @@ class TafReport:
     is_nil: bool = False
     remarks: str = ""
     remarks_decoded: Dict[str, object] = field(default_factory=dict)
+    temperature_forecasts: List[TemperatureForecast] = field(default_factory=list)
     previous_valid_period: Optional[TimeRange] = None  # for AMD/COR: stores replaced period
     validation_warnings: List[str] = field(default_factory=list)

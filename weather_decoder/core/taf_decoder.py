@@ -25,7 +25,7 @@ from ..utils.patterns import COMPILED_PATTERNS, FM_PATTERN
 # Validation limits (WMO FM 51 / ICAO Annex 3 best practice)
 _MAX_CHANGE_GROUPS = 5
 _MAX_WEATHER_CODES_PER_PERIOD = 3
-_MAX_TEMP_GROUPS_PER_PERIOD = 2
+_MAX_TEMP_GROUPS = 4
 
 
 class TafDecoder:
@@ -62,6 +62,11 @@ class TafDecoder:
 
         validation_warnings: List[str] = []
 
+        if remarks:
+            validation_warnings.append(
+                "RMK section is not part of the Annex 3 / WMO FM 51 TAF template; parsed as a local extension"
+            )
+
         # Tier 3: TAF validity duration check — ICAO Annex 3 §6.2.6 allows 6–30 hours
         duration_hours = (valid_period.end - valid_period.start).total_seconds() / 3600
         if not is_cancelled and not is_nil:
@@ -76,10 +81,16 @@ class TafDecoder:
                     "(expected 9, 24, or 30 hours by regional agreement)"
                 )
 
+        temperature_tokens, temperature_forecasts, temperature_warnings = self._extract_report_temperatures(
+            tokens,
+            valid_period.start,
+        )
+        validation_warnings.extend(temperature_warnings)
+
         forecast_periods = []
         period_warnings: List[str] = []
         if not is_cancelled and not is_nil:
-            forecast_periods, period_warnings = self._decode_forecast_periods(tokens, valid_period.start)
+            forecast_periods, period_warnings = self._decode_forecast_periods(temperature_tokens, valid_period.start)
         validation_warnings.extend(period_warnings)
 
         report = TafReport(
@@ -95,6 +106,7 @@ class TafDecoder:
             is_nil=is_nil,
             remarks=remarks,
             remarks_decoded=remarks_decoded,
+            temperature_forecasts=temperature_forecasts,
             validation_warnings=validation_warnings,
         )
 
@@ -199,16 +211,54 @@ class TafDecoder:
         for period in forecast_periods:
             period_label = period.from_time.strftime("%d/%HZ") if period.from_time else period.change_type
 
+            if period.change_type in ("MAIN", "FM"):
+                if period.wind is None:
+                    warnings.append(f"Period {period_label}: wind is required in a complete TAF forecast section")
+                if period.visibility is None:
+                    warnings.append(f"Period {period_label}: visibility is required in a complete TAF forecast section")
+                if period.visibility is None or not period.visibility.is_cavok:
+                    if not period.sky:
+                        warnings.append(
+                            f"Period {period_label}: cloud, vertical visibility, NSC, or CAVOK is required "
+                            "in a complete TAF forecast section"
+                        )
+
+            if period.change_type == "BECMG" and period.from_time and period.to_time:
+                duration_hours = (period.to_time - period.from_time).total_seconds() / 3600
+                if duration_hours > 4:
+                    warnings.append(
+                        f"Period {period_label}: BECMG period of {duration_hours:.0f}h exceeds the FM 51 maximum of 4h"
+                    )
+                elif duration_hours > 2:
+                    warnings.append(
+                        f"Period {period_label}: BECMG period of {duration_hours:.0f}h exceeds the usual FM 51 limit of 2h"
+                    )
+
             if len(period.weather) > _MAX_WEATHER_CODES_PER_PERIOD:
                 warnings.append(
                     f"Period {period_label}: {len(period.weather)} weather codes exceed the maximum "
                     f"of {_MAX_WEATHER_CODES_PER_PERIOD} per forecast period (WMO IWXXM 3.0)"
                 )
 
-            if len(period.temperatures) > _MAX_TEMP_GROUPS_PER_PERIOD:
+            if period.visibility and period.visibility.is_cavok and (period.weather or period.sky or period.nsw):
                 warnings.append(
-                    f"Period {period_label}: {len(period.temperatures)} temperature groups exceed the "
-                    f"maximum of {_MAX_TEMP_GROUPS_PER_PERIOD} per forecast period (WMO FM 51 Reg. 51.1.4)"
+                    f"Period {period_label}: CAVOK replaces visibility, weather, and cloud groups and cannot be combined with them"
+                )
+
+            if period.nsw and period.weather:
+                warnings.append(
+                    f"Period {period_label}: NSW replaces the weather group and cannot appear with explicit weather phenomena"
+                )
+
+            if "NSW" in period.unparsed_tokens and period.change_type in ("MAIN", "FM"):
+                warnings.append(
+                    f"Period {period_label}: NSW is only valid after change groups, not in complete TAF forecast sections"
+                )
+
+            extension_tokens = self._find_nonstandard_extension_tokens(period.unparsed_tokens)
+            if extension_tokens:
+                warnings.append(
+                    f"Period {period_label}: non-standard TAF extension groups present: {' '.join(extension_tokens)}"
                 )
 
         return forecast_periods, warnings
@@ -218,6 +268,8 @@ class TafDecoder:
         for i in range(len(parts)):
             token = parts[i]
             if token == "TEMPO" and i > 0 and parts[i - 1].startswith("PROB"):
+                continue
+            if token == "BECMG" and i > 0 and parts[i - 1].startswith("PROB"):
                 continue
             if token in ["TEMPO", "BECMG"] or token.startswith("PROB") or re.match(FM_PATTERN, token):
                 change_indices.append(i)
@@ -248,6 +300,7 @@ class TafDecoder:
             elif remainder and remainder[0] == "BECMG":
                 # Tier 4: PROB combined with BECMG is prohibited (WMO FM 51 Reg. 51.9.3)
                 warnings.append("PROB combined with BECMG is not permitted per WMO FM 51 Reg. 51.9.3")
+                remainder = remainder[1:]
             period = self._parse_time_range_group("PROB", remainder, reference_time)
             period.probability = probability
             period.qualifier = qualifier
@@ -288,27 +341,26 @@ class TafDecoder:
         wind = self.wind_parser.extract(stream)
         visibility = self.visibility_parser.extract(stream)
         weather = self.weather_parser.extract_all(stream)
-        windshear = self.windshear_parser.extract_all(stream)
-        icing = self.icing_parser.extract_all(stream)
-        turbulence = self.turbulence_parser.extract_all(stream)
+        nsw = False
+        if change_type in ("BECMG", "TEMPO", "PROB"):
+            i = 0
+            while i < len(stream.tokens):
+                if stream.tokens[i] == "NSW":
+                    stream.pop(i)
+                    nsw = True
+                else:
+                    i += 1
         sky = self.sky_parser.extract_all(stream)
         # NOTE: QNH is NOT reported in TAF per ICAO Annex 3, Appendix 5, Table A5-1.
         # Do not parse pressure here.
-        temperatures = []
-        # TX/TN temperature groups belong to MAIN and FM self-contained periods (WMO FM 51 Reg. 51.1.4)
-        if change_type in ("MAIN", "FM"):
-            temperatures = self.temperature_parser.extract_temperature_forecasts(stream.tokens, reference_time)
 
         period = TafForecastPeriod(
             change_type=change_type,
             wind=wind,
             visibility=visibility,
             weather=weather,
-            windshear=windshear,
-            icing=icing,
-            turbulence=turbulence,
             sky=sky,
-            temperatures=temperatures,
+            nsw=nsw,
             unparsed_tokens=stream.remaining(),
         )
 
@@ -354,3 +406,75 @@ class TafDecoder:
             return remarks, decoded
 
         return "", {}
+
+    def _extract_report_temperatures(
+        self,
+        tokens: List[str],
+        reference_time: datetime,
+    ) -> Tuple[List[str], List, List[str]]:
+        working_tokens = list(tokens)
+        temperature_tokens: List[str] = []
+
+        while working_tokens:
+            token = working_tokens[-1]
+            if self.temperature_parser.TX_PATTERN.match(token) or self.temperature_parser.TN_PATTERN.match(token):
+                temperature_tokens.insert(0, working_tokens.pop())
+            else:
+                break
+
+        warnings: List[str] = []
+        misplaced = [
+            token
+            for token in working_tokens
+            if self.temperature_parser.TX_PATTERN.match(token) or self.temperature_parser.TN_PATTERN.match(token)
+        ]
+        if misplaced:
+            warnings.append(
+                "TAF temperature groups (TX/TN) must appear at report level after the forecast groups, "
+                f"not in self-contained periods: {' '.join(misplaced)}"
+            )
+
+        temperature_forecasts = self.temperature_parser.extract_temperature_forecasts(temperature_tokens, reference_time)
+        if len(temperature_forecasts) > _MAX_TEMP_GROUPS:
+            warnings.append(
+                f"TAF contains {len(temperature_forecasts)} temperature groups; maximum permitted is {_MAX_TEMP_GROUPS}"
+            )
+
+        max_count = sum(1 for temp in temperature_forecasts if temp.kind == "max")
+        min_count = sum(1 for temp in temperature_forecasts if temp.kind == "min")
+        if max_count > 2 or min_count > 2:
+            warnings.append("TAF allows at most two TX groups and two TN groups at report level")
+
+        return working_tokens, temperature_forecasts, warnings
+
+    def _find_nonstandard_extension_tokens(self, tokens: List[str]) -> List[str]:
+        matches: List[str] = []
+        i = 0
+        while i < len(tokens):
+            token = tokens[i]
+
+            if token == "WS" or token.startswith("WS"):
+                matches.append(token)
+                i += 1
+                continue
+
+            if self.icing_parser.parse(token) is not None:
+                matches.append(token)
+                i += 1
+                continue
+
+            if self.turbulence_parser.parse_numeric(token) is not None:
+                matches.append(token)
+                i += 1
+                continue
+
+            plain_turb = self.turbulence_parser.parse_plain(token, tokens[i + 1] if i + 1 < len(tokens) else None)
+            if plain_turb is not None:
+                _, consumed_next = plain_turb
+                matches.append(token if not consumed_next else f"{token} {tokens[i + 1]}")
+                i += 2 if consumed_next else 1
+                continue
+
+            i += 1
+
+        return matches

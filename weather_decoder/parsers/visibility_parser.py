@@ -23,14 +23,6 @@ class VisibilityParser(BaseParser[Visibility]):
         if token == "CAVOK":
             return Visibility(value=9999, unit="M", is_cavok=True)
 
-        dir_match = re.match(r"^(\d{4})(N|NE|E|SE|S|SW|W|NW)$", token)
-        if dir_match:
-            return Visibility(
-                value=int(dir_match.group(1)),
-                unit="M",
-                direction=dir_match.group(2),
-            )
-
         if len(token) == 4 and token.isdigit():
             value = int(token)
             return Visibility(

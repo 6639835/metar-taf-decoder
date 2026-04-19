@@ -338,16 +338,11 @@ class TestVisibilityParser:
 
     @pytest.mark.unit
     def test_parse_directional_visibility(self) -> None:
-        vis = self.parser.parse("1200SE")
-        assert vis is not None
-        assert vis.value == 1200
-        assert vis.direction == "SE"
+        assert self.parser.parse("1200SE") is None
 
     @pytest.mark.unit
     def test_parse_directional_ne(self) -> None:
-        vis = self.parser.parse("2000NE")
-        assert vis is not None
-        assert vis.direction == "NE"
+        assert self.parser.parse("2000NE") is None
 
     @pytest.mark.unit
     def test_parse_invalid(self) -> None:
@@ -384,15 +379,14 @@ class TestVisibilityParser:
         assert vis.minimum_visibility.value == 800
 
     @pytest.mark.unit
-    def test_extract_directional_vis_after_directional(self) -> None:
-        # "2000NE" then "1200SE" → prevailing has direction, second becomes directional_visibility
-        stream = make_stream("2000NE", "1200SE")
+    def test_extract_directional_vis_after_prevailing_and_minimum(self) -> None:
+        # "2000 1200SE" → prevailing visibility with a directed minimum visibility
+        stream = make_stream("2000", "1200SE")
         vis = self.parser.extract(stream)
         assert vis is not None
-        assert vis.direction == "NE"
-        assert vis.directional_visibility is not None
-        assert vis.directional_visibility.value == 1200
-        assert vis.directional_visibility.direction == "SE"
+        assert vis.minimum_visibility is not None
+        assert vis.minimum_visibility.value == 1200
+        assert vis.minimum_visibility.direction == "SE"
 
     @pytest.mark.unit
     def test_extract_cavok_no_additional(self) -> None:

@@ -46,6 +46,9 @@ class TafFormatter:
         for i, period in enumerate(taf.forecast_periods):
             lines.extend(self._format_forecast_period(period, i))
 
+        if taf.temperature_forecasts:
+            lines.extend(self._format_report_temperatures(taf.temperature_forecasts))
+
         if taf.remarks:
             lines.extend(self._format_remarks(taf.remarks, taf.remarks_decoded))
 
@@ -70,6 +73,9 @@ class TafFormatter:
             if wx_lines:
                 lines.append("  Weather Phenomena:")
                 lines.extend([f"    {line}" for line in wx_lines])
+        elif period.nsw:
+            lines.append("  Weather Phenomena:")
+            lines.append("    NSW (No significant weather)")
 
         if period.sky:
             sky_lines = format_sky_conditions_list(period.sky)
@@ -138,6 +144,13 @@ class TafFormatter:
         if period.from_time:
             return f" {period.from_time.day:02d} {period.from_time.hour:02d}:{period.from_time.minute:02d} UTC"
         return ""
+
+    def _format_report_temperatures(self, temperatures) -> List[str]:
+        parts: List[str] = ["\nTemperature Forecasts:"]
+        for temp in temperatures:
+            label = "Maximum" if temp.kind == "max" else "Minimum"
+            parts.append(f"  {label}: {temp.value}°C at {temp.time.strftime('%d/%H:%M')} UTC")
+        return parts
 
     def _format_temperature(self, period: TafForecastPeriod) -> str:
         if not period.temperatures:

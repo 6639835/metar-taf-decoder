@@ -316,11 +316,31 @@ def test_metar_uk_station_runway_state(metar_decoder):
 
 @pytest.mark.integration
 def test_metar_auto_with_cavok(metar_decoder):
-    """AUTO station with CAVOK — should warn (use NSC or NCD instead)."""
+    """AUTO station with CAVOK is permitted when CAVOK conditions are met."""
     result = metar_decoder.decode("METAR KJFK 061751Z AUTO 28008KT CAVOK 22/18 A2992")
     warnings = _warnings(result)
-    assert any("AUTO" in w or "automated" in w.lower() or "CAVOK" in w for w in warnings), (
-        f"Expected AUTO/CAVOK warning, got: {warnings}"
+    assert not any("CAVOK should not appear" in w for w in warnings), (
+        f"Unexpected AUTO/CAVOK warning, got: {warnings}"
+    )
+
+
+@pytest.mark.integration
+def test_metar_valid_report_has_no_missing_keyword_warning(metar_decoder):
+    """Valid METAR should not trigger the missing METAR/SPECI keyword warning."""
+    result = metar_decoder.decode("METAR KJFK 061751Z 28008KT 9999 FEW030 22/18 Q1013")
+    warnings = _warnings(result)
+    assert not any("keyword not found" in w for w in warnings), (
+        f"Unexpected keyword warning, got: {warnings}"
+    )
+
+
+@pytest.mark.integration
+def test_metar_body_order_warning(metar_decoder):
+    """Out-of-order body groups should raise a standards-order warning."""
+    result = metar_decoder.decode("METAR EGLL 061751Z Q1020 09015KT FEW030 9999 18/10")
+    warnings = _warnings(result)
+    assert any("out of order" in w for w in warnings), (
+        f"Expected order warning, got: {warnings}"
     )
 
 
@@ -407,10 +427,10 @@ def test_metar_wind_variable_range_populated(metar_decoder):
 @pytest.mark.integration
 def test_taf_prob_with_becmg_warning(taf_decoder):
     """PROB30 combined with BECMG is prohibited per WMO FM 51 Reg. 51.9.3."""
-    ref = datetime(2024, 6, 6, 17, 0, tzinfo=timezone.utc)
-    period, warnings = taf_decoder._parse_change_group(
-        ["PROB30", "BECMG", "0620/0622", "VRB05KT"], ref
+    result = taf_decoder.decode(
+        "TAF KJFK 061730Z 0618/0724 28008KT 9999 FEW030 PROB30 BECMG 0620/0622 VRB05KT"
     )
+    warnings = _warnings(result)
     assert any("BECMG" in w or "PROB" in w for w in warnings), (
         f"Expected BECMG/PROB warning, got: {warnings}"
     )
@@ -453,6 +473,57 @@ def test_taf_more_than_5_change_groups(taf_decoder):
     warnings = _warnings(result)
     assert any("change group" in w.lower() or "5" in w for w in warnings), (
         f"Expected change group/5 warning, got: {warnings}"
+    )
+
+
+@pytest.mark.integration
+def test_taf_cavok_with_cloud_groups_warns(taf_decoder):
+    """CAVOK cannot be combined with explicit cloud groups."""
+    result = taf_decoder.decode("TAF KJFK 061730Z 0618/0724 28008KT CAVOK BKN020")
+    warnings = _warnings(result)
+    assert any("CAVOK" in w for w in warnings), f"Expected CAVOK warning, got: {warnings}"
+
+
+@pytest.mark.integration
+def test_taf_main_period_requires_visibility_and_clouds(taf_decoder):
+    """Complete TAF sections must include visibility and sky/CAVOK content."""
+    result = taf_decoder.decode("TAF KJFK 061730Z 0618/0724 28008KT")
+    warnings = _warnings(result)
+    assert any("visibility is required" in w.lower() for w in warnings)
+    assert any("cloud" in w.lower() or "cavok" in w.lower() for w in warnings)
+
+
+@pytest.mark.integration
+def test_taf_becmg_duration_limit_warning(taf_decoder):
+    """BECMG periods longer than four hours are invalid."""
+    result = taf_decoder.decode(
+        "TAF KJFK 061730Z 0618/0724 28008KT 9999 FEW030 BECMG 0620/0702 VRB05KT"
+    )
+    warnings = _warnings(result)
+    assert any("BECMG" in w and "4h" in w for w in warnings), (
+        f"Expected BECMG duration warning, got: {warnings}"
+    )
+
+
+@pytest.mark.integration
+def test_taf_temperature_groups_must_be_report_level(taf_decoder):
+    """TX/TN embedded in FM periods should be warned as misplaced."""
+    result = taf_decoder.decode(
+        "TAF KJFK 061730Z 0618/0724 28008KT 9999 FEW030 FM062000 15010KT TX25/0621Z 6000 SCT020"
+    )
+    warnings = _warnings(result)
+    assert any("TX/TN" in w or "temperature groups" in w for w in warnings), (
+        f"Expected misplaced temperature warning, got: {warnings}"
+    )
+
+
+@pytest.mark.integration
+def test_taf_nonstandard_extension_group_warning(taf_decoder):
+    """Non-standard extension groups should be warned instead of treated as standard TAF syntax."""
+    result = taf_decoder.decode("TAF KJFK 061730Z 0618/0724 28008KT 9999 FEW030 WS020/28035KT")
+    warnings = _warnings(result)
+    assert any("non-standard TAF extension groups" in w for w in warnings), (
+        f"Expected non-standard extension warning, got: {warnings}"
     )
 
 
