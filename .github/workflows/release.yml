@@ -3,194 +3,169 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  test-before-release:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.9'
-    
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -e .
-        pip install build twine
-    
-    - name: Run quick tests
-      run: |
-        python -c "from weather_decoder import MetarDecoder, TafDecoder; print('[OK] Package imports')"
-        python decode_metar.py --version
-        python decode_taf.py --version
-    
-    - name: Verify version matches tag
-      run: |
-        TAG_VERSION=${GITHUB_REF#refs/tags/v}
-        PACKAGE_VERSION=$(python -c "from weather_decoder import __version__; print(__version__)")
-        echo "Tag version: $TAG_VERSION"
-        echo "Package version: $PACKAGE_VERSION"
-        if [ "$TAG_VERSION" != "$PACKAGE_VERSION" ]; then
-          echo "[FAIL] Version mismatch: tag=$TAG_VERSION, package=$PACKAGE_VERSION"
-          exit 1
-        fi
-        echo "[OK] Version matches"
-
   build:
-    needs: test-before-release
     runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.9'
-    
-    - name: Install build dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install build twine
-    
-    - name: Build package
-      run: |
-        python -m build
-    
-    - name: Check package
-      run: |
-        twine check dist/*
-    
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: dist
-        path: dist/
 
-  test-install:
+    outputs:
+      package-version: ${{ steps.version.outputs.package-version }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            pyproject.toml
+            requirements-dev.txt
+
+      - name: Verify tag matches package version
+        id: version
+        run: |
+          python - <<'PY'
+          import os
+          import pathlib
+          import tomllib
+
+          pyproject = tomllib.loads(pathlib.Path("pyproject.toml").read_text(encoding="utf-8"))
+          package_version = pyproject["project"]["version"]
+          tag_name = os.environ["GITHUB_REF_NAME"]
+
+          print(f"package-version={package_version}")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as handle:
+              handle.write(f"package-version={package_version}\n")
+
+          expected_tag = f"v{package_version}"
+          if tag_name != expected_tag:
+              raise SystemExit(
+                  f"Tag {tag_name!r} does not match package version {package_version!r}"
+              )
+          PY
+
+      - name: Build distribution artifacts
+        run: |
+          rm -rf build dist *.egg-info
+          python -m pip install --upgrade pip
+          python -m pip install build twine
+          python -m build
+          python -m twine check dist/*
+
+      - name: Upload distribution artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-dist
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 14
+
+  install-smoke-test:
     needs: build
+    name: Install smoke test (py${{ matrix.python-version }}, ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ['3.8', '3.9', '3.10']
-    
-    steps:
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ matrix.python-version }}
-    
-    - name: Download build artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: dist
-        path: dist/
-    
-    - name: Install from wheel
-      shell: bash
-      run: |
-        python -m pip install --upgrade pip
-        pip install dist/*.whl
-    
-    - name: Test installation
-      run: |
-        python -c "from weather_decoder import MetarDecoder, TafDecoder; print('[OK] Wheel installation successful')"
-        decode-metar --version || echo "Console script not available"
-        decode-taf --version || echo "Console script not available"
+        include:
+          - os: ubuntu-latest
+            python-version: "3.8"
+          - os: ubuntu-latest
+            python-version: "3.12"
+          - os: windows-latest
+            python-version: "3.12"
+          - os: macos-latest
+            python-version: "3.12"
 
-  publish-test-pypi:
-    needs: test-install
-    runs-on: ubuntu-latest
-    environment: test-pypi
     steps:
-    - name: Download build artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: dist
-        path: dist/
-    
-    - name: Publish to Test PyPI
-      uses: pypa/gh-action-pypi-publish@release/v1
-      with:
-        password: ${{ secrets.TEST_PYPI_API_TOKEN }}
-        repository-url: https://test.pypi.org/legacy/
-        skip-existing: true
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Download distribution artifacts
+        uses: actions/download-artifact@v8
+        with:
+          name: release-dist
+          path: dist
+
+      - name: Install built wheel
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install dist/*.whl
+
+      - name: Verify installed package
+        run: |
+          python -c "from weather_decoder import MetarDecoder, TafDecoder; print(MetarDecoder, TafDecoder)"
+          python -m weather_decoder metar "METAR KJFK 061751Z 28008KT 10SM FEW250 22/18 A2992"
+          python -m weather_decoder taf "TAF KJFK 061730Z 0618/0724 28008KT 9999 FEW250"
 
   create-github-release:
-    needs: test-install
+    needs: install-smoke-test
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      discussions: write
+
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Download build artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: dist
-        path: dist/
-    
-    - name: Generate changelog
-      run: |
-        TAG_VERSION=${GITHUB_REF#refs/tags/v}
-        echo "# Weather Decoder v$TAG_VERSION" > CHANGELOG.md
-        echo "" >> CHANGELOG.md
-        echo "## What's New" >> CHANGELOG.md
-        echo "" >> CHANGELOG.md
-        echo "- Modular architecture with 22 focused modules" >> CHANGELOG.md
-        echo "- Enhanced METAR and TAF parsing capabilities" >> CHANGELOG.md
-        echo "- Improved CLI interfaces" >> CHANGELOG.md
-        echo "- Professional Python package structure" >> CHANGELOG.md
-        echo "- Comprehensive testing and CI/CD" >> CHANGELOG.md
-        echo "" >> CHANGELOG.md
-        echo "## Installation" >> CHANGELOG.md
-        echo "" >> CHANGELOG.md
-        echo "\`\`\`bash" >> CHANGELOG.md
-        echo "pip install weather-decoder==$TAG_VERSION" >> CHANGELOG.md
-        echo "\`\`\`" >> CHANGELOG.md
-        echo "" >> CHANGELOG.md
-        echo "## Usage" >> CHANGELOG.md
-        echo "" >> CHANGELOG.md
-        echo "\`\`\`python" >> CHANGELOG.md
-        echo "from weather_decoder import MetarDecoder, TafDecoder" >> CHANGELOG.md
-        echo "" >> CHANGELOG.md
-        echo "# Decode METAR" >> CHANGELOG.md
-        echo "metar = MetarDecoder().decode('METAR KJFK ...')" >> CHANGELOG.md
-        echo "" >> CHANGELOG.md
-        echo "# Decode TAF" >> CHANGELOG.md
-        echo "taf = TafDecoder().decode('TAF KJFK ...')" >> CHANGELOG.md
-        echo "\`\`\`" >> CHANGELOG.md
-    
-    - name: Create GitHub Release
-      uses: softprops/action-gh-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        name: Weather Decoder ${{ github.ref_name }}
-        body_path: CHANGELOG.md
-        draft: false
-        prerelease: false
-        files: |
-          dist/*
+      - name: Download distribution artifacts
+        uses: actions/download-artifact@v8
+        with:
+          name: release-dist
+          path: dist
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v3
+        with:
+          files: dist/*
+          generate_release_notes: true
+
+  publish-testpypi:
+    needs: install-smoke-test
+    runs-on: ubuntu-latest
+    environment: testpypi
+    permissions:
+      id-token: write
+
+    steps:
+      - name: Download distribution artifacts
+        uses: actions/download-artifact@v8
+        with:
+          name: release-dist
+          path: dist
+
+      - name: Publish to TestPyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
 
   publish-pypi:
-    needs: [create-github-release, publish-test-pypi]
+    needs:
+      - create-github-release
+      - publish-testpypi
     runs-on: ubuntu-latest
     environment: pypi
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      id-token: write
+
     steps:
-    - name: Download build artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: dist
-        path: dist/
-    
-    - name: Publish to PyPI
-      uses: pypa/gh-action-pypi-publish@release/v1
-      with:
-        password: ${{ secrets.PYPI_API_TOKEN }}
+      - name: Download distribution artifacts
+        uses: actions/download-artifact@v8
+        with:
+          name: release-dist
+          path: dist
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1

@@ -1,206 +1,96 @@
-name: CI/CD Pipeline
+name: CI
 
 on:
   push:
-    branches: [ main, develop ]
+    branches:
+      - main
+      - develop
   pull_request:
-    branches: [ main ]
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
+    name: Test (py${{ matrix.python-version }}, ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
+        include:
+          - os: ubuntu-latest
+            python-version: "3.8"
+          - os: ubuntu-latest
+            python-version: "3.9"
+          - os: ubuntu-latest
+            python-version: "3.10"
+          - os: ubuntu-latest
+            python-version: "3.11"
+          - os: ubuntu-latest
+            python-version: "3.12"
+          - os: windows-latest
+            python-version: "3.12"
+          - os: macos-latest
+            python-version: "3.12"
 
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ matrix.python-version }}
-    
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -e .
-        pip install pytest pytest-cov
+      - name: Checkout repository
+        uses: actions/checkout@v6
 
-    - name: Run test suite
-      run: |
-        pytest
-    
-    - name: Test package imports
-      run: |
-        python -c "from weather_decoder import MetarDecoder, TafDecoder; print('[OK] Package imports successfully')"
-        python -c "from weather_decoder.parsers import WindParser, VisibilityParser; print('[OK] Parser imports successful')"
-    
-    - name: Test CLI functionality
-      run: |
-        python decode_metar.py --version
-        python decode_taf.py --version
-        python decode_metar.py "METAR KJFK 061751Z 28008KT 10SM FEW250 22/18 A2992"
-        python decode_taf.py "TAF KJFK 061730Z 0618/0724 28008KT 9999 FEW250"
-    
-    - name: Test edge cases and complex weather reports
-      run: |
-        python -c "
-        from weather_decoder import MetarDecoder, TafDecoder
-        
-        # Test complex METAR
-        metar = MetarDecoder()
-        complex_metar = 'METAR KORD 121856Z 09014G23KT 3SM -SN BKN016 OVC030 M03/M08 A2968 RMK AO2 SLP049'
-        result = metar.decode(complex_metar)
-        assert result.station_id == 'KORD'
-        assert result.wind is not None
-        assert result.wind.speed == 14
-        assert result.wind.gust == 23
-        print('[OK] Complex METAR parsing successful')
-        
-        # Test complex TAF  
-        taf = TafDecoder()
-        complex_taf = 'TAF KJFK 121726Z 1218/1324 09016G24KT 4SM -SN OVC020 TEMPO 1218/1222 2SM -SN OVC010'
-        result = taf.decode(complex_taf)
-        assert result.station_id == 'KJFK'
-        assert len(result.forecast_periods) >= 2
-        print('[OK] Complex TAF parsing successful')
-        
-        print('[OK] All edge case tests passed')
-        "
-    
-    - name: Test SLP parsing fix
-      run: |
-        python -c "
-        from weather_decoder import MetarDecoder
-        
-        metar = MetarDecoder()
-        test_metar = 'METAR KBOS 110054Z 36007KT 10SM FEW080 16/13 A3012 RMK AO2 SLP200'
-        result = metar.decode(test_metar)
-        
-        assert 'Sea Level Pressure' in result.remarks_decoded
-        assert result.remarks_decoded['Sea Level Pressure'] == '1020.0 hPa'
-        print('[OK] SLP parsing working correctly')
-        "
-    
-    - name: Test individual parsers
-      run: |
-        python -c "
-        from weather_decoder.parsers.wind_parser import WindParser
-        from weather_decoder.parsers.visibility_parser import VisibilityParser
-        from weather_decoder.parsers.weather_parser import WeatherParser
-        
-        # Test wind parser
-        wp = WindParser()
-        wind1 = wp.parse('VRB05KT')
-        assert wind1 is not None
-        assert wind1.direction is None
-        assert wind1.is_variable is True
-        assert wind1.speed == 5
-        
-        wind2 = wp.parse('28045G65KT')
-        assert wind2 is not None
-        assert wind2.direction == 280
-        assert wind2.gust == 65
-        
-        # Test visibility parser
-        vp = VisibilityParser()
-        vis1 = vp.parse('P6SM')
-        assert vis1 is not None
-        assert vis1.is_greater_than == True
-        assert vis1.value == 6.0
-        
-        # Test weather parser
-        wxp = WeatherParser()
-        wx1 = wxp.parse('-RA')
-        assert wx1 is not None
-        assert wx1.intensity == 'light'
-        assert 'rain' in wx1.phenomena
-        
-        print('[OK] Individual parser tests passed')
-        "
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: |
+            pyproject.toml
+            requirements-dev.txt
 
-  install-test:
+      - name: Install project and dev dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Run test suite
+        run: python -m pytest
+
+  packaging:
+    name: Packaging smoke test
     runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.9'
-    
-    - name: Test pip installation
-      run: |
-        python -m pip install --upgrade pip
-        pip install .
-        
-        # Test console scripts work
-        decode-metar --version || echo "Console script not available, testing direct script"
-        decode-taf --version || echo "Console script not available, testing direct script"
-        
-        # Test package can be imported after installation
-        python -c "from weather_decoder import MetarDecoder, TafDecoder; print('[OK] Package installed and imports correctly')"
 
-  comprehensive-test:
-    runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.9'
-    
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -e .
-    
-    - name: Run comprehensive feature test
-      run: |
-        python -c "
-        import sys
-        from weather_decoder import MetarDecoder, TafDecoder
-        
-        print('=== Comprehensive Feature Test ===')
-        
-        # Test all major METAR features
-        metar_decoder = MetarDecoder()
-        
-        # Test various METAR formats
-        test_metars = [
-            'METAR KJFK 061751Z 28008KT 10SM FEW250 22/18 A2992',
-            'METAR EGLL 061620Z 27008KT 9999 FEW040 SCT250 12/08 Q1013',
-            'METAR KORD 121856Z 09014G23KT 3SM -SN BKN016 OVC030 M03/M08 A2968 RMK AO2 SLP049',
-            'SPECI KJFK 061855Z 28012G18KT 240V320 1/2SM +TSRA BKN008 OVC020CB 22/21 A2992',
-        ]
-        
-        for i, metar_str in enumerate(test_metars, 1):
-            try:
-                result = metar_decoder.decode(metar_str)
-                print(f'[OK] METAR test {i}: {result.station_id} - SUCCESS')
-            except Exception as e:
-                print(f'[FAIL] METAR test {i}: FAILED - {e}')
-                sys.exit(1)
-        
-        # Test various TAF formats
-        taf_decoder = TafDecoder()
-        
-        test_tafs = [
-            'TAF KJFK 061730Z 0618/0724 28008KT 9999 FEW250',
-            'TAF EGLL 061100Z 0612/0718 27010KT 9999 SCT040 TEMPO 0612/0615 BKN020',
-            'TAF KJFK 121726Z 1218/1324 09016G24KT 4SM -SN OVC020 FM122200 36018G28KT',
-        ]
-        
-        for i, taf_str in enumerate(test_tafs, 1):
-            try:
-                result = taf_decoder.decode(taf_str)
-                print(f'[OK] TAF test {i}: {result.station_id} - SUCCESS')
-            except Exception as e:
-                print(f'[FAIL] TAF test {i}: FAILED - {e}')
-                sys.exit(1)
-        
-        print('[SUCCESS] All comprehensive tests passed!')
-        "
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            pyproject.toml
+            requirements-dev.txt
+
+      - name: Build distribution artifacts
+        run: |
+          rm -rf build dist *.egg-info
+          python -m pip install --upgrade pip
+          python -m pip install build twine
+          python -m build
+          python -m twine check dist/*
+
+      - name: Upload distribution artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 7
