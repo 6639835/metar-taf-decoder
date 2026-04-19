@@ -67,7 +67,7 @@ class RemarksParser:
             "Obscuration": ["OBSC"],
             "QBB": ["QBB"],
             "Ceiling": ["CIG"],
-            "variable_ceiling": ["CIG"],
+            "Variable Ceiling": ["CIG"],
             "Pressure Change": ["PRESFR", "PRESRR"],
             "Frontal Passage": ["FROPA"],
             "Wind Shift": ["WSHFT"],
@@ -879,7 +879,7 @@ class RemarksParser:
             cig_low = int(cig_match.group(1)) * 100
             if cig_match.group(2):
                 cig_high = int(cig_match.group(2)) * 100
-                decoded["variable_ceiling"] = f"{cig_low} to {cig_high} feet AGL"
+                decoded["Variable Ceiling"] = f"{cig_low} to {cig_high} feet AGL"
             else:
                 decoded["Ceiling"] = f"{cig_low} feet AGL"
 

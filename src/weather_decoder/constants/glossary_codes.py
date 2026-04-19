@@ -169,7 +169,7 @@ CODE_GLOSSARY = {
     "TEMPO DDHH/DDHH": "Temporary fluctuations (<1 hr at a time)",
     "TESTM": "Non-commissioned ASOS report",
     "TS": "Thunderstorm",
-    "TSNO": "Lightning detection system not available",
+    "TSNO": "Thunderstorm information not available",
     "TT/DD": "Degrees Celsius",
     "TWR": "Tower",
     "UNKN": "Unknown",

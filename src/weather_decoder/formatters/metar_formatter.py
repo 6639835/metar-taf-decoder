@@ -303,7 +303,7 @@ class MetarFormatter:
         for key, value in decoded.items():
             if key == "directional_info":
                 lines.extend(self._format_directional_info(value))
-            elif key == "variable_ceiling":
+            elif key in {"Variable Ceiling", "variable_ceiling"}:
                 lines.append(f"  Variable Ceiling: {value}")
             elif key == "runway_winds":
                 lines.extend(self._format_runway_winds(value))
