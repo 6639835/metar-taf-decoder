@@ -19,7 +19,9 @@ def format_wind(wind: Optional[Wind]) -> str:
         return "Not reported"
 
     # Calm wind: 00000KT per ICAO/WMO
-    if wind.is_calm or (wind.direction == 0 and wind.speed == 0 and not wind.is_variable):
+    if wind.is_calm or (
+        wind.direction == 0 and wind.speed == 0 and not wind.is_variable
+    ):
         return "Calm"
 
     if wind.is_variable or wind.direction is None:
@@ -71,10 +73,14 @@ def format_visibility(visibility: Optional[Visibility]) -> str:
         result += f" to the {visibility.direction}"
 
     if visibility.directional_visibility:
-        result += f", {_format_directional_visibility(visibility.directional_visibility)}"
+        result += (
+            f", {_format_directional_visibility(visibility.directional_visibility)}"
+        )
 
     if visibility.minimum_visibility:
-        result += f" (minimum {_format_minimum_visibility(visibility.minimum_visibility)})"
+        result += (
+            f" (minimum {_format_minimum_visibility(visibility.minimum_visibility)})"
+        )
 
     if visibility.ndv:
         result += " (No Directional Variation)"
@@ -115,7 +121,11 @@ def format_sky_condition(sky: SkyCondition) -> str:
             return "Unknown cloud amount at unknown height"
         return f"Unknown cloud amount at {sky.height} feet"
 
-    height_str = "unknown height" if sky.unknown_height or sky.height is None else f"{sky.height} feet"
+    height_str = (
+        "unknown height"
+        if sky.unknown_height or sky.height is None
+        else f"{sky.height} feet"
+    )
     result = f"{sky_type} clouds at {height_str}"
 
     if sky.cb:

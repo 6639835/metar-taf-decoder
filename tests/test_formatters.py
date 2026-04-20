@@ -45,6 +45,7 @@ from datetime import datetime, timezone
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture(scope="module")
 def metar_decoder():
     return MetarDecoder()
@@ -66,37 +67,49 @@ class TestMetarFormatterBasic:
 
     def test_basic_metar_station_id(self, metar_decoder):
         """Formatted output contains the station ID."""
-        report = metar_decoder.decode("METAR KJFK 061751Z 28008KT 10SM FEW250 22/18 A2992")
+        report = metar_decoder.decode(
+            "METAR KJFK 061751Z 28008KT 10SM FEW250 22/18 A2992"
+        )
         result = MetarFormatter.format(report)
         assert "KJFK" in result
 
     def test_basic_metar_wind_section(self, metar_decoder):
         """Formatted output contains a Wind section."""
-        report = metar_decoder.decode("METAR KJFK 061751Z 28008KT 10SM FEW250 22/18 A2992")
+        report = metar_decoder.decode(
+            "METAR KJFK 061751Z 28008KT 10SM FEW250 22/18 A2992"
+        )
         result = MetarFormatter.format(report)
         assert "Wind:" in result
 
     def test_basic_metar_visibility_section(self, metar_decoder):
         """Formatted output contains a Visibility section."""
-        report = metar_decoder.decode("METAR KJFK 061751Z 28008KT 10SM FEW250 22/18 A2992")
+        report = metar_decoder.decode(
+            "METAR KJFK 061751Z 28008KT 10SM FEW250 22/18 A2992"
+        )
         result = MetarFormatter.format(report)
         assert "Visibility:" in result
 
     def test_basic_metar_sky_section(self, metar_decoder):
         """Formatted output contains sky condition information."""
-        report = metar_decoder.decode("METAR KJFK 061751Z 28008KT 10SM FEW250 22/18 A2992")
+        report = metar_decoder.decode(
+            "METAR KJFK 061751Z 28008KT 10SM FEW250 22/18 A2992"
+        )
         result = MetarFormatter.format(report)
         assert "Sky" in result or "FEW" in result
 
     def test_basic_metar_temperature_section(self, metar_decoder):
         """Formatted output contains temperature information."""
-        report = metar_decoder.decode("METAR KJFK 061751Z 28008KT 10SM FEW250 22/18 A2992")
+        report = metar_decoder.decode(
+            "METAR KJFK 061751Z 28008KT 10SM FEW250 22/18 A2992"
+        )
         result = MetarFormatter.format(report)
         assert "Temperature:" in result or "22" in result
 
     def test_basic_metar_returns_string(self, metar_decoder):
         """MetarFormatter.format() always returns a non-empty string."""
-        report = metar_decoder.decode("METAR KJFK 061751Z 28008KT 10SM FEW250 22/18 A2992")
+        report = metar_decoder.decode(
+            "METAR KJFK 061751Z 28008KT 10SM FEW250 22/18 A2992"
+        )
         result = MetarFormatter.format(report)
         assert isinstance(result, str)
         assert len(result) > 0
@@ -132,14 +145,18 @@ class TestMetarFormatterBasic:
 
     def test_metar_wind_direction_in_output(self, metar_decoder):
         """Wind direction appears in formatted output."""
-        report = metar_decoder.decode("METAR KJFK 061751Z 28008KT 10SM FEW250 22/18 A2992")
+        report = metar_decoder.decode(
+            "METAR KJFK 061751Z 28008KT 10SM FEW250 22/18 A2992"
+        )
         result = MetarFormatter.format(report)
         # 280° direction should appear
         assert "280" in result
 
     def test_metar_altimeter_in_output(self, metar_decoder):
         """Altimeter value appears in formatted output."""
-        report = metar_decoder.decode("METAR KJFK 061751Z 28008KT 10SM FEW250 22/18 A2992")
+        report = metar_decoder.decode(
+            "METAR KJFK 061751Z 28008KT 10SM FEW250 22/18 A2992"
+        )
         result = MetarFormatter.format(report)
         assert "29.92" in result or "Altimeter" in result
 
@@ -255,17 +272,13 @@ class TestMetarFormatterWeather:
 
     def test_metar_cavok(self, metar_decoder):
         """CAVOK appears in formatted output for CAVOK conditions."""
-        report = metar_decoder.decode(
-            "METAR EGLL 061751Z 09015KT CAVOK 18/10 Q1020"
-        )
+        report = metar_decoder.decode("METAR EGLL 061751Z 09015KT CAVOK 18/10 Q1020")
         result = MetarFormatter.format(report)
         assert "CAVOK" in result
 
     def test_metar_cavok_no_sky_section(self, metar_decoder):
         """CAVOK METAR does not have an explicit Sky Conditions section."""
-        report = metar_decoder.decode(
-            "METAR EGLL 061751Z 09015KT CAVOK 18/10 Q1020"
-        )
+        report = metar_decoder.decode("METAR EGLL 061751Z 09015KT CAVOK 18/10 Q1020")
         result = MetarFormatter.format(report)
         # CAVOK means no separate sky conditions block
         assert "Sky Conditions:" not in result
@@ -508,17 +521,13 @@ class TestTafFormatterSpecialGroups:
 
     def test_taf_cavok(self, taf_decoder):
         """CAVOK in TAF produces output with 'CAVOK'."""
-        report = taf_decoder.decode(
-            "TAF KJFK 061730Z 0618/0724 VRB05KT CAVOK"
-        )
+        report = taf_decoder.decode("TAF KJFK 061730Z 0618/0724 VRB05KT CAVOK")
         result = TafFormatter.format(report)
         assert "CAVOK" in result
 
     def test_taf_variable_wind(self, taf_decoder):
         """Variable wind in TAF produces 'Variable' in output."""
-        report = taf_decoder.decode(
-            "TAF KJFK 061730Z 0618/0724 VRB05KT CAVOK"
-        )
+        report = taf_decoder.decode("TAF KJFK 061730Z 0618/0724 VRB05KT CAVOK")
         result = TafFormatter.format(report)
         assert "Variable" in result
 
@@ -530,8 +539,8 @@ class TestTafFormatterSpecialGroups:
             "BECMG 0622/0624 VRB03KT"
         )
         result = TafFormatter.format(report)
-        assert ("TEMPO" in result or "Temporary" in result)
-        assert ("BECMG" in result or "becoming" in result.lower())
+        assert "TEMPO" in result or "Temporary" in result
+        assert "BECMG" in result or "becoming" in result.lower()
 
 
 # ===========================================================================
@@ -895,7 +904,9 @@ class TestFormatWeatherGroupsList:
 
     def test_heavy_thunderstorm(self):
         """Heavy thunderstorm with rain formats correctly."""
-        wx = WeatherPhenomenon(intensity="heavy", descriptor="thunderstorm", phenomena=("RA",))
+        wx = WeatherPhenomenon(
+            intensity="heavy", descriptor="thunderstorm", phenomena=("RA",)
+        )
         result = format_weather_groups_list([wx])
         assert len(result) == 1
         assert "heavy" in result[0]

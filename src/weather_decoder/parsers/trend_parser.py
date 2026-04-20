@@ -31,7 +31,9 @@ class TrendParser:
                 i += 1
         return trends
 
-    def _parse_trend_group(self, trend_type: str, stream: TokenStream, start_idx: int) -> Optional[Trend]:
+    def _parse_trend_group(
+        self, trend_type: str, stream: TokenStream, start_idx: int
+    ) -> Optional[Trend]:
         if trend_type == "NOSIG":
             return Trend(
                 kind=trend_type,
@@ -44,7 +46,11 @@ class TrendParser:
         weather_changes: List[str] = []
 
         i = start_idx
-        while i < len(stream.tokens) and stream.tokens[i] not in TREND_TYPES and not stream.tokens[i].startswith("RMK"):
+        while (
+            i < len(stream.tokens)
+            and stream.tokens[i] not in TREND_TYPES
+            and not stream.tokens[i].startswith("RMK")
+        ):
             element = stream.pop(i)
             trend_elements.append(element)
 
@@ -55,7 +61,9 @@ class TrendParser:
             if change:
                 weather_changes.append(change)
 
-        description = self._build_trend_description(trend_type, time_info, weather_changes)
+        description = self._build_trend_description(
+            trend_type, time_info, weather_changes
+        )
 
         time = (
             TrendTime(
@@ -69,7 +77,9 @@ class TrendParser:
 
         return Trend(
             kind=trend_type,
-            raw=f"{trend_type} {' '.join(trend_elements)}" if trend_elements else trend_type,
+            raw=f"{trend_type} {' '.join(trend_elements)}"
+            if trend_elements
+            else trend_type,
             time=time,
             changes=tuple(weather_changes),
             description=description,
@@ -102,7 +112,7 @@ class TrendParser:
             if vis_value == 9999:
                 return "visibility 10km or more"
             if vis_value >= 1000:
-                return f"visibility {vis_value/1000:.1f}km"
+                return f"visibility {vis_value / 1000:.1f}km"
             return f"visibility {vis_value}m"
 
         wind_match = re.match(r"(\d{3}|VRB)\d{2,3}(G\d{2,3})?(KT|MPS|KMH)", element)
@@ -111,14 +121,17 @@ class TrendParser:
             if wind_info:
                 return self._format_wind_change(wind_info)
 
-        cloud_match = re.match(r"(SKC|CLR|NSC|NCD|FEW|SCT|BKN|OVC|VV)(\d{3}|///)?", element)
+        cloud_match = re.match(
+            r"(SKC|CLR|NSC|NCD|FEW|SCT|BKN|OVC|VV)(\d{3}|///)?", element
+        )
         if cloud_match and self.sky_parser:
             sky_info = self.sky_parser.parse(element)
             if sky_info:
                 return self._format_sky_change(sky_info)
 
         wx_match = re.match(
-            r"^[-+]?(VC)?(MI|PR|BC|DR|BL|SH|TS|FZ)?" r"(DZ|RA|SN|SG|IC|PL|GR|GS|UP|BR|FG|FU|VA|DU|SA|HZ|PY|PO|SQ|FC|SS|DS)+",
+            r"^[-+]?(VC)?(MI|PR|BC|DR|BL|SH|TS|FZ)?"
+            r"(DZ|RA|SN|SG|IC|PL|GR|GS|UP|BR|FG|FU|VA|DU|SA|HZ|PY|PO|SQ|FC|SS|DS)+",
             element,
         )
         if wx_match and self.weather_parser:
@@ -136,7 +149,11 @@ class TrendParser:
 
     @staticmethod
     def _format_wind_change(wind_info) -> str:
-        dir_text = "variable" if wind_info.is_variable or wind_info.direction is None else f"{wind_info.direction}°"
+        dir_text = (
+            "variable"
+            if wind_info.is_variable or wind_info.direction is None
+            else f"{wind_info.direction}°"
+        )
         wind_desc = f"wind {dir_text} at {wind_info.speed} {wind_info.unit}"
         if wind_info.gust:
             wind_desc += f" gusting {wind_info.gust}"
@@ -176,7 +193,9 @@ class TrendParser:
         return " ".join(wx_parts) if wx_parts else ""
 
     @staticmethod
-    def _build_trend_description(trend_type: str, time_info: dict, weather_changes: List[str]) -> str:
+    def _build_trend_description(
+        trend_type: str, time_info: dict, weather_changes: List[str]
+    ) -> str:
         parts = []
 
         if trend_type == "BECMG":

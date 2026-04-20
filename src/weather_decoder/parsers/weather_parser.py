@@ -35,7 +35,9 @@ class WeatherParser(BaseParser[WeatherPhenomenon], StopConditionMixin):
             return None
 
         if token == "+FC":
-            return WeatherPhenomenon(intensity="heavy", phenomena=("tornado/waterspout",))
+            return WeatherPhenomenon(
+                intensity="heavy", phenomena=("tornado/waterspout",)
+            )
 
         if token.startswith("RE") and not self.RECENT_WEATHER_PATTERN.match(token):
             return None
@@ -57,7 +59,11 @@ class WeatherParser(BaseParser[WeatherPhenomenon], StopConditionMixin):
             remaining = remaining[4:]
             has_weather = True
             # consume any further compound or 2-char codes in the same token
-            while remaining and len(remaining) >= 4 and remaining[:4] in COMPOUND_WEATHER_PHENOMENA:
+            while (
+                remaining
+                and len(remaining) >= 4
+                and remaining[:4] in COMPOUND_WEATHER_PHENOMENA
+            ):
                 phenomena.append(COMPOUND_WEATHER_PHENOMENA[remaining[:4]])
                 remaining = remaining[4:]
             while remaining and len(remaining) >= 2:

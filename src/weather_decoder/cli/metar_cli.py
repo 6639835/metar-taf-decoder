@@ -45,8 +45,12 @@ Examples:
         )
 
         parser.add_argument("metar", nargs="?", help="Raw METAR string to decode")
-        parser.add_argument("-f", "--file", help="File containing METAR strings (one per line)")
-        parser.add_argument("--version", action="version", version=f"METAR Decoder {__version__}")
+        parser.add_argument(
+            "-f", "--file", help="File containing METAR strings (one per line)"
+        )
+        parser.add_argument(
+            "--version", action="version", version=f"METAR Decoder {__version__}"
+        )
 
         return parser
 
@@ -66,7 +70,10 @@ Examples:
                     print_section_header("METAR", line_num)
                     print(decoded)
                 except Exception as exc:
-                    print(f"Error decoding METAR on line {line_num}: {exc}", file=sys.stderr)
+                    print(
+                        f"Error decoding METAR on line {line_num}: {exc}",
+                        file=sys.stderr,
+                    )
         except FileNotFoundError:
             print(f"Error: File '{filename}' not found.", file=sys.stderr)
             sys.exit(1)

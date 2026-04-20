@@ -60,7 +60,11 @@ class VisibilityParser(BaseParser[Visibility]):
             if result is not None:
                 stream.pop(i)
 
-                if result.unit == "M" and not result.is_cavok and not result.unavailable:
+                if (
+                    result.unit == "M"
+                    and not result.is_cavok
+                    and not result.unavailable
+                ):
                     result = self._check_additional_visibility(stream, i, result)
 
                 return result
@@ -73,7 +77,9 @@ class VisibilityParser(BaseParser[Visibility]):
                     denominator = int(frac_match.group(2))
                     stream.pop(i)
                     stream.pop(i)
-                    return Visibility(value=whole + (numerator / denominator), unit="SM")
+                    return Visibility(
+                        value=whole + (numerator / denominator), unit="SM"
+                    )
 
         return None
 
@@ -89,7 +95,9 @@ class VisibilityParser(BaseParser[Visibility]):
             is_less_than=modifier == "M",
         )
 
-    def _check_additional_visibility(self, stream: TokenStream, index: int, result: Visibility) -> Visibility:
+    def _check_additional_visibility(
+        self, stream: TokenStream, index: int, result: Visibility
+    ) -> Visibility:
         if index >= len(stream.tokens):
             return result
 
@@ -127,7 +135,9 @@ class VisibilityParser(BaseParser[Visibility]):
                     is_greater_than=result.is_greater_than,
                     direction=result.direction,
                     directional_visibility=result.directional_visibility,
-                    minimum_visibility=MinimumVisibility(value=vis_value, direction=vis_dir),
+                    minimum_visibility=MinimumVisibility(
+                        value=vis_value, direction=vis_dir
+                    ),
                     ndv=result.ndv,
                 )
 

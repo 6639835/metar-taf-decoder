@@ -23,7 +23,8 @@ class WindShearParser:
                 ws_parts = [stream.pop(i)]
 
                 while i < len(stream.tokens) and (
-                    stream.tokens[i] in ["RWY", "ALL", "TKOF", "LDG"] or re.fullmatch(r"R?\d{2}[LCR]?", stream.tokens[i])
+                    stream.tokens[i] in ["RWY", "ALL", "TKOF", "LDG"]
+                    or re.fullmatch(r"R?\d{2}[LCR]?", stream.tokens[i])
                 ):
                     ws_parts.append(stream.pop(i))
 
@@ -44,7 +45,9 @@ class WindShearParser:
         ws_str = " ".join(ws_parts)
 
         if "ALL" in ws_parts:
-            return WindShear(kind="all_runways", description="Wind shear on all runways", raw=ws_str)
+            return WindShear(
+                kind="all_runways", description="Wind shear on all runways", raw=ws_str
+            )
 
         if "TKOF" in ws_parts:
             runway = self._find_runway(ws_parts)
@@ -75,7 +78,9 @@ class WindShearParser:
     def _parse_compact_windshear(self, raw: str) -> WindShear:
         match = re.search(r"R?(\d{2}[LCR]?)", raw)
         runway = match.group(1) if match else None
-        description = f"Wind shear on runway {runway}" if runway else "Wind shear reported"
+        description = (
+            f"Wind shear on runway {runway}" if runway else "Wind shear reported"
+        )
         return WindShear(kind="runway", description=description, runway=runway, raw=raw)
 
     @staticmethod

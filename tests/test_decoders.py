@@ -63,7 +63,9 @@ def test_metar_basic_complete():
 def test_metar_speci_with_auto():
     """Test SPECI report with AUTO modification."""
     decoder = MetarDecoder()
-    result = decoder.decode("SPECI EGLL 061751Z AUTO 18010KT 1200 -RA BKN010 15/13 Q1013")
+    result = decoder.decode(
+        "SPECI EGLL 061751Z AUTO 18010KT 1200 -RA BKN010 15/13 Q1013"
+    )
 
     assert result.report_type == "SPECI"
     assert result.is_automated is True
@@ -131,13 +133,14 @@ def test_metar_maintenance_indicator():
 def test_metar_multiple_weather_groups():
     """Test METAR with multiple weather phenomenon groups including CB cloud type."""
     decoder = MetarDecoder()
-    result = decoder.decode("METAR EGLL 061751Z 18015KT 5000 TSRA FEW030CB BKN060 18/15 Q1010")
+    result = decoder.decode(
+        "METAR EGLL 061751Z 18015KT 5000 TSRA FEW030CB BKN060 18/15 Q1010"
+    )
 
     assert len(result.weather) >= 1
     # TSRA is decoded as a compound phenomenon "thunderstorm with rain"
     assert any(
-        w.descriptor == "thunderstorm"
-        or any("thunderstorm" in p for p in w.phenomena)
+        w.descriptor == "thunderstorm" or any("thunderstorm" in p for p in w.phenomena)
         for w in result.weather
     )
     assert any(s.cb for s in result.sky)
@@ -180,7 +183,9 @@ def test_metar_cor_corrected():
 def test_metar_cor_after_observation_time():
     """FMH-1 positions COR after the observation time in METAR/SPECI."""
     decoder = MetarDecoder()
-    result = decoder.decode("METAR KPHX 190651Z COR 03008KT 10SM TS SCT100CB 26/20 A2984")
+    result = decoder.decode(
+        "METAR KPHX 190651Z COR 03008KT 10SM TS SCT100CB 26/20 A2984"
+    )
 
     assert result.is_corrected is True
     assert result.wind.direction == 30
@@ -246,10 +251,15 @@ def test_metar_sea_conditions():
 def test_metar_with_remarks():
     """Test METAR with remarks section."""
     decoder = MetarDecoder()
-    result = decoder.decode("METAR KJFK 061751Z 28008KT 10SM FEW030 22/18 A2992 RMK AO2 SLP021")
+    result = decoder.decode(
+        "METAR KJFK 061751Z 28008KT 10SM FEW030 22/18 A2992 RMK AO2 SLP021"
+    )
 
     assert "AO2" in result.remarks
-    assert "Station Type" in result.remarks_decoded or "Sea Level Pressure" in result.remarks_decoded
+    assert (
+        "Station Type" in result.remarks_decoded
+        or "Sea Level Pressure" in result.remarks_decoded
+    )
 
 
 @pytest.mark.integration
@@ -301,7 +311,9 @@ def test_metar_validation_no_keyword():
     decoder = MetarDecoder()
     result = decoder.decode("KJFK 061751Z 28008KT 10SM FEW250 22/18 A2992")
 
-    assert any("METAR or SPECI keyword not found" in w for w in result.validation_warnings)
+    assert any(
+        "METAR or SPECI keyword not found" in w for w in result.validation_warnings
+    )
 
 
 @pytest.mark.unit
@@ -335,7 +347,9 @@ def test_metar_validation_kmh_wind_unit():
 def test_metar_validation_ts_without_cb():
     """Test validation warning for TS without CB cloud layer."""
     decoder = MetarDecoder()
-    result = decoder.decode("METAR KJFK 061751Z 28008KT 5000 TS FEW030 BKN070 18/15 A2992")
+    result = decoder.decode(
+        "METAR KJFK 061751Z 28008KT 5000 TS FEW030 BKN070 18/15 A2992"
+    )
 
     assert any("CB" in w for w in result.validation_warnings)
 
@@ -555,7 +569,9 @@ def test_taf_compact_tempo_with_time_range():
     assert len(tempo) == 1
     assert tempo[0].from_time is not None
     assert tempo[0].to_time is not None
-    assert any("rain" in phenomenon for wx in tempo[0].weather for phenomenon in wx.phenomena)
+    assert any(
+        "rain" in phenomenon for wx in tempo[0].weather for phenomenon in wx.phenomena
+    )
 
 
 @pytest.mark.integration
@@ -592,7 +608,9 @@ def test_taf_with_icing():
     result = decoder.decode("TAF KJFK 061730Z 0618/0724 28008KT 9999 FEW030 620304")
 
     assert "620304" in result.forecast_periods[0].unparsed_tokens
-    assert any("non-standard TAF extension groups" in w for w in result.validation_warnings)
+    assert any(
+        "non-standard TAF extension groups" in w for w in result.validation_warnings
+    )
 
 
 @pytest.mark.integration
@@ -602,7 +620,9 @@ def test_taf_with_turbulence():
     result = decoder.decode("TAF KJFK 061730Z 0618/0724 28008KT 9999 FEW030 520610")
 
     assert "520610" in result.forecast_periods[0].unparsed_tokens
-    assert any("non-standard TAF extension groups" in w for w in result.validation_warnings)
+    assert any(
+        "non-standard TAF extension groups" in w for w in result.validation_warnings
+    )
 
 
 @pytest.mark.integration
@@ -620,7 +640,9 @@ def test_taf_with_cavok():
 def test_taf_with_remarks():
     """Test TAF with RMK (remarks) section."""
     decoder = TafDecoder()
-    result = decoder.decode("TAF KJFK 061730Z 0618/0724 28008KT 9999 FEW030 RMK NXT FCST BY 12Z")
+    result = decoder.decode(
+        "TAF KJFK 061730Z 0618/0724 28008KT 9999 FEW030 RMK NXT FCST BY 12Z"
+    )
 
     assert "Next Forecast" in result.remarks_decoded
 
@@ -643,7 +665,9 @@ def test_taf_validation_non_standard_duration():
 def test_taf_preprocessing_compact_fm():
     """Test TafDecoder._preprocess_taf() handles compact FM groups."""
     decoder = TafDecoder()
-    result = decoder._preprocess_taf("TAF KJFK 061730Z 0618/0724 28008KTFM062000 15010KT")
+    result = decoder._preprocess_taf(
+        "TAF KJFK 061730Z 0618/0724 28008KTFM062000 15010KT"
+    )
 
     # Should have space before FM
     assert " FM062000" in result
@@ -653,7 +677,9 @@ def test_taf_preprocessing_compact_fm():
 def test_taf_preprocessing_compact_tempo():
     """Test TafDecoder._preprocess_taf() handles compact TEMPO groups."""
     decoder = TafDecoder()
-    result = decoder._preprocess_taf("TAF KJFK 061730Z 0618/0724 28008KTTEMPO 0620/0622")
+    result = decoder._preprocess_taf(
+        "TAF KJFK 061730Z 0618/0724 28008KTTEMPO 0620/0622"
+    )
 
     # Should have space before TEMPO
     assert " TEMPO" in result
@@ -663,7 +689,9 @@ def test_taf_preprocessing_compact_tempo():
 def test_taf_preprocessing_compact_becmg():
     """Test TafDecoder._preprocess_taf() handles compact BECMG groups."""
     decoder = TafDecoder()
-    result = decoder._preprocess_taf("TAF KJFK 061730Z 0618/0724 28008KTBECMG 0620/0622")
+    result = decoder._preprocess_taf(
+        "TAF KJFK 061730Z 0618/0724 28008KTBECMG 0620/0622"
+    )
 
     # Should have space before BECMG
     assert " BECMG" in result
@@ -672,35 +700,45 @@ def test_taf_preprocessing_compact_becmg():
 @pytest.mark.unit
 def test_taf_derive_status_amendment():
     """Test TafDecoder._derive_status() for amendment."""
-    status = TafDecoder._derive_status(is_amended=True, is_corrected=False, is_cancelled=False, is_nil=False)
+    status = TafDecoder._derive_status(
+        is_amended=True, is_corrected=False, is_cancelled=False, is_nil=False
+    )
     assert status == "AMENDMENT"
 
 
 @pytest.mark.unit
 def test_taf_derive_status_correction():
     """Test TafDecoder._derive_status() for correction."""
-    status = TafDecoder._derive_status(is_amended=False, is_corrected=True, is_cancelled=False, is_nil=False)
+    status = TafDecoder._derive_status(
+        is_amended=False, is_corrected=True, is_cancelled=False, is_nil=False
+    )
     assert status == "CORRECTION"
 
 
 @pytest.mark.unit
 def test_taf_derive_status_cancellation():
     """Test TafDecoder._derive_status() for cancellation."""
-    status = TafDecoder._derive_status(is_amended=False, is_corrected=False, is_cancelled=True, is_nil=False)
+    status = TafDecoder._derive_status(
+        is_amended=False, is_corrected=False, is_cancelled=True, is_nil=False
+    )
     assert status == "CANCELLATION"
 
 
 @pytest.mark.unit
 def test_taf_derive_status_missing():
     """Test TafDecoder._derive_status() for missing report."""
-    status = TafDecoder._derive_status(is_amended=False, is_corrected=False, is_cancelled=False, is_nil=True)
+    status = TafDecoder._derive_status(
+        is_amended=False, is_corrected=False, is_cancelled=False, is_nil=True
+    )
     assert status == "MISSING"
 
 
 @pytest.mark.unit
 def test_taf_derive_status_normal():
     """Test TafDecoder._derive_status() for normal status."""
-    status = TafDecoder._derive_status(is_amended=False, is_corrected=False, is_cancelled=False, is_nil=False)
+    status = TafDecoder._derive_status(
+        is_amended=False, is_corrected=False, is_cancelled=False, is_nil=False
+    )
     assert status == "NORMAL"
 
 
@@ -761,7 +799,9 @@ def test_taf_decoder_has_parsers():
 def test_metar_multiple_sky_layers():
     """Test METAR with multiple cloud layers."""
     decoder = MetarDecoder()
-    result = decoder.decode("METAR KJFK 061751Z 28008KT 10SM FEW050 SCT100 BKN200 OVC250 22/18 A2992")
+    result = decoder.decode(
+        "METAR KJFK 061751Z 28008KT 10SM FEW050 SCT100 BKN200 OVC250 22/18 A2992"
+    )
 
     assert len(result.sky) >= 3
 
@@ -780,7 +820,9 @@ def test_metar_below_minimums_visibility():
 def test_metar_with_windshear():
     """Test METAR with wind shear information."""
     decoder = MetarDecoder()
-    result = decoder.decode("METAR KJFK 061751Z 28008KT 10SM FEW030 22/18 A2992 WS ALL RWY")
+    result = decoder.decode(
+        "METAR KJFK 061751Z 28008KT 10SM FEW030 22/18 A2992 WS ALL RWY"
+    )
 
     assert isinstance(result.windshear, list)
 
@@ -862,11 +904,15 @@ def test_taf_compact_spacing_multiple_issues():
 def test_taf_with_multiple_icing_layers():
     """Multiple non-standard icing groups stay unparsed and are warned."""
     decoder = TafDecoder()
-    result = decoder.decode("TAF KJFK 061730Z 0618/0724 28008KT 9999 FEW030 620304 630507")
+    result = decoder.decode(
+        "TAF KJFK 061730Z 0618/0724 28008KT 9999 FEW030 620304 630507"
+    )
 
     assert "620304" in result.forecast_periods[0].unparsed_tokens
     assert "630507" in result.forecast_periods[0].unparsed_tokens
-    assert any("non-standard TAF extension groups" in w for w in result.validation_warnings)
+    assert any(
+        "non-standard TAF extension groups" in w for w in result.validation_warnings
+    )
 
 
 @pytest.mark.integration

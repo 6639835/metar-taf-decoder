@@ -6,7 +6,12 @@ import re
 from typing import Optional
 
 from ..models import Pressure
-from ..utils.patterns import ALT_PATTERN, ALT_QNH_PATTERN, ALTIMETER_PATTERN, QNH_PATTERN
+from ..utils.patterns import (
+    ALT_PATTERN,
+    ALT_QNH_PATTERN,
+    ALTIMETER_PATTERN,
+    QNH_PATTERN,
+)
 from .base_parser import BaseParser
 from .token_stream import TokenStream
 

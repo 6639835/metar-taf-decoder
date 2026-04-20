@@ -43,6 +43,7 @@ from weather_decoder.models import (
 # Helper
 # ---------------------------------------------------------------------------
 
+
 def make_stream(*tokens: str) -> TokenStream:
     """Build a TokenStream from positional string arguments."""
     return TokenStream(list(tokens))
@@ -51,6 +52,7 @@ def make_stream(*tokens: str) -> TokenStream:
 # ===========================================================================
 # TokenStream tests
 # ===========================================================================
+
 
 class TestTokenStream:
     @pytest.mark.unit
@@ -133,6 +135,7 @@ class TestTokenStream:
 # ===========================================================================
 # WindParser tests
 # ===========================================================================
+
 
 class TestWindParser:
     parser = WindParser()
@@ -264,6 +267,7 @@ class TestWindParser:
 # ===========================================================================
 # VisibilityParser tests
 # ===========================================================================
+
 
 class TestVisibilityParser:
     parser = VisibilityParser()
@@ -410,6 +414,7 @@ class TestVisibilityParser:
 # ===========================================================================
 # WeatherParser tests
 # ===========================================================================
+
 
 class TestWeatherParser:
     parser = WeatherParser()
@@ -568,6 +573,7 @@ class TestWeatherParser:
 # SkyParser tests
 # ===========================================================================
 
+
 class TestSkyParser:
     parser = SkyParser()
 
@@ -695,6 +701,7 @@ class TestSkyParser:
 # TemperatureParser tests
 # ===========================================================================
 
+
 class TestTemperatureParser:
     parser = TemperatureParser()
 
@@ -766,7 +773,9 @@ class TestTemperatureParser:
     def test_extract_temperature_forecasts_tx(self) -> None:
         ref = datetime(2024, 6, 10, 0, 0, tzinfo=timezone.utc)
         tokens = ["TX25/1012Z", "TN05/1018Z"]
-        forecasts = self.parser.extract_temperature_forecasts(tokens, reference_time=ref)
+        forecasts = self.parser.extract_temperature_forecasts(
+            tokens, reference_time=ref
+        )
         assert len(forecasts) == 2
         kinds = {f.kind for f in forecasts}
         assert "max" in kinds
@@ -776,7 +785,9 @@ class TestTemperatureParser:
     def test_extract_temperature_forecasts_negative(self) -> None:
         ref = datetime(2024, 1, 10, 0, 0, tzinfo=timezone.utc)
         tokens = ["TNM05/1018Z"]
-        forecasts = self.parser.extract_temperature_forecasts(tokens, reference_time=ref)
+        forecasts = self.parser.extract_temperature_forecasts(
+            tokens, reference_time=ref
+        )
         assert len(forecasts) == 1
         assert forecasts[0].value == -5
         assert forecasts[0].kind == "min"
@@ -785,7 +796,9 @@ class TestTemperatureParser:
     def test_extract_temperature_forecast_hour_24_rollover(self) -> None:
         ref = datetime(2024, 4, 30, 18, 0, tzinfo=timezone.utc)
         tokens = ["TX25/3024Z"]
-        forecasts = self.parser.extract_temperature_forecasts(tokens, reference_time=ref)
+        forecasts = self.parser.extract_temperature_forecasts(
+            tokens, reference_time=ref
+        )
         assert len(forecasts) == 1
         assert forecasts[0].time.month == 5
         assert forecasts[0].time.day == 1
@@ -811,6 +824,7 @@ class TestTemperatureParser:
 # ===========================================================================
 # PressureParser tests
 # ===========================================================================
+
 
 class TestPressureParser:
     parser = PressureParser()
@@ -894,6 +908,7 @@ class TestPressureParser:
 # ===========================================================================
 # RunwayParser tests
 # ===========================================================================
+
 
 class TestRunwayParser:
     parser = RunwayParser()
@@ -1059,6 +1074,7 @@ class TestRunwayParser:
 # SeaParser tests
 # ===========================================================================
 
+
 class TestSeaParser:
     parser = SeaParser()
 
@@ -1129,6 +1145,7 @@ class TestSeaParser:
 # ===========================================================================
 # WindShearParser tests
 # ===========================================================================
+
 
 class TestWindShearParser:
     parser = WindShearParser()
@@ -1205,6 +1222,7 @@ class TestWindShearParser:
 # ===========================================================================
 # TrendParser tests
 # ===========================================================================
+
 
 class TestTrendParser:
     wind_parser = WindParser()
@@ -1318,6 +1336,7 @@ class TestTrendParser:
 # IcingParser tests
 # ===========================================================================
 
+
 class TestIcingParser:
     parser = IcingParser()
 
@@ -1414,6 +1433,7 @@ class TestIcingParser:
 # ===========================================================================
 # TurbulenceParser tests
 # ===========================================================================
+
 
 class TestTurbulenceParser:
     parser = TurbulenceParser()
@@ -1558,6 +1578,7 @@ class TestTurbulenceParser:
 # TimeParser tests
 # ===========================================================================
 
+
 class TestTimeParser:
     @pytest.mark.unit
     def test_parse_observation_time(self) -> None:
@@ -1608,7 +1629,9 @@ class TestTimeParser:
     @pytest.mark.unit
     def test_parse_time_range(self) -> None:
         ref = datetime(2024, 6, 6, 0, 0, tzinfo=timezone.utc)
-        from_time, to_time = TimeParser.parse_time_range("0618/0624", reference_time=ref)
+        from_time, to_time = TimeParser.parse_time_range(
+            "0618/0624", reference_time=ref
+        )
         assert from_time.hour == 18
         assert to_time.hour == 0  # 24 → 0 next day
 
@@ -1704,6 +1727,7 @@ class TestTimeParser:
 # ===========================================================================
 # Integration: extract chains
 # ===========================================================================
+
 
 class TestIntegrationExtractChains:
     """Tests that exercise multiple parsers against a realistic token stream."""

@@ -68,16 +68,20 @@ class TafDecoder:
             is_nil=is_nil,
         )
 
-        temperature_tokens, temperature_forecasts, temperature_warnings = self._extract_report_temperatures(
-            tokens,
-            valid_period.start,
+        temperature_tokens, temperature_forecasts, temperature_warnings = (
+            self._extract_report_temperatures(
+                tokens,
+                valid_period.start,
+            )
         )
         validation_warnings.extend(temperature_warnings)
 
         forecast_periods: List[TafForecastPeriod] = []
         period_warnings: List[str] = []
         if not is_cancelled and not is_nil:
-            forecast_periods, period_warnings = self._decode_forecast_periods(temperature_tokens, valid_period.start)
+            forecast_periods, period_warnings = self._decode_forecast_periods(
+                temperature_tokens, valid_period.start
+            )
         validation_warnings.extend(period_warnings)
 
         report = TafReport(
@@ -141,12 +145,16 @@ class TafDecoder:
         if index < len(tokens) and re.match(r"\d{6}Z", tokens[index]):
             index += 1
 
-        if index < len(tokens) and COMPILED_PATTERNS["valid_period"].match(tokens[index]):
+        if index < len(tokens) and COMPILED_PATTERNS["valid_period"].match(
+            tokens[index]
+        ):
             index += 1
 
         return index
 
-    def _extract_header(self, parts: List[str]) -> Tuple[str, datetime, TimeRange, bool, bool, bool, bool]:
+    def _extract_header(
+        self, parts: List[str]
+    ) -> Tuple[str, datetime, TimeRange, bool, bool, bool, bool]:
         if parts and parts[0] == "TAF":
             parts.pop(0)
 
@@ -168,7 +176,9 @@ class TafDecoder:
             time_str = parts.pop(0)
             issue_time = self.time_parser.parse_observation_time(time_str) or issue_time
 
-        valid_period = self.time_parser.parse_valid_period(parts[0], issue_time) if parts else None
+        valid_period = (
+            self.time_parser.parse_valid_period(parts[0], issue_time) if parts else None
+        )
         if parts and valid_period:
             parts.pop(0)
         if valid_period is None:
@@ -182,7 +192,15 @@ class TafDecoder:
         if is_cancelled:
             parts.pop(0)
 
-        return station_id, issue_time, valid_period, is_amended, is_corrected, is_cancelled, is_nil
+        return (
+            station_id,
+            issue_time,
+            valid_period,
+            is_amended,
+            is_corrected,
+            is_cancelled,
+            is_nil,
+        )
 
     def _decode_forecast_periods(
         self, parts: List[str], reference_time: datetime
@@ -206,7 +224,9 @@ class TafDecoder:
             start_idx = change_indices[i]
             end_idx = change_indices[i + 1]
             change_tokens = parts[start_idx:end_idx]
-            change_period, period_warnings = self._parse_change_group(change_tokens, reference_time)
+            change_period, period_warnings = self._parse_change_group(
+                change_tokens, reference_time
+            )
             warnings.extend(period_warnings)
             if change_period is not None:
                 forecast_periods.append(change_period)
@@ -228,7 +248,11 @@ class TafDecoder:
                 continue
             if token == "BECMG" and i > 0 and parts[i - 1].startswith("PROB"):
                 continue
-            if token in ["TEMPO", "BECMG"] or token.startswith("PROB") or re.match(FM_PATTERN, token):
+            if (
+                token in ["TEMPO", "BECMG"]
+                or token.startswith("PROB")
+                or re.match(FM_PATTERN, token)
+            ):
                 change_indices.append(i)
         return change_indices
 
@@ -242,10 +266,14 @@ class TafDecoder:
         change_indicator = tokens[0]
 
         if change_indicator in ["TEMPO", "BECMG"]:
-            return self._parse_time_range_group(change_indicator, tokens[1:], reference_time), warnings
+            return self._parse_time_range_group(
+                change_indicator, tokens[1:], reference_time
+            ), warnings
 
         if change_indicator.startswith("PROB"):
-            probability = int(change_indicator[4:]) if change_indicator[4:].isdigit() else None
+            probability = (
+                int(change_indicator[4:]) if change_indicator[4:].isdigit() else None
+            )
             warnings.extend(self.validator.validate_probability(probability))
             qualifier = None
             remainder = tokens[1:]
@@ -275,8 +303,12 @@ class TafDecoder:
         reference_time: datetime,
     ) -> TafForecastPeriod:
         if tokens and re.match(r"\d{4}/\d{4}", tokens[0]):
-            from_time, to_time = self.time_parser.parse_time_range(tokens[0], reference_time)
-            period = self._parse_forecast_period(change_type, tokens[1:], reference_time)
+            from_time, to_time = self.time_parser.parse_time_range(
+                tokens[0], reference_time
+            )
+            period = self._parse_forecast_period(
+                change_type, tokens[1:], reference_time
+            )
             period.from_time = from_time
             period.to_time = to_time
             return period
@@ -321,7 +353,9 @@ class TafDecoder:
         return period
 
     @staticmethod
-    def _derive_status(is_amended: bool, is_corrected: bool, is_cancelled: bool, is_nil: bool) -> str:
+    def _derive_status(
+        is_amended: bool, is_corrected: bool, is_cancelled: bool, is_nil: bool
+    ) -> str:
         if is_nil:
             return "MISSING"
         if is_cancelled:
@@ -340,7 +374,9 @@ class TafDecoder:
 
             nxt_fcst_match = re.search(r"NXT\s+FCST\s+BY\s+(\d{2})Z", remarks)
             if nxt_fcst_match:
-                decoded["Next Forecast"] = f"Next forecast will be issued by {nxt_fcst_match.group(1)}:00 UTC"
+                decoded["Next Forecast"] = (
+                    f"Next forecast will be issued by {nxt_fcst_match.group(1)}:00 UTC"
+                )
 
             if "LTG OBS" in remarks:
                 decoded["Lightning"] = "Lightning observed in vicinity"
@@ -371,12 +407,18 @@ class TafDecoder:
 
         while working_tokens:
             token = working_tokens[-1]
-            if self.temperature_parser.TX_PATTERN.match(token) or self.temperature_parser.TN_PATTERN.match(token):
+            if self.temperature_parser.TX_PATTERN.match(
+                token
+            ) or self.temperature_parser.TN_PATTERN.match(token):
                 temperature_tokens.insert(0, working_tokens.pop())
             else:
                 break
 
-        temperature_forecasts = self.temperature_parser.extract_temperature_forecasts(temperature_tokens, reference_time)
-        warnings = self.validator.validate_temperature_groups(working_tokens, temperature_forecasts)
+        temperature_forecasts = self.temperature_parser.extract_temperature_forecasts(
+            temperature_tokens, reference_time
+        )
+        warnings = self.validator.validate_temperature_groups(
+            working_tokens, temperature_forecasts
+        )
 
         return working_tokens, temperature_forecasts, warnings

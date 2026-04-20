@@ -31,7 +31,9 @@ class TemperatureParser:
 
         return (temperature, dewpoint)
 
-    def extract_temperature_dewpoint(self, tokens: List[str]) -> Tuple[Optional[float], Optional[float]]:
+    def extract_temperature_dewpoint(
+        self, tokens: List[str]
+    ) -> Tuple[Optional[float], Optional[float]]:
         for i, token in enumerate(tokens):
             result = self.parse(token)
             if result is not None:
@@ -49,13 +51,17 @@ class TemperatureParser:
         while i < len(tokens):
             tx_match = self.TX_PATTERN.match(tokens[i])
             if tx_match:
-                forecasts.append(self._parse_taf_temp_match(tx_match, "max", reference_time))
+                forecasts.append(
+                    self._parse_taf_temp_match(tx_match, "max", reference_time)
+                )
                 tokens.pop(i)
                 continue
 
             tn_match = self.TN_PATTERN.match(tokens[i])
             if tn_match:
-                forecasts.append(self._parse_taf_temp_match(tn_match, "min", reference_time))
+                forecasts.append(
+                    self._parse_taf_temp_match(tn_match, "min", reference_time)
+                )
                 tokens.pop(i)
                 continue
 
@@ -78,7 +84,9 @@ class TemperatureParser:
         return TemperatureForecast(kind=temp_type, value=temp_val, time=temp_time)
 
     @staticmethod
-    def _create_forecast_datetime(day: int, hour: int, reference_time: Optional[datetime] = None) -> datetime:
+    def _create_forecast_datetime(
+        day: int, hour: int, reference_time: Optional[datetime] = None
+    ) -> datetime:
         from ..parsers.time_parser import TimeParser
 
         if hour == 24:

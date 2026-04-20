@@ -19,7 +19,9 @@ WIND_EXTREME_PATTERN = r"^ABV(\d{2,3})(KT|MPS)$"
 WIND_VAR_PATTERN = r"^(\d{3})V(\d{3})$"
 
 # Visibility patterns
-VISIBILITY_PATTERN = r"(?:^|\s)(?:(?:P?(\d{1,4})(?:/(\d))?(SM|KM|M)|(\d{4})(NDV)?|CAVOK|CLR))"
+VISIBILITY_PATTERN = (
+    r"(?:^|\s)(?:(?:P?(\d{1,4})(?:/(\d))?(SM|KM|M)|(\d{4})(NDV)?|CAVOK|CLR))"
+)
 
 # Runway visual range patterns
 # Format: R{runway}/{M|P}{value}{V{M|P}{value}}{FT}{trend}

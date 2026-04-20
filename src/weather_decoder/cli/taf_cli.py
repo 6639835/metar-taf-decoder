@@ -45,8 +45,12 @@ Examples:
         )
 
         parser.add_argument("taf", nargs="?", help="Raw TAF string to decode")
-        parser.add_argument("-f", "--file", help="File containing TAF strings (one per line)")
-        parser.add_argument("--version", action="version", version=f"TAF Decoder {__version__}")
+        parser.add_argument(
+            "-f", "--file", help="File containing TAF strings (one per line)"
+        )
+        parser.add_argument(
+            "--version", action="version", version=f"TAF Decoder {__version__}"
+        )
 
         return parser
 
@@ -66,7 +70,9 @@ Examples:
                     print_section_header("TAF", line_num)
                     print(decoded)
                 except Exception as exc:
-                    print(f"Error decoding TAF on line {line_num}: {exc}", file=sys.stderr)
+                    print(
+                        f"Error decoding TAF on line {line_num}: {exc}", file=sys.stderr
+                    )
         except FileNotFoundError:
             print(f"Error: File '{filename}' not found.", file=sys.stderr)
             sys.exit(1)

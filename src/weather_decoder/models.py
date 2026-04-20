@@ -281,5 +281,7 @@ class TafReport:
     remarks: str = ""
     remarks_decoded: Dict[str, object] = field(default_factory=dict)
     temperature_forecasts: List[TemperatureForecast] = field(default_factory=list)
-    previous_valid_period: Optional[TimeRange] = None  # for AMD/COR: stores replaced period
+    previous_valid_period: Optional[TimeRange] = (
+        None  # for AMD/COR: stores replaced period
+    )
     validation_warnings: List[str] = field(default_factory=list)

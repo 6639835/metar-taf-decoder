@@ -57,8 +57,12 @@ class RunwayParser:
             variable_range=variable_range,
             variable_less_than=modifier2 == "M" if modifier2 else False,
             variable_more_than=modifier2 == "P" if modifier2 else False,
-            variable_range_is_less_than=modifier2 == "M" if modifier2 and variable_range else False,
-            variable_range_is_more_than=modifier2 == "P" if modifier2 and variable_range else False,
+            variable_range_is_less_than=modifier2 == "M"
+            if modifier2 and variable_range
+            else False,
+            variable_range_is_more_than=modifier2 == "P"
+            if modifier2 and variable_range
+            else False,
             trend=RVR_TRENDS.get(trend, trend) if trend else None,
         )
 
@@ -85,13 +89,17 @@ class RunwayParser:
 
             cleared_match = re.match(RUNWAY_STATE_CLRD_PATTERN, stream.tokens[i])
             if cleared_match:
-                state_list.append(self._parse_runway_state_cleared(cleared_match, stream.tokens[i]))
+                state_list.append(
+                    self._parse_runway_state_cleared(cleared_match, stream.tokens[i])
+                )
                 stream.pop(i)
                 continue
 
             match = re.match(RUNWAY_STATE_PATTERN, stream.tokens[i])
             if match:
-                state_list.append(self._parse_runway_state_match(match, stream.tokens[i]))
+                state_list.append(
+                    self._parse_runway_state_match(match, stream.tokens[i])
+                )
                 stream.pop(i)
             else:
                 i += 1
@@ -104,7 +112,9 @@ class RunwayParser:
         extent = match.group(3)
         depth_raw = match.group(4)
         braking_raw = match.group(5)
-        runway, all_runways, from_previous_report = self._decode_runway_reference(runway_code)
+        runway, all_runways, from_previous_report = self._decode_runway_reference(
+            runway_code
+        )
 
         deposit_desc = RUNWAY_DEPOSIT_TYPES.get(deposit, f"unknown ({deposit})")
         extent_desc = RUNWAY_EXTENT.get(extent, f"unknown ({extent})")
@@ -122,8 +132,12 @@ class RunwayParser:
             from_previous_report=from_previous_report,
         )
 
-    def _parse_runway_state_cleared(self, match: re.Match, original: str) -> RunwayState:
-        runway, all_runways, from_previous_report = self._decode_runway_reference(match.group(1))
+    def _parse_runway_state_cleared(
+        self, match: re.Match, original: str
+    ) -> RunwayState:
+        runway, all_runways, from_previous_report = self._decode_runway_reference(
+            match.group(1)
+        )
         return RunwayState(
             runway=runway,
             deposit="runway cleared",

@@ -20,7 +20,12 @@ class SkyParser(BaseParser[SkyCondition], StopConditionMixin):
     def parse(self, token: str) -> Optional[SkyCondition]:
         # AUTO station: cloud observation system not operating (////// per ICAO/CAP 746 §4.146)
         if token == "//////":
-            return SkyCondition(coverage="///", height=None, unknown_height=True, system_unavailable=True)
+            return SkyCondition(
+                coverage="///",
+                height=None,
+                unknown_height=True,
+                system_unavailable=True,
+            )
 
         if token in ["SKC", "CLR", "NSC", "NCD"]:
             return SkyCondition(coverage=token, height=None)

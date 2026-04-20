@@ -87,6 +87,7 @@ from weather_decoder.data.taf_data import TafData
 # Helpers
 # ===========================================================================
 
+
 def _make_metar(**overrides) -> MetarData:
     """Return a minimal MetarData instance, with optional field overrides."""
     defaults = dict(
@@ -124,6 +125,7 @@ def _make_taf(**overrides) -> TafData:
 # MODELS: frozen dataclasses – FrozenInstanceError
 # ===========================================================================
 
+
 @pytest.mark.unit
 class TestFrozenDataclasses:
     """Verify that all frozen dataclasses raise FrozenInstanceError on mutation."""
@@ -155,8 +157,12 @@ class TestFrozenDataclasses:
 
     def test_runway_state_is_frozen(self):
         rs = RunwayState(
-            runway="28L", deposit="0", contamination="1",
-            depth="00", braking="95", raw="R28L/010095",
+            runway="28L",
+            deposit="0",
+            contamination="1",
+            depth="00",
+            braking="95",
+            raw="R28L/010095",
         )
         with pytest.raises(FrozenInstanceError):
             rs.deposit = "7"  # type: ignore[misc]
@@ -211,7 +217,8 @@ class TestFrozenDataclasses:
 
     def test_temperature_forecast_is_frozen(self):
         tf = TemperatureForecast(
-            kind="TX", value=25,
+            kind="TX",
+            value=25,
             time=datetime(2024, 3, 15, 12, 0, tzinfo=timezone.utc),
         )
         with pytest.raises(FrozenInstanceError):
@@ -219,16 +226,22 @@ class TestFrozenDataclasses:
 
     def test_icing_forecast_is_frozen(self):
         icf = IcingForecast(
-            intensity="moderate", base_ft=5000, top_ft=9000,
-            icing_type="rime", raw="620504",
+            intensity="moderate",
+            base_ft=5000,
+            top_ft=9000,
+            icing_type="rime",
+            raw="620504",
         )
         with pytest.raises(FrozenInstanceError):
             icf.intensity = "severe"  # type: ignore[misc]
 
     def test_turbulence_forecast_is_frozen(self):
         tbf = TurbulenceForecast(
-            intensity="moderate", base_ft=6000, top_ft=7000,
-            in_cloud=True, raw="520610",
+            intensity="moderate",
+            base_ft=6000,
+            top_ft=7000,
+            in_cloud=True,
+            raw="520610",
         )
         with pytest.raises(FrozenInstanceError):
             tbf.intensity = "severe"  # type: ignore[misc]
@@ -237,6 +250,7 @@ class TestFrozenDataclasses:
 # ===========================================================================
 # MODELS: default field values
 # ===========================================================================
+
 
 @pytest.mark.unit
 class TestModelDefaults:
@@ -275,8 +289,12 @@ class TestModelDefaults:
 
     def test_runway_state_defaults(self):
         rs = RunwayState(
-            runway="28L", deposit="0", contamination="1",
-            depth="00", braking="95", raw="R28L/010095",
+            runway="28L",
+            deposit="0",
+            contamination="1",
+            depth="00",
+            braking="95",
+            raw="R28L/010095",
         )
         assert rs.all_runways is False
         assert rs.from_previous_report is False
@@ -382,6 +400,7 @@ class TestModelDefaults:
 # MODELS: mutable dataclasses can be mutated
 # ===========================================================================
 
+
 @pytest.mark.unit
 class TestMutableDataclasses:
     """Verify mutable dataclasses (TafForecastPeriod, MetarReport, TafReport)."""
@@ -407,6 +426,7 @@ class TestMutableDataclasses:
 # CONSTANTS
 # ===========================================================================
 
+
 @pytest.mark.unit
 class TestWeatherCodes:
     """Test weather_codes constants."""
@@ -428,7 +448,9 @@ class TestWeatherCodes:
 
     def test_weather_descriptors_known_keys(self):
         for code in ("MI", "PR", "BC", "DR", "BL", "SH", "TS", "FZ"):
-            assert code in WEATHER_DESCRIPTORS, f"{code} missing from WEATHER_DESCRIPTORS"
+            assert code in WEATHER_DESCRIPTORS, (
+                f"{code} missing from WEATHER_DESCRIPTORS"
+            )
 
     def test_weather_phenomena_non_empty(self):
         assert isinstance(WEATHER_PHENOMENA, dict)
@@ -445,7 +467,9 @@ class TestWeatherCodes:
 
     def test_compound_weather_phenomena_known_keys(self):
         for code in ("TSRA", "SHRA", "FZFG", "BLSN", "VCTS"):
-            assert code in COMPOUND_WEATHER_PHENOMENA, f"{code} missing from COMPOUND_WEATHER_PHENOMENA"
+            assert code in COMPOUND_WEATHER_PHENOMENA, (
+                f"{code} missing from COMPOUND_WEATHER_PHENOMENA"
+            )
 
     def test_all_phenomena_values_are_strings(self):
         for k, v in WEATHER_PHENOMENA.items():
@@ -659,6 +683,7 @@ class TestGlossaryCodes:
 # FORMATTERS
 # ===========================================================================
 
+
 @pytest.mark.unit
 class TestFormatWind:
     """Tests for format_wind()."""
@@ -800,6 +825,7 @@ class TestFormatVisibility:
 
     def test_directional_visibility_appended(self):
         from weather_decoder.models import DirectionalVisibility
+
         dv = DirectionalVisibility(value=2000, direction="SW")
         v = Visibility(value=5000, unit="M", directional_visibility=dv)
         result = format_visibility(v)
@@ -833,7 +859,9 @@ class TestFormatSkyCondition:
         assert "No cloud detected" in result
 
     def test_vv_unknown_height(self):
-        result = format_sky_condition(SkyCondition(coverage="VV", height=None, unknown_height=True))
+        result = format_sky_condition(
+            SkyCondition(coverage="VV", height=None, unknown_height=True)
+        )
         assert "Vertical visibility" in result
         assert "unknown" in result.lower()
 
@@ -843,7 +871,9 @@ class TestFormatSkyCondition:
         assert "800" in result
 
     def test_slash_unknown(self):
-        result = format_sky_condition(SkyCondition(coverage="///", height=None, unknown_height=True))
+        result = format_sky_condition(
+            SkyCondition(coverage="///", height=None, unknown_height=True)
+        )
         assert "Unknown" in result
 
     def test_slash_known_height(self):
@@ -856,25 +886,35 @@ class TestFormatSkyCondition:
         assert "2000" in result
 
     def test_sct_with_cb(self):
-        result = format_sky_condition(SkyCondition(coverage="SCT", height=3000, cb=True))
+        result = format_sky_condition(
+            SkyCondition(coverage="SCT", height=3000, cb=True)
+        )
         assert "SCT" in result
         assert "CB" in result
 
     def test_bkn_with_tcu(self):
-        result = format_sky_condition(SkyCondition(coverage="BKN", height=1500, tcu=True))
+        result = format_sky_condition(
+            SkyCondition(coverage="BKN", height=1500, tcu=True)
+        )
         assert "BKN" in result
         assert "TCU" in result
 
     def test_ovc_unknown_height(self):
-        result = format_sky_condition(SkyCondition(coverage="OVC", height=None, unknown_height=True))
+        result = format_sky_condition(
+            SkyCondition(coverage="OVC", height=None, unknown_height=True)
+        )
         assert "unknown" in result.lower()
 
     def test_unknown_type(self):
-        result = format_sky_condition(SkyCondition(coverage="FEW", height=1000, unknown_type=True))
+        result = format_sky_condition(
+            SkyCondition(coverage="FEW", height=1000, unknown_type=True)
+        )
         assert "unknown type" in result.lower()
 
     def test_system_unavailable(self):
-        result = format_sky_condition(SkyCondition(coverage="FEW", height=1000, system_unavailable=True))
+        result = format_sky_condition(
+            SkyCondition(coverage="FEW", height=1000, system_unavailable=True)
+        )
         assert "not operating" in result.lower() or "unavailable" in result.lower()
 
 
@@ -955,6 +995,7 @@ class TestFormatPressure:
 # PATTERNS
 # ===========================================================================
 
+
 @pytest.mark.unit
 class TestCompiledPatterns:
     """Tests for COMPILED_PATTERNS dictionary."""
@@ -989,11 +1030,15 @@ class TestCompiledPatterns:
 
     def test_all_expected_keys_present(self):
         for key in self.EXPECTED_KEYS:
-            assert key in COMPILED_PATTERNS, f"Key '{key}' missing from COMPILED_PATTERNS"
+            assert key in COMPILED_PATTERNS, (
+                f"Key '{key}' missing from COMPILED_PATTERNS"
+            )
 
     def test_all_values_are_compiled_patterns(self):
         for key, pat in COMPILED_PATTERNS.items():
-            assert hasattr(pat, "search"), f"Pattern for '{key}' is not a compiled regex"
+            assert hasattr(pat, "search"), (
+                f"Pattern for '{key}' is not a compiled regex"
+            )
 
     def test_metar_type_matches_metar(self):
         assert COMPILED_PATTERNS["metar_type"].match("METAR")
@@ -1082,6 +1127,7 @@ class TestCompiledPatterns:
 # ===========================================================================
 # TIME PARSER
 # ===========================================================================
+
 
 @pytest.mark.unit
 class TestTimeParser:
@@ -1238,6 +1284,7 @@ class TestTimeParser:
 # MetarData / TafData convenience wrappers
 # ===========================================================================
 
+
 @pytest.mark.unit
 class TestMetarData:
     """Tests for MetarData wrapper."""
@@ -1326,6 +1373,7 @@ class TestTafData:
 # Additional model construction / equality tests
 # ===========================================================================
 
+
 @pytest.mark.unit
 class TestModelConstruction:
     """Tests for model field round-trips and equality."""
@@ -1347,8 +1395,11 @@ class TestModelConstruction:
 
     def test_icing_forecast_fields(self):
         icf = IcingForecast(
-            intensity="moderate", base_ft=5000, top_ft=9000,
-            icing_type="rime", raw="620504",
+            intensity="moderate",
+            base_ft=5000,
+            top_ft=9000,
+            icing_type="rime",
+            raw="620504",
         )
         assert icf.intensity == "moderate"
         assert icf.base_ft == 5000
@@ -1358,8 +1409,11 @@ class TestModelConstruction:
 
     def test_turbulence_forecast_fields(self):
         tbf = TurbulenceForecast(
-            intensity="severe", base_ft=10000, top_ft=20000,
-            in_cloud=False, raw="560510",
+            intensity="severe",
+            base_ft=10000,
+            top_ft=20000,
+            in_cloud=False,
+            raw="560510",
         )
         assert tbf.intensity == "severe"
         assert tbf.in_cloud is False
@@ -1385,8 +1439,10 @@ class TestModelConstruction:
 
     def test_wind_shear_with_runway(self):
         ws = WindShear(
-            kind="runway", description="Wind shear at 2000 ft",
-            runway="09L", raw="WS020/09015KT",
+            kind="runway",
+            description="Wind shear at 2000 ft",
+            runway="09L",
+            raw="WS020/09015KT",
         )
         assert ws.runway == "09L"
         assert ws.raw == "WS020/09015KT"
@@ -1394,8 +1450,10 @@ class TestModelConstruction:
     def test_trend_with_time(self):
         tt = TrendTime(from_time="1200", until_time="1400")
         t = Trend(
-            kind="TEMPO", description="temporary",
-            raw="TEMPO 1200/1400 TSRA", time=tt,
+            kind="TEMPO",
+            description="temporary",
+            raw="TEMPO 1200/1400 TSRA",
+            time=tt,
         )
         assert t.time is tt
         assert t.time.from_time == "1200"

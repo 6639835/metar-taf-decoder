@@ -44,14 +44,18 @@ class MetarFormatter:
             return "\n".join(lines)
 
         report_suffix = " COR" if metar.is_corrected else ""
-        lines.append(f"Type: {'AUTO' if metar.is_automated else 'Manual'} {metar.report_type}{report_suffix}")
+        lines.append(
+            f"Type: {'AUTO' if metar.is_automated else 'Manual'} {metar.report_type}{report_suffix}"
+        )
 
         sections: Dict[str, List[str]] = {}
         sections["wind"] = [f"Wind: {format_wind(metar.wind)}"]
         sections["visibility"] = [f"Visibility: {format_visibility(metar.visibility)}"]
 
         if metar.runway_visual_ranges:
-            sections["runway_visual_range"] = self._format_rvr(metar.runway_visual_ranges)
+            sections["runway_visual_range"] = self._format_rvr(
+                metar.runway_visual_ranges
+            )
 
         if metar.runway_states:
             sections["runway_state"] = self._format_runway_states(metar.runway_states)
@@ -59,17 +63,23 @@ class MetarFormatter:
         if metar.weather:
             wx_lines = format_weather_groups_list(metar.weather)
             if wx_lines:
-                sections["weather"] = ["Weather Phenomena:"] + [f"  {line}" for line in wx_lines]
+                sections["weather"] = ["Weather Phenomena:"] + [
+                    f"  {line}" for line in wx_lines
+                ]
 
         if metar.recent_weather:
             recent_lines = format_weather_groups_list(metar.recent_weather)
             if recent_lines:
-                sections["recent_weather"] = ["Recent Weather:"] + [f"  {line}" for line in recent_lines]
+                sections["recent_weather"] = ["Recent Weather:"] + [
+                    f"  {line}" for line in recent_lines
+                ]
 
         if metar.sky:
             sky_lines = format_sky_conditions_list(metar.sky)
             if sky_lines:
-                sections["sky"] = ["Sky Conditions:"] + [f"  {line}" for line in sky_lines]
+                sections["sky"] = ["Sky Conditions:"] + [
+                    f"  {line}" for line in sky_lines
+                ]
 
         if metar.windshear:
             descriptions = [ws.description for ws in metar.windshear]
@@ -83,7 +93,9 @@ class MetarFormatter:
         sections["altimeter"] = [f"Altimeter: {format_pressure(metar.altimeter)}"]
 
         if metar.sea_conditions:
-            sections["sea_conditions"] = self._format_sea_conditions(metar.sea_conditions)
+            sections["sea_conditions"] = self._format_sea_conditions(
+                metar.sea_conditions
+            )
 
         if metar.trends:
             trend_lines: List[str] = []
@@ -107,7 +119,9 @@ class MetarFormatter:
 
         return "\n".join(lines)
 
-    def _order_sections(self, metar: MetarReport, available_sections: List[str]) -> List[str]:
+    def _order_sections(
+        self, metar: MetarReport, available_sections: List[str]
+    ) -> List[str]:
         tokens = metar.raw_metar.strip().split()
         if "RMK" in tokens:
             tokens = tokens[: tokens.index("RMK")]
@@ -140,7 +154,11 @@ class MetarFormatter:
                 i += 1
                 continue
 
-            if token.isdigit() and i + 1 < len(tokens) and re.match(r"^\d+/\d+SM$", tokens[i + 1]):
+            if (
+                token.isdigit()
+                and i + 1 < len(tokens)
+                and re.match(r"^\d+/\d+SM$", tokens[i + 1])
+            ):
                 add("visibility")
                 i += 1
                 continue
@@ -229,10 +247,23 @@ class MetarFormatter:
 
         for rvr in rvr_list:
             if rvr.variable_range is not None:
-                min_prefix = "less than " if rvr.is_less_than else "more than " if rvr.is_more_than else ""
-                max_prefix = "less than " if rvr.variable_less_than else "more than " if rvr.variable_more_than else ""
+                min_prefix = (
+                    "less than "
+                    if rvr.is_less_than
+                    else "more than "
+                    if rvr.is_more_than
+                    else ""
+                )
+                max_prefix = (
+                    "less than "
+                    if rvr.variable_less_than
+                    else "more than "
+                    if rvr.variable_more_than
+                    else ""
+                )
                 rvr_line = (
-                    f"  Runway {rvr.runway}: " f"{min_prefix}{rvr.visual_range} to {max_prefix}{rvr.variable_range} {rvr.unit}"
+                    f"  Runway {rvr.runway}: "
+                    f"{min_prefix}{rvr.visual_range} to {max_prefix}{rvr.variable_range} {rvr.unit}"
                 )
             else:
                 if rvr.is_more_than:
@@ -257,7 +288,9 @@ class MetarFormatter:
             if condition.temperature_missing:
                 parts.append("sea-surface temperature not reported")
             elif condition.sea_surface_temperature is not None:
-                parts.append(f"sea-surface temperature {condition.sea_surface_temperature}°C")
+                parts.append(
+                    f"sea-surface temperature {condition.sea_surface_temperature}°C"
+                )
 
             if condition.state_missing:
                 parts.append("state of sea not reported")
@@ -267,7 +300,9 @@ class MetarFormatter:
             if condition.wave_height_missing:
                 parts.append("significant wave height not reported")
             elif condition.significant_wave_height_m is not None:
-                parts.append(f"significant wave height {condition.significant_wave_height_m:.1f} m")
+                parts.append(
+                    f"significant wave height {condition.significant_wave_height_m:.1f} m"
+                )
 
             lines.append(f"  {', '.join(parts) if parts else condition.raw}")
 
@@ -283,7 +318,9 @@ class MetarFormatter:
             else:
                 runway_label = f"Runway {report.runway}"
 
-            lines.append(f"  {runway_label}: {report.deposit}, {report.contamination}, {report.depth}, {report.braking}")
+            lines.append(
+                f"  {runway_label}: {report.deposit}, {report.contamination}, {report.depth}, {report.braking}"
+            )
         return lines
 
     def _format_remarks(self, remarks: str, decoded: Dict) -> List[str]:
@@ -318,12 +355,16 @@ class MetarFormatter:
             elif key == "runway_state_reports_remarks":
                 lines.extend(self._format_runway_state_remarks(value))
             elif isinstance(value, dict):
-                lines.append(f"  {key}: {', '.join([f'{k}: {v}' for k, v in value.items()])}")
+                lines.append(
+                    f"  {key}: {', '.join([f'{k}: {v}' for k, v in value.items()])}"
+                )
             elif isinstance(value, list):
                 if value and isinstance(value[0], dict):
                     lines.append(f"  {key}:")
                     for item in value:
-                        lines.append(f"    {', '.join([f'{k}: {v}' for k, v in item.items()])}")
+                        lines.append(
+                            f"    {', '.join([f'{k}: {v}' for k, v in item.items()])}"
+                        )
                 else:
                     lines.append(f"  {key}: {', '.join(str(item) for item in value)}")
             else:
@@ -347,12 +388,18 @@ class MetarFormatter:
             if directions:
                 if len(directions) == 1:
                     dir_text = directions[0]
-                    if "from " in dir_text or "kilometers" in dir_text or "overhead" in dir_text:
+                    if (
+                        "from " in dir_text
+                        or "kilometers" in dir_text
+                        or "overhead" in dir_text
+                    ):
                         description.append(dir_text)
                     else:
                         description.append(f"in the {dir_text}")
                 else:
-                    description.append(f"in the {', '.join(directions[:-1])} and {directions[-1]}")
+                    description.append(
+                        f"in the {', '.join(directions[:-1])} and {directions[-1]}"
+                    )
 
             lines.append(f"    {' '.join(description)}")
 
@@ -392,7 +439,9 @@ class MetarFormatter:
             unit = wind.get("unit", "KT")
             gust = wind.get("gust", "")
 
-            wind_text = f"    At {altitude} {altitude_unit}: {direction}° at {speed} {unit}"
+            wind_text = (
+                f"    At {altitude} {altitude_unit}: {direction}° at {speed} {unit}"
+            )
 
             if gust:
                 wind_text += f", gusting to {gust} {unit}"

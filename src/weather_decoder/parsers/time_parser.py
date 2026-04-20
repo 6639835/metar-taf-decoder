@@ -33,12 +33,18 @@ class TimeParser:
         return year, month
 
     @staticmethod
-    def _build_datetime(current_date: datetime, day: int, hour: int, minute: int = 0) -> datetime:
+    def _build_datetime(
+        current_date: datetime, day: int, hour: int, minute: int = 0
+    ) -> datetime:
         year, month = TimeParser._resolve_month_year(current_date, day)
-        return datetime(year, month, 1, hour, minute, tzinfo=timezone.utc) + timedelta(days=day - 1)
+        return datetime(year, month, 1, hour, minute, tzinfo=timezone.utc) + timedelta(
+            days=day - 1
+        )
 
     @staticmethod
-    def parse_observation_time(time_str: str, reference_time: Optional[datetime] = None) -> Optional[datetime]:
+    def parse_observation_time(
+        time_str: str, reference_time: Optional[datetime] = None
+    ) -> Optional[datetime]:
         match = re.match(DATETIME_PATTERN, time_str)
         if match:
             day, hour, minute = map(int, match.groups())
@@ -47,7 +53,9 @@ class TimeParser:
         return None
 
     @staticmethod
-    def parse_valid_period(period_str: str, reference_time: Optional[datetime] = None) -> Optional[TimeRange]:
+    def parse_valid_period(
+        period_str: str, reference_time: Optional[datetime] = None
+    ) -> Optional[TimeRange]:
         match = re.match(VALID_PERIOD_PATTERN, period_str)
         if match:
             from_day, from_hour, to_day, to_hour = map(int, match.groups())
@@ -71,7 +79,9 @@ class TimeParser:
         return None
 
     @staticmethod
-    def parse_fm_time(fm_str: str, reference_time: Optional[datetime] = None) -> Optional[datetime]:
+    def parse_fm_time(
+        fm_str: str, reference_time: Optional[datetime] = None
+    ) -> Optional[datetime]:
         match = re.match(FM_PATTERN, fm_str)
         if match:
             day, hour, minute = map(int, match.groups())
@@ -80,7 +90,9 @@ class TimeParser:
         return None
 
     @staticmethod
-    def parse_time_range(time_group: str, reference_time: Optional[datetime] = None) -> Tuple[datetime, datetime]:
+    def parse_time_range(
+        time_group: str, reference_time: Optional[datetime] = None
+    ) -> Tuple[datetime, datetime]:
         from_day = int(time_group[0:2])
         from_hour = int(time_group[2:4])
         to_day = int(time_group[5:7])

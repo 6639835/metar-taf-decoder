@@ -76,7 +76,9 @@ class MetarDecoder:
         validation_tokens = list(parts)
         stream = TokenStream(parts)
 
-        report_type, station_id, observation_time, is_automated, is_corrected = self._extract_header(stream)
+        report_type, station_id, observation_time, is_automated, is_corrected = (
+            self._extract_header(stream)
+        )
 
         wind = self.wind_parser.extract(stream)
         visibility = self.visibility_parser.extract(stream)
@@ -84,7 +86,9 @@ class MetarDecoder:
         runway_visual_ranges = self.runway_parser.extract_rvr(stream)
         weather_groups = self.weather_parser.extract_all(stream)
         sky_conditions = self.sky_parser.extract_all(stream)
-        temperature, dewpoint = self.temperature_parser.extract_temperature_dewpoint(stream.tokens)
+        temperature, dewpoint = self.temperature_parser.extract_temperature_dewpoint(
+            stream.tokens
+        )
         altimeter = self.pressure_parser.extract_altimeter(stream)
         recent_weather = self.weather_parser.extract_recent(stream)
         sea_conditions = self.sea_parser.extract_all(stream)
@@ -140,7 +144,9 @@ class MetarDecoder:
 
         return MetarData(**report.__dict__)
 
-    def _extract_header(self, stream: TokenStream) -> Tuple[str, str, datetime, bool, bool]:
+    def _extract_header(
+        self, stream: TokenStream
+    ) -> Tuple[str, str, datetime, bool, bool]:
         report_type = "METAR"
         station_id = ""
         observation_time = datetime.now(timezone.utc)
@@ -162,7 +168,9 @@ class MetarDecoder:
         next_token = stream.peek()
         if next_token is not None and re.match(r"\d{6}Z", next_token):
             time_str = stream.pop(0)
-            observation_time = self.time_parser.parse_observation_time(time_str) or observation_time
+            observation_time = (
+                self.time_parser.parse_observation_time(time_str) or observation_time
+            )
 
         if stream.peek() == "COR":
             is_corrected = True
@@ -174,14 +182,20 @@ class MetarDecoder:
 
         return report_type, station_id, observation_time, is_automated, is_corrected
 
-    def _extract_military_color_codes(self, stream: TokenStream) -> List[MilitaryColorCode]:
+    def _extract_military_color_codes(
+        self, stream: TokenStream
+    ) -> List[MilitaryColorCode]:
         codes: List[MilitaryColorCode] = []
         i = 0
         while i < len(stream.tokens):
             token = stream.tokens[i]
             if token in MILITARY_COLOR_CODES:
                 stream.pop(i)
-                codes.append(MilitaryColorCode(code=token, description=MILITARY_COLOR_CODES[token]))
+                codes.append(
+                    MilitaryColorCode(
+                        code=token, description=MILITARY_COLOR_CODES[token]
+                    )
+                )
             else:
                 i += 1
         return codes

@@ -67,30 +67,45 @@ class MetarValidator:
         warnings: List[str] = []
 
         # Report type keyword validation (WMO Reg. 15.1.1)
-        if not COMPILED_PATTERNS["metar_type"].match(validation_tokens[0] if validation_tokens else ""):
-            warnings.append("METAR or SPECI keyword not found at start of report per WMO Reg. 15.1.1")
+        if not COMPILED_PATTERNS["metar_type"].match(
+            validation_tokens[0] if validation_tokens else ""
+        ):
+            warnings.append(
+                "METAR or SPECI keyword not found at start of report per WMO Reg. 15.1.1"
+            )
 
         # Sky condition code warnings
         for sky in sky_conditions:
             if sky.coverage in ("SKC", "CLR"):
-                warnings.append("SKC/CLR are US FAA codes; WMO METAR uses NSC (no significant cloud)")
+                warnings.append(
+                    "SKC/CLR are US FAA codes; WMO METAR uses NSC (no significant cloud)"
+                )
                 break
         if not is_automated and any(s.coverage == "NCD" for s in sky_conditions):
             warnings.append(
-                "NCD (No Cloud Detected) is only valid in AUTO (automated) METARs " "per ICAO Annex 3 §4.5.4.6"
+                "NCD (No Cloud Detected) is only valid in AUTO (automated) METARs "
+                "per ICAO Annex 3 §4.5.4.6"
             )
 
         # Wind unit warning (WMO Reg. 15.5.1 — only KT or MPS)
         if wind and wind.unit == "KMH":
-            warnings.append("KMH is not a valid WMO METAR wind speed unit (only KT or MPS per WMO Reg. 15.5.1)")
+            warnings.append(
+                "KMH is not a valid WMO METAR wind speed unit (only KT or MPS per WMO Reg. 15.5.1)"
+            )
 
         # Metric RVR warning (FMH-1 §12.6.7 — requires FT suffix)
-        if self._is_us_station(station_id) and any(rvr.unit == "M" for rvr in runway_visual_ranges):
-            warnings.append("Metric RVR (no FT suffix) — FMH-1 §12.6.7 requires FT for US METAR")
+        if self._is_us_station(station_id) and any(
+            rvr.unit == "M" for rvr in runway_visual_ranges
+        ):
+            warnings.append(
+                "Metric RVR (no FT suffix) — FMH-1 §12.6.7 requires FT for US METAR"
+            )
 
         # UK stations do not use runway state groups since CAP 746 Issue 6
         if runway_states and station_id and station_id.upper().startswith("E"):
-            warnings.append("Runway state groups (MOTNE) are not used in UK METARs since CAP 746 Issue 6")
+            warnings.append(
+                "Runway state groups (MOTNE) are not used in UK METARs since CAP 746 Issue 6"
+            )
 
         is_us_station = self._is_us_station(station_id)
         if len(sky_conditions) > 6:
@@ -115,29 +130,40 @@ class MetarValidator:
 
         if len(runway_visual_ranges) > 4:
             warnings.append(
-                f"More than 4 RVR groups ({len(runway_visual_ranges)}); " "ICAO/EU specifications allow a maximum of 4"
+                f"More than 4 RVR groups ({len(runway_visual_ranges)}); "
+                "ICAO/EU specifications allow a maximum of 4"
             )
 
         # TS in present weather but no CB in sky (CAP 746 §4.112)
         has_ts = any(
-            (w.descriptor == "thunderstorm" or (w.phenomena and "thunderstorm" in w.phenomena)) for w in weather_groups
+            (
+                w.descriptor == "thunderstorm"
+                or (w.phenomena and "thunderstorm" in w.phenomena)
+            )
+            for w in weather_groups
         )
         has_cb = any(s.cb for s in sky_conditions)
         if has_ts and not has_cb:
-            warnings.append("Thunderstorm (TS) present weather reported without a CB cloud layer (CAP 746 §4.112)")
+            warnings.append(
+                "Thunderstorm (TS) present weather reported without a CB cloud layer (CAP 746 §4.112)"
+            )
 
         self._validate_wind_variation(wind, warnings)
 
         # CAVOK cross-field: weather/cloud groups must be absent when CAVOK is set
         if visibility and visibility.is_cavok:
             if weather_groups or any(s.height is not None for s in sky_conditions):
-                warnings.append("CAVOK used but weather/cloud groups present — these are mutually exclusive")
+                warnings.append(
+                    "CAVOK used but weather/cloud groups present — these are mutually exclusive"
+                )
 
         # NOSIG and BECMG/TEMPO are mutually exclusive (WMO Reg. 15.14.15)
         has_nosig = any(t.kind == "NOSIG" for t in trends)
         has_becmg_tempo = any(t.kind in ("BECMG", "TEMPO") for t in trends)
         if has_nosig and has_becmg_tempo:
-            warnings.append("NOSIG and BECMG/TEMPO are mutually exclusive per WMO Reg. 15.14.15")
+            warnings.append(
+                "NOSIG and BECMG/TEMPO are mutually exclusive per WMO Reg. 15.14.15"
+            )
 
         # NSW in METAR body (WMO Reg. 15.14.13) — NSW is TREND-only
         trend_starts = {"BECMG", "TEMPO", "NOSIG"}
@@ -158,7 +184,10 @@ class MetarValidator:
 
         # Dew point cannot exceed temperature (physically impossible)
         if temperature is not None and dewpoint is not None and dewpoint > temperature:
-            warnings.append(f"Dew point ({dewpoint}°C) exceeds temperature ({temperature}°C) — " "physically impossible")
+            warnings.append(
+                f"Dew point ({dewpoint}°C) exceeds temperature ({temperature}°C) — "
+                "physically impossible"
+            )
 
         # Descriptor + phenomenon constraint validation (WMO Code Table 4678 Notes 7–13)
         self._validate_descriptor_phenomena(weather_groups, warnings)
@@ -197,8 +226,12 @@ class MetarValidator:
                         "per FMH-1 §12.6.8.a(1) — hail has no intensity qualifier"
                     )
                 # -DS and -SS (light duststorm/sandstorm) are invalid — only moderate+ allowed
-                if wx.intensity == "light" and any(p in ("duststorm", "sandstorm") for p in wx.phenomena):
-                    phenom_names = ", ".join(p for p in wx.phenomena if p in ("duststorm", "sandstorm"))
+                if wx.intensity == "light" and any(
+                    p in ("duststorm", "sandstorm") for p in wx.phenomena
+                ):
+                    phenom_names = ", ".join(
+                        p for p in wx.phenomena if p in ("duststorm", "sandstorm")
+                    )
                     warnings.append(
                         f"Light intensity ('-') is not valid for {phenom_names} (DS/SS) — "
                         "only moderate or heavy (+) intensity is allowed"
@@ -210,7 +243,9 @@ class MetarValidator:
                         "FMH-1 §12.6.8.a(1) specifies GS intensity in RMK section only (e.g. 'GS MOD')"
                     )
                 # Check if any phenomenon justifies intensity
-                has_valid_phenomena = any(p in valid_intensity_phenomena for p in wx.phenomena)
+                has_valid_phenomena = any(
+                    p in valid_intensity_phenomena for p in wx.phenomena
+                )
                 if not has_valid_phenomena:
                     warnings.append(
                         f"Intensity modifier '{wx.intensity}' not valid for weather phenomena: "
@@ -218,18 +253,30 @@ class MetarValidator:
                     )
             # Visibility-dependent phenomenon checks (WMO Reg. 15.8.12-15)
             if visibility and visibility.value < 10000:
-                vis_m = visibility.value if visibility.unit == "M" else visibility.value * 1000
+                vis_m = (
+                    visibility.value
+                    if visibility.unit == "M"
+                    else visibility.value * 1000
+                )
                 # FG requires visibility < 1000m
                 if "fog" in wx.phenomena and vis_m >= 1000:
-                    warnings.append(f"FG (fog) reported with visibility {vis_m}m but requires < 1000m (WMO Reg. 15.8.14)")
+                    warnings.append(
+                        f"FG (fog) reported with visibility {vis_m}m but requires < 1000m (WMO Reg. 15.8.14)"
+                    )
                 # BR requires 1000 ≤ visibility ≤ 5000m
                 if "mist" in wx.phenomena and not (1000 <= vis_m <= 5000):
-                    warnings.append(f"BR (mist) reported with visibility {vis_m}m but requires 1000-5000m (WMO Reg. 15.8.13)")
+                    warnings.append(
+                        f"BR (mist) reported with visibility {vis_m}m but requires 1000-5000m (WMO Reg. 15.8.13)"
+                    )
                 # FU, HZ, DU, SA require visibility ≤ 5000m
                 obscuration = {"smoke", "haze", "dust", "sand"}
                 if any(p in obscuration for p in wx.phenomena) and vis_m > 5000:
-                    px_list = ", ".join(p[:2].upper() for p in wx.phenomena if p in obscuration)
-                    warnings.append(f"{px_list} reported with visibility {vis_m}m but requires ≤ 5000m (WMO Reg. 15.8.12)")
+                    px_list = ", ".join(
+                        p[:2].upper() for p in wx.phenomena if p in obscuration
+                    )
+                    warnings.append(
+                        f"{px_list} reported with visibility {vis_m}m but requires ≤ 5000m (WMO Reg. 15.8.12)"
+                    )
 
     @staticmethod
     def _validate_wind_variation(wind: Optional[Wind], warnings: List[str]) -> None:
@@ -259,10 +306,15 @@ class MetarValidator:
             if wind.direction is not None and not wind.is_variable and not wind.is_calm:
                 # Direction should be a multiple of 10° (CAP 746 §4.16)
                 if wind.direction % 10 != 0:
-                    warnings.append(f"Wind direction {wind.direction:03d}° is not rounded to the nearest 10° " "(CAP 746 §4.16)")
+                    warnings.append(
+                        f"Wind direction {wind.direction:03d}° is not rounded to the nearest 10° "
+                        "(CAP 746 §4.16)"
+                    )
                 # Direction must be 010-360°
                 if not (10 <= wind.direction <= 360):
-                    warnings.append(f"Wind direction {wind.direction:03d}° is outside valid range 010-360°")
+                    warnings.append(
+                        f"Wind direction {wind.direction:03d}° is outside valid range 010-360°"
+                    )
 
     def _validate_body_order(self, tokens: List[str]) -> List[str]:
         body_tokens = list(tokens)
@@ -325,7 +377,9 @@ class MetarValidator:
 
         if token in {"BECMG", "TEMPO", "NOSIG"}:
             return "trend"
-        if self.wind_parser.parse(token) is not None or re.match(r"^\d{3}V\d{3}$", token):
+        if self.wind_parser.parse(token) is not None or re.match(
+            r"^\d{3}V\d{3}$", token
+        ):
             return "wind"
         if self.weather_parser.is_recent_weather_token(token):
             return "recent_weather"
@@ -333,16 +387,26 @@ class MetarValidator:
             return "windshear"
         if self.sea_parser.parse(token) is not None:
             return "sea"
-        if token == "R/SNOCLO" or re.match(r"^R(\d{2}[LCR]?)/(\d|/)(\d|/)(\d{2}|//)(\d{2}|//)$", token) or re.match(
-            r"^R(\d{2}[LCR]?)/CLRD//$",
-            token,
+        if (
+            token == "R/SNOCLO"
+            or re.match(r"^R(\d{2}[LCR]?)/(\d|/)(\d|/)(\d{2}|//)(\d{2}|//)$", token)
+            or re.match(
+                r"^R(\d{2}[LCR]?)/CLRD//$",
+                token,
+            )
         ):
             return "runway_state"
-        if re.match(r"^R(\d{2}[LCR]?)/([PM])?(\d{4})(?:V([PM])?(\d{4}))?(?:FT)?([UDN])?$", token):
+        if re.match(
+            r"^R(\d{2}[LCR]?)/([PM])?(\d{4})(?:V([PM])?(\d{4}))?(?:FT)?([UDN])?$", token
+        ):
             return "rvr"
         if self.visibility_parser.parse(token) is not None:
             return "visibility"
-        if token.isdigit() and index + 1 < len(tokens) and re.match(r"^\d+/\d+SM$", tokens[index + 1]):
+        if (
+            token.isdigit()
+            and index + 1 < len(tokens)
+            and re.match(r"^\d+/\d+SM$", tokens[index + 1])
+        ):
             return "visibility"
         if self.weather_parser.parse(token) is not None:
             return "weather"
@@ -383,7 +447,9 @@ class MetarValidator:
         return station.startswith(("K", "PA", "PH", "PG", "TJ"))
 
     @staticmethod
-    def _validate_descriptor_phenomena(weather_groups: List[WeatherPhenomenon], warnings: List[str]) -> None:
+    def _validate_descriptor_phenomena(
+        weather_groups: List[WeatherPhenomenon], warnings: List[str]
+    ) -> None:
         """Validate descriptor+phenomenon combinations per WMO Code Table 4678 Notes 7–13."""
         code_for = {v: k for k, v in WEATHER_PHENOMENA.items()}
 
@@ -399,7 +465,19 @@ class MetarValidator:
             "freezing": {"FG", "DZ", "RA", "UP"},
         }
         # VC (vicinity) valid phenomena (Note 13)
-        vc_allowed = {"TS", "DS", "SS", "FG", "FC", "SH", "PO", "BLDU", "BLSA", "BLSN", "VA"}
+        vc_allowed = {
+            "TS",
+            "DS",
+            "SS",
+            "FG",
+            "FC",
+            "SH",
+            "PO",
+            "BLDU",
+            "BLSA",
+            "BLSN",
+            "VA",
+        }
 
         for wx in weather_groups:
             if wx.intensity == "vicinity":

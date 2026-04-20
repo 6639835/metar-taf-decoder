@@ -63,7 +63,9 @@ def _warnings(result):
 @pytest.mark.integration
 def test_metar_light_duststorm_warning(metar_decoder):
     """Light intensity (-DS) is not valid — should trigger a warning."""
-    result = metar_decoder.decode("METAR KJFK 061751Z 28008KT 5000 -DS FEW250 22/18 A2992")
+    result = metar_decoder.decode(
+        "METAR KJFK 061751Z 28008KT 5000 -DS FEW250 22/18 A2992"
+    )
     warnings = _warnings(result)
     assert any("duststorm" in w or "DS" in w or "sandstorm" in w for w in warnings), (
         f"Expected duststorm/DS warning, got: {warnings}"
@@ -73,7 +75,9 @@ def test_metar_light_duststorm_warning(metar_decoder):
 @pytest.mark.integration
 def test_metar_light_sandstorm_warning(metar_decoder):
     """Light intensity (-SS) is not valid — should trigger a warning."""
-    result = metar_decoder.decode("METAR KJFK 061751Z 28008KT 5000 -SS FEW250 22/18 A2992")
+    result = metar_decoder.decode(
+        "METAR KJFK 061751Z 28008KT 5000 -SS FEW250 22/18 A2992"
+    )
     warnings = _warnings(result)
     assert any("SS" in w or "sandstorm" in w for w in warnings), (
         f"Expected sandstorm/SS warning, got: {warnings}"
@@ -83,7 +87,9 @@ def test_metar_light_sandstorm_warning(metar_decoder):
 @pytest.mark.integration
 def test_metar_intensity_on_gr_hail(metar_decoder):
     """Intensity modifier on GR (hail) is not valid per FMH-1 §12.6.8.a(1)."""
-    result = metar_decoder.decode("METAR KJFK 061751Z 28008KT 5000 +GR FEW250 22/18 A2992")
+    result = metar_decoder.decode(
+        "METAR KJFK 061751Z 28008KT 5000 +GR FEW250 22/18 A2992"
+    )
     warnings = _warnings(result)
     assert any("GR" in w or "hail" in w for w in warnings), (
         f"Expected GR/hail warning, got: {warnings}"
@@ -93,7 +99,9 @@ def test_metar_intensity_on_gr_hail(metar_decoder):
 @pytest.mark.integration
 def test_metar_gs_intensity_in_body(metar_decoder):
     """GS (small hail) with intensity in METAR body should be warned."""
-    result = metar_decoder.decode("METAR KJFK 061751Z 28008KT 5000 +GS FEW250 22/18 A2992")
+    result = metar_decoder.decode(
+        "METAR KJFK 061751Z 28008KT 5000 +GS FEW250 22/18 A2992"
+    )
     warnings = _warnings(result)
     assert any("GS" in w or "small hail" in w for w in warnings), (
         f"Expected GS/small hail warning, got: {warnings}"
@@ -103,17 +111,21 @@ def test_metar_gs_intensity_in_body(metar_decoder):
 @pytest.mark.integration
 def test_metar_invalid_intensity_for_hz(metar_decoder):
     """Intensity modifier (+) is not valid for HZ (haze)."""
-    result = metar_decoder.decode("METAR KJFK 061751Z 28008KT 5000 +HZ FEW250 22/18 A2992")
-    warnings = _warnings(result)
-    assert any("intensity" in w.lower() or "not valid" in w.lower() for w in warnings), (
-        f"Expected intensity/not-valid warning, got: {warnings}"
+    result = metar_decoder.decode(
+        "METAR KJFK 061751Z 28008KT 5000 +HZ FEW250 22/18 A2992"
     )
+    warnings = _warnings(result)
+    assert any(
+        "intensity" in w.lower() or "not valid" in w.lower() for w in warnings
+    ), f"Expected intensity/not-valid warning, got: {warnings}"
 
 
 @pytest.mark.integration
 def test_metar_fog_high_visibility(metar_decoder):
     """FG (fog) reported with visibility >= 1000m — should warn."""
-    result = metar_decoder.decode("METAR KJFK 061751Z 28008KT 2000 FG FEW030 18/17 A2990")
+    result = metar_decoder.decode(
+        "METAR KJFK 061751Z 28008KT 2000 FG FEW030 18/17 A2990"
+    )
     warnings = _warnings(result)
     assert any("FG" in w or "fog" in w for w in warnings), (
         f"Expected FG/fog warning, got: {warnings}"
@@ -123,7 +135,9 @@ def test_metar_fog_high_visibility(metar_decoder):
 @pytest.mark.integration
 def test_metar_mist_low_visibility(metar_decoder):
     """BR (mist) reported with visibility < 1000m — should warn."""
-    result = metar_decoder.decode("METAR KJFK 061751Z 28008KT 0500 BR FEW030 18/17 A2990")
+    result = metar_decoder.decode(
+        "METAR KJFK 061751Z 28008KT 0500 BR FEW030 18/17 A2990"
+    )
     warnings = _warnings(result)
     assert any("BR" in w or "mist" in w for w in warnings), (
         f"Expected BR/mist warning, got: {warnings}"
@@ -133,7 +147,9 @@ def test_metar_mist_low_visibility(metar_decoder):
 @pytest.mark.integration
 def test_metar_mist_high_visibility(metar_decoder):
     """BR (mist) reported with visibility > 5000m — should warn."""
-    result = metar_decoder.decode("METAR KJFK 061751Z 28008KT 8000 BR FEW030 18/17 A2990")
+    result = metar_decoder.decode(
+        "METAR KJFK 061751Z 28008KT 8000 BR FEW030 18/17 A2990"
+    )
     warnings = _warnings(result)
     assert any("BR" in w or "mist" in w for w in warnings), (
         f"Expected BR/mist warning, got: {warnings}"
@@ -148,13 +164,15 @@ def test_metar_hz_high_visibility(metar_decoder):
     name (i.e. 'HA' from 'haze') as the obscuration label, so we also check
     for '5000' and the full word 'haze'.
     """
-    result = metar_decoder.decode("METAR KJFK 061751Z 28008KT 8000 HZ FEW030 18/17 A2990")
+    result = metar_decoder.decode(
+        "METAR KJFK 061751Z 28008KT 8000 HZ FEW030 18/17 A2990"
+    )
     warnings = _warnings(result)
     # The decoder builds the warning with the 2-char code derived from the
     # phenomenon name so "HA" (from "haze") may appear instead of "HZ".
-    assert any("HZ" in w or "haze" in w or "HA" in w or "5000" in w for w in warnings), (
-        f"Expected HZ/haze/HA/5000 warning, got: {warnings}"
-    )
+    assert any(
+        "HZ" in w or "haze" in w or "HA" in w or "5000" in w for w in warnings
+    ), f"Expected HZ/haze/HA/5000 warning, got: {warnings}"
 
 
 @pytest.mark.integration
@@ -178,9 +196,9 @@ def test_metar_more_than_4_sky_conditions_icao(metar_decoder):
         "METAR EGLL 061751Z 28008KT 9999 FEW030 SCT050 BKN100 OVC150 FEW200 22/18 Q1013"
     )
     warnings = _warnings(result)
-    assert any("cloud" in w.lower() or "layer" in w.lower() or "4" in w for w in warnings), (
-        f"Expected cloud/layer/4 warning, got: {warnings}"
-    )
+    assert any(
+        "cloud" in w.lower() or "layer" in w.lower() or "4" in w for w in warnings
+    ), f"Expected cloud/layer/4 warning, got: {warnings}"
 
 
 @pytest.mark.integration
@@ -233,9 +251,10 @@ def test_metar_wind_direction_not_multiple_of_10(metar_decoder):
     """Wind direction not rounded to nearest 10° — should warn."""
     result = metar_decoder.decode("METAR KJFK 061751Z 28305KT 10SM FEW250 22/18 A2992")
     warnings = _warnings(result)
-    assert any("direction" in w.lower() or "10°" in w or "nearest" in w.lower() for w in warnings), (
-        f"Expected direction/nearest 10° warning, got: {warnings}"
-    )
+    assert any(
+        "direction" in w.lower() or "10°" in w or "nearest" in w.lower()
+        for w in warnings
+    ), f"Expected direction/nearest 10° warning, got: {warnings}"
 
 
 @pytest.mark.integration
@@ -243,15 +262,17 @@ def test_metar_wind_direction_outside_range(metar_decoder):
     """Wind direction 005° outside valid range 010-360° — should warn."""
     result = metar_decoder.decode("METAR KJFK 061751Z 00505KT 10SM FEW250 22/18 A2992")
     warnings = _warnings(result)
-    assert any("direction" in w.lower() or "range" in w.lower() or "005" in w for w in warnings), (
-        f"Expected direction/range/005 warning, got: {warnings}"
-    )
+    assert any(
+        "direction" in w.lower() or "range" in w.lower() or "005" in w for w in warnings
+    ), f"Expected direction/range/005 warning, got: {warnings}"
 
 
 @pytest.mark.integration
 def test_metar_wind_variation_less_than_60_degrees(metar_decoder):
     """Wind variable range with variation < 60° — should warn to omit variable range."""
-    result = metar_decoder.decode("METAR KJFK 061751Z 28010KT 260V300 10SM FEW250 22/18 A2992")
+    result = metar_decoder.decode(
+        "METAR KJFK 061751Z 28010KT 260V300 10SM FEW250 22/18 A2992"
+    )
     warnings = _warnings(result)
     # 300 - 260 = 40° variation < 60°
     assert any("60" in w or "variation" in w.lower() for w in warnings), (
@@ -262,18 +283,22 @@ def test_metar_wind_variation_less_than_60_degrees(metar_decoder):
 @pytest.mark.integration
 def test_metar_wind_variation_ge_180_degrees(metar_decoder):
     """Wind variable range with variation >= 180° — should warn to use VRB."""
-    result = metar_decoder.decode("METAR KJFK 061751Z 28010KT 100V320 10SM FEW250 22/18 A2992")
+    result = metar_decoder.decode(
+        "METAR KJFK 061751Z 28010KT 100V320 10SM FEW250 22/18 A2992"
+    )
     warnings = _warnings(result)
     # (320 - 100) % 360 = 220° >= 180°
-    assert any("VRB" in w or "180" in w or "variation" in w.lower() for w in warnings), (
-        f"Expected VRB/180°/variation warning, got: {warnings}"
-    )
+    assert any(
+        "VRB" in w or "180" in w or "variation" in w.lower() for w in warnings
+    ), f"Expected VRB/180°/variation warning, got: {warnings}"
 
 
 @pytest.mark.integration
 def test_metar_wind_variation_with_speed_below_6kt(metar_decoder):
     """Wind direction variation reported with speed < 6 kt — should warn."""
-    result = metar_decoder.decode("METAR KJFK 061751Z 28003KT 250V320 10SM FEW250 22/18 A2992")
+    result = metar_decoder.decode(
+        "METAR KJFK 061751Z 28003KT 250V320 10SM FEW250 22/18 A2992"
+    )
     warnings = _warnings(result)
     assert any("6 kt" in w or "VRB" in w for w in warnings), (
         f"Expected <6 kt/VRB warning, got: {warnings}"
@@ -283,7 +308,9 @@ def test_metar_wind_variation_with_speed_below_6kt(metar_decoder):
 @pytest.mark.integration
 def test_metar_cavok_with_weather_groups(metar_decoder):
     """CAVOK used alongside weather groups — contradiction warning."""
-    result = metar_decoder.decode("METAR KJFK 061751Z 28008KT CAVOK -RA FEW030 22/18 A2992")
+    result = metar_decoder.decode(
+        "METAR KJFK 061751Z 28008KT CAVOK -RA FEW030 22/18 A2992"
+    )
     warnings = _warnings(result)
     assert any("CAVOK" in w for w in warnings), (
         f"Expected CAVOK warning, got: {warnings}"
@@ -305,11 +332,11 @@ def test_metar_nosig_becmg_mutually_exclusive(metar_decoder):
 @pytest.mark.integration
 def test_metar_nsw_in_body(metar_decoder):
     """NSW in METAR body is not valid — should warn."""
-    result = metar_decoder.decode("METAR KJFK 061751Z 28008KT 10SM NSW FEW250 22/18 A2992")
-    warnings = _warnings(result)
-    assert any("NSW" in w for w in warnings), (
-        f"Expected NSW warning, got: {warnings}"
+    result = metar_decoder.decode(
+        "METAR KJFK 061751Z 28008KT 10SM NSW FEW250 22/18 A2992"
     )
+    warnings = _warnings(result)
+    assert any("NSW" in w for w in warnings), f"Expected NSW warning, got: {warnings}"
 
 
 @pytest.mark.integration
@@ -327,11 +354,13 @@ def test_metar_metric_rvr_without_ft(metar_decoder):
 @pytest.mark.integration
 def test_metar_uk_station_runway_state(metar_decoder):
     """UK station (EGLL) with runway state group — CAP 746 Issue 6 warning."""
-    result = metar_decoder.decode("METAR EGLL 061751Z 27010KT 5000 BKN030 15/10 Q1015 R28/212070")
-    warnings = _warnings(result)
-    assert any("UK" in w or "CAP 746" in w or "runway state" in w.lower() for w in warnings), (
-        f"Expected UK/CAP 746/runway state warning, got: {warnings}"
+    result = metar_decoder.decode(
+        "METAR EGLL 061751Z 27010KT 5000 BKN030 15/10 Q1015 R28/212070"
     )
+    warnings = _warnings(result)
+    assert any(
+        "UK" in w or "CAP 746" in w or "runway state" in w.lower() for w in warnings
+    ), f"Expected UK/CAP 746/runway state warning, got: {warnings}"
 
 
 @pytest.mark.integration
@@ -380,7 +409,9 @@ def test_metar_ncd_in_non_auto(metar_decoder):
 @pytest.mark.integration
 def test_metar_vc_with_ra_not_allowed(metar_decoder):
     """VCRA — vicinity not valid with RA (rain) per WMO Code Table 4678 Note 13."""
-    result = metar_decoder.decode("METAR KJFK 061751Z 28008KT 5000 VCRA FEW030 22/18 A2992")
+    result = metar_decoder.decode(
+        "METAR KJFK 061751Z 28008KT 5000 VCRA FEW030 22/18 A2992"
+    )
     warnings = _warnings(result)
     assert any("VC" in w or "vicinity" in w.lower() for w in warnings), (
         f"Expected VC/vicinity warning, got: {warnings}"
@@ -393,7 +424,9 @@ def test_metar_vc_with_ra_not_allowed(metar_decoder):
 @pytest.mark.integration
 def test_metar_shallow_mi_with_non_fg(metar_decoder):
     """MI (shallow) descriptor with RA — only FG is allowed, should warn."""
-    result = metar_decoder.decode("METAR KJFK 061751Z 28008KT 5000 MIRA FEW030 22/18 A2992")
+    result = metar_decoder.decode(
+        "METAR KJFK 061751Z 28008KT 5000 MIRA FEW030 22/18 A2992"
+    )
     warnings = _warnings(result)
     assert any("shallow" in w.lower() or "MI" in w or "FG" in w for w in warnings), (
         f"Expected shallow/MI/FG warning, got: {warnings}"
@@ -408,7 +441,9 @@ def test_metar_shallow_mi_with_non_fg(metar_decoder):
 @pytest.mark.integration
 def test_metar_light_ds_parsed_correctly(metar_decoder):
     """-DS is still parsed into a weather group with intensity='light'."""
-    result = metar_decoder.decode("METAR KJFK 061751Z 28008KT 5000 -DS FEW250 22/18 A2992")
+    result = metar_decoder.decode(
+        "METAR KJFK 061751Z 28008KT 5000 -DS FEW250 22/18 A2992"
+    )
     assert result.weather, "Expected at least one weather group"
     assert result.weather[0].intensity == "light"
     assert "duststorm" in result.weather[0].phenomena
@@ -417,7 +452,9 @@ def test_metar_light_ds_parsed_correctly(metar_decoder):
 @pytest.mark.integration
 def test_metar_gr_heavy_parsed_correctly(metar_decoder):
     """+GR produces a weather group with intensity='heavy' despite the warning."""
-    result = metar_decoder.decode("METAR KJFK 061751Z 28008KT 5000 +GR FEW250 22/18 A2992")
+    result = metar_decoder.decode(
+        "METAR KJFK 061751Z 28008KT 5000 +GR FEW250 22/18 A2992"
+    )
     assert result.weather
     assert result.weather[0].intensity == "heavy"
     assert "hail" in result.weather[0].phenomena
@@ -426,15 +463,21 @@ def test_metar_gr_heavy_parsed_correctly(metar_decoder):
 @pytest.mark.integration
 def test_metar_no_warning_for_valid_weather(metar_decoder):
     """A perfectly valid METAR should generate no warnings related to intensity."""
-    result = metar_decoder.decode("METAR KJFK 061751Z 28010KT 9999 -RA FEW030 22/18 A2992")
+    result = metar_decoder.decode(
+        "METAR KJFK 061751Z 28010KT 9999 -RA FEW030 22/18 A2992"
+    )
     intensity_warnings = [w for w in _warnings(result) if "intensity" in w.lower()]
-    assert not intensity_warnings, f"Unexpected intensity warnings: {intensity_warnings}"
+    assert not intensity_warnings, (
+        f"Unexpected intensity warnings: {intensity_warnings}"
+    )
 
 
 @pytest.mark.integration
 def test_metar_wind_variable_range_populated(metar_decoder):
     """Wind variable range is correctly parsed even when a warning is triggered."""
-    result = metar_decoder.decode("METAR KJFK 061751Z 28010KT 260V300 10SM FEW250 22/18 A2992")
+    result = metar_decoder.decode(
+        "METAR KJFK 061751Z 28010KT 260V300 10SM FEW250 22/18 A2992"
+    )
     assert result.wind is not None
     assert result.wind.variable_range == (260, 300)
 
@@ -501,7 +544,9 @@ def test_taf_cavok_with_cloud_groups_warns(taf_decoder):
     """CAVOK cannot be combined with explicit cloud groups."""
     result = taf_decoder.decode("TAF KJFK 061730Z 0618/0724 28008KT CAVOK BKN020")
     warnings = _warnings(result)
-    assert any("CAVOK" in w for w in warnings), f"Expected CAVOK warning, got: {warnings}"
+    assert any("CAVOK" in w for w in warnings), (
+        f"Expected CAVOK warning, got: {warnings}"
+    )
 
 
 @pytest.mark.integration
@@ -540,7 +585,9 @@ def test_taf_temperature_groups_must_be_report_level(taf_decoder):
 @pytest.mark.integration
 def test_taf_nonstandard_extension_group_warning(taf_decoder):
     """Non-standard extension groups should be warned instead of treated as standard TAF syntax."""
-    result = taf_decoder.decode("TAF KJFK 061730Z 0618/0724 28008KT 9999 FEW030 WS020/28035KT")
+    result = taf_decoder.decode(
+        "TAF KJFK 061730Z 0618/0724 28008KT 9999 FEW030 WS020/28035KT"
+    )
     warnings = _warnings(result)
     assert any("non-standard TAF extension groups" in w for w in warnings), (
         f"Expected non-standard extension warning, got: {warnings}"
@@ -550,9 +597,7 @@ def test_taf_nonstandard_extension_group_warning(taf_decoder):
 @pytest.mark.integration
 def test_taf_more_than_3_weather_codes_per_period(taf_decoder):
     """More than 3 weather codes in the MAIN period — per-period warning."""
-    result = taf_decoder.decode(
-        "TAF KJFK 061730Z 0618/0724 -RA -SN BR VCTS FEW030"
-    )
+    result = taf_decoder.decode("TAF KJFK 061730Z 0618/0724 -RA -SN BR VCTS FEW030")
     warnings = _warnings(result)
     assert any("weather" in w.lower() or "3" in w for w in warnings), (
         f"Expected weather/3 per-period warning, got: {warnings}"
@@ -1207,7 +1252,9 @@ def test_taf_full_decode_no_crash(taf_decoder):
 @pytest.mark.integration
 def test_metar_maintenance_flag(metar_decoder):
     """METAR ending with $ should have maintenance_needed=True."""
-    result = metar_decoder.decode("METAR KJFK 061751Z 28010KT 9999 FEW030 22/18 A2992 $")
+    result = metar_decoder.decode(
+        "METAR KJFK 061751Z 28010KT 9999 FEW030 22/18 A2992 $"
+    )
     assert result.maintenance_needed is True
 
 

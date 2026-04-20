@@ -4,8 +4,19 @@ from __future__ import annotations
 
 from typing import Dict, List
 
-from .common import format_sky_conditions_list, format_visibility, format_weather_groups_list, format_wind
-from ..models import IcingForecast, TafForecastPeriod, TafReport, TurbulenceForecast, WindShear
+from .common import (
+    format_sky_conditions_list,
+    format_visibility,
+    format_weather_groups_list,
+    format_wind,
+)
+from ..models import (
+    IcingForecast,
+    TafForecastPeriod,
+    TafReport,
+    TurbulenceForecast,
+    WindShear,
+)
 
 
 class TafFormatter:
@@ -54,7 +65,9 @@ class TafFormatter:
 
         return "\n".join(lines)
 
-    def _format_forecast_period(self, period: TafForecastPeriod, index: int) -> List[str]:
+    def _format_forecast_period(
+        self, period: TafForecastPeriod, index: int
+    ) -> List[str]:
         lines: List[str] = []
 
         if index == 0:
@@ -113,7 +126,9 @@ class TafFormatter:
     def _format_period_header(self, period: TafForecastPeriod) -> str:
         change_type = period.change_type
         time_desc = self._format_time_description(period)
-        prob_text = f" (Probability {period.probability}%)" if period.probability else ""
+        prob_text = (
+            f" (Probability {period.probability}%)" if period.probability else ""
+        )
 
         if change_type == "TEMPO":
             return f"Temporary conditions{time_desc}{prob_text}:"
@@ -149,7 +164,9 @@ class TafFormatter:
         parts: List[str] = ["\nTemperature Forecasts:"]
         for temp in temperatures:
             label = "Maximum" if temp.kind == "max" else "Minimum"
-            parts.append(f"  {label}: {temp.value}°C at {temp.time.strftime('%d/%H:%M')} UTC")
+            parts.append(
+                f"  {label}: {temp.value}°C at {temp.time.strftime('%d/%H:%M')} UTC"
+            )
         return parts
 
     def _format_temperature(self, period: TafForecastPeriod) -> str:
@@ -158,7 +175,9 @@ class TafFormatter:
 
         parts: List[str] = []
         for temp in period.temperatures:
-            parts.append(f" {temp.kind} {temp.value}°C at {temp.time.strftime('%d/%H:%M')} UTC")
+            parts.append(
+                f" {temp.kind} {temp.value}°C at {temp.time.strftime('%d/%H:%M')} UTC"
+            )
 
         return f"  Temperature:{','.join(parts)}"
 
@@ -201,14 +220,20 @@ class TafFormatter:
                     lines.append(f"  Variable Ceiling: {value}")
                     continue
                 if isinstance(value, dict):
-                    lines.append(f"  {key}: {', '.join([f'{k}: {v}' for k, v in value.items()])}")
+                    lines.append(
+                        f"  {key}: {', '.join([f'{k}: {v}' for k, v in value.items()])}"
+                    )
                 elif isinstance(value, list):
                     if value and isinstance(value[0], dict):
                         lines.append(f"  {key}:")
                         for item in value:
-                            lines.append(f"    {', '.join([f'{k}: {v}' for k, v in item.items()])}")
+                            lines.append(
+                                f"    {', '.join([f'{k}: {v}' for k, v in item.items()])}"
+                            )
                     else:
-                        lines.append(f"  {key}: {', '.join(str(item) for item in value)}")
+                        lines.append(
+                            f"  {key}: {', '.join(str(item) for item in value)}"
+                        )
                 else:
                     lines.append(f"  {key}: {value}")
 

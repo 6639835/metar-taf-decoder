@@ -39,7 +39,9 @@ class SeaParser:
         temperature_missing = temperature_token == "//"
         if not temperature_missing:
             sea_surface_temperature = (
-                -int(temperature_token[1:]) if temperature_token.startswith("M") else int(temperature_token)
+                -int(temperature_token[1:])
+                if temperature_token.startswith("M")
+                else int(temperature_token)
             )
 
         state_of_sea = None

@@ -15,6 +15,7 @@ from weather_decoder.parsers.remarks_parser import RemarksParser
 
 BASE = "METAR KJFK 061751Z 28008KT 10SM FEW250 22/18 A2992"
 
+
 def rmk(remark_text: str) -> str:
     """Return a full METAR string with the given RMK section appended."""
     return f"{BASE} RMK {remark_text}"
@@ -24,23 +25,29 @@ def rmk(remark_text: str) -> str:
 # 1. No RMK section
 # ===========================================================================
 
+
 @pytest.mark.unit
 def test_no_rmk_returns_empty_string():
     """No RMK token: raw_remarks should be an empty string."""
-    raw, decoded = RemarksParser().parse("METAR KJFK 061751Z 28008KT 10SM FEW250 22/18 A2992")
+    raw, decoded = RemarksParser().parse(
+        "METAR KJFK 061751Z 28008KT 10SM FEW250 22/18 A2992"
+    )
     assert raw == ""
 
 
 @pytest.mark.unit
 def test_no_rmk_returns_empty_dict():
     """No RMK token: decoded dict should be empty."""
-    raw, decoded = RemarksParser().parse("METAR KJFK 061751Z 28008KT 10SM FEW250 22/18 A2992")
+    raw, decoded = RemarksParser().parse(
+        "METAR KJFK 061751Z 28008KT 10SM FEW250 22/18 A2992"
+    )
     assert decoded == {}
 
 
 # ===========================================================================
 # 2. Raw remarks string sanity
 # ===========================================================================
+
 
 @pytest.mark.unit
 def test_raw_remarks_does_not_include_rmk_keyword():
@@ -66,6 +73,7 @@ def test_raw_remarks_single_token():
 # ===========================================================================
 # 3. Station type (AO1 / AO2 / A02A)
 # ===========================================================================
+
 
 @pytest.mark.unit
 def test_station_type_ao2():
@@ -104,12 +112,16 @@ def test_station_type_ao1_value():
     _, decoded = RemarksParser().parse(rmk("AO1"))
     assert decoded["Station Type"] is not None
     # AO1 means *without* precipitation discriminator
-    assert "without" in decoded["Station Type"].lower() or "cannot" in decoded["Station Type"].lower()
+    assert (
+        "without" in decoded["Station Type"].lower()
+        or "cannot" in decoded["Station Type"].lower()
+    )
 
 
 # ===========================================================================
 # 4. Sea Level Pressure (SLP)
 # ===========================================================================
+
 
 @pytest.mark.unit
 def test_slp_above_500():
@@ -146,6 +158,7 @@ def test_slp_000():
 # 5. Temperature to tenths (T group)
 # ===========================================================================
 
+
 @pytest.mark.unit
 def test_temperature_tenths_positive():
     """T02220183 → temperature 22.2°C, dewpoint 18.3°C."""
@@ -180,6 +193,7 @@ def test_temperature_tenths_mixed_signs():
 # 6. Pressure tendency (5appp)
 # ===========================================================================
 
+
 @pytest.mark.unit
 def test_pressure_tendency_present():
     """58020 → Pressure Tendency key present."""
@@ -205,6 +219,7 @@ def test_pressure_tendency_zero():
 # 7. 24-hour temperature extremes (4snTTTsnTTT)
 # ===========================================================================
 
+
 @pytest.mark.unit
 def test_24hr_temp_extremes_incomplete_not_matched():
     """40112 (only 5 digits) must NOT match the 8-digit 4snTTTsnTTT group."""
@@ -221,7 +236,10 @@ def test_24hr_temp_extremes_present():
     402500183 = 4 | 0 (pos) | 250 (max=25.0) | 0 (pos) | 183 (min=18.3).
     """
     _, decoded = RemarksParser().parse(rmk("402500183"))
-    assert "24-Hour Maximum Temperature" in decoded or "24-Hour Minimum Temperature" in decoded
+    assert (
+        "24-Hour Maximum Temperature" in decoded
+        or "24-Hour Minimum Temperature" in decoded
+    )
 
 
 @pytest.mark.unit
@@ -241,6 +259,7 @@ def test_24hr_temp_min_value():
 # ===========================================================================
 # 8. 6-hour max/min temperature (1snTTT / 2snTTT)
 # ===========================================================================
+
 
 @pytest.mark.unit
 def test_6hr_max_temperature_present():
@@ -274,6 +293,7 @@ def test_6hr_min_temperature_value():
 # 9. 6-hour precipitation (6xxxx)
 # ===========================================================================
 
+
 @pytest.mark.unit
 def test_6hr_precipitation_present():
     """60021 → 6-Hour Precipitation key present."""
@@ -292,12 +312,16 @@ def test_6hr_precipitation_value():
 def test_6hr_precipitation_trace():
     """60000 → trace or none."""
     _, decoded = RemarksParser().parse(rmk("60000"))
-    assert "Trace" in decoded["6-Hour Precipitation"] or "trace" in decoded["6-Hour Precipitation"]
+    assert (
+        "Trace" in decoded["6-Hour Precipitation"]
+        or "trace" in decoded["6-Hour Precipitation"]
+    )
 
 
 # ===========================================================================
 # 10. Peak wind (PK WND)
 # ===========================================================================
+
 
 @pytest.mark.unit
 def test_peak_wind_4digit_time():
@@ -328,6 +352,7 @@ def test_peak_wind_3digit_speed():
 # ===========================================================================
 # 11. Wind shift (WSHFT)
 # ===========================================================================
+
 
 @pytest.mark.unit
 def test_wind_shift_4digit_time():
@@ -364,6 +389,7 @@ def test_wind_shift_key_in_decoded():
 # ===========================================================================
 # 12. Surface / Tower visibility
 # ===========================================================================
+
 
 @pytest.mark.unit
 def test_surface_visibility_present():
@@ -406,6 +432,7 @@ def test_tower_visibility_whole_plus_fraction():
 # 13. Lightning
 # ===========================================================================
 
+
 @pytest.mark.unit
 def test_lightning_present():
     """LTG DSNT SW → Lightning key present and non-empty."""
@@ -441,6 +468,7 @@ def test_lightning_frequency_without_type_is_supported():
 # ===========================================================================
 # 14. Thunderstorm location (TS)
 # ===========================================================================
+
 
 @pytest.mark.unit
 def test_ts_ohd_mov_ne():
@@ -482,6 +510,7 @@ def test_thunderstorm_begin_end_remarks():
 # 15. Pressure change (PRESFR / PRESRR)
 # ===========================================================================
 
+
 @pytest.mark.unit
 def test_presfr():
     """PRESFR → Pressure Change == 'Pressure falling rapidly'."""
@@ -499,6 +528,7 @@ def test_presrr():
 # ===========================================================================
 # 16. Frontal passage (FROPA)
 # ===========================================================================
+
 
 @pytest.mark.unit
 def test_fropa_standalone():
@@ -518,6 +548,7 @@ def test_fropa_value():
 # 17. SLP status (SLPNO)
 # ===========================================================================
 
+
 @pytest.mark.unit
 def test_slpno_key_present():
     """SLPNO → SLP Status key present."""
@@ -536,6 +567,7 @@ def test_slpno_value():
 # ===========================================================================
 # 18. RVR status (RVRNO)
 # ===========================================================================
+
 
 @pytest.mark.unit
 def test_rvrno_key_present():
@@ -577,7 +609,9 @@ def test_complex_automated_precipitation_timeline_report():
     )
     _, decoded = RemarksParser().parse(metar)
 
-    assert decoded["Station Type"] == "Automated station with precipitation discriminator"
+    assert (
+        decoded["Station Type"] == "Automated station with precipitation discriminator"
+    )
     assert decoded["Variable Ceiling"] == "700 to 1400 feet AGL"
     assert decoded["Sea Level Pressure"] == "1010.7 hPa"
     assert decoded["Precipitation Amount"] == "Less than 0.01 inches"
@@ -593,7 +627,10 @@ def test_complex_automated_precipitation_timeline_report():
     )
     assert decoded["Sensor Status"] == "Thunderstorm information not available"
     assert "05:29 UTC: freezing rain began" in decoded["Precipitation Begin/End Times"]
-    assert "05:11 UTC: unknown precipitation began, snow ended" in decoded["Precipitation Begin/End Times"]
+    assert (
+        "05:11 UTC: unknown precipitation began, snow ended"
+        in decoded["Precipitation Begin/End Times"]
+    )
 
 
 @pytest.mark.unit
@@ -645,6 +682,7 @@ def test_tornadic_activity_end_only_is_supported():
 # 19. QFE format
 # ===========================================================================
 
+
 @pytest.mark.unit
 def test_qfe_with_hpa():
     """QFE728/0971 → decoded QFE contains '728 mmHg'."""
@@ -672,6 +710,7 @@ def test_qfe_with_hpa_value_included():
 # 20. Maintenance indicator ($)
 # ===========================================================================
 
+
 @pytest.mark.unit
 def test_maintenance_indicator_key_present():
     """RMK $ → Maintenance Indicator key present."""
@@ -689,6 +728,7 @@ def test_maintenance_indicator_value():
 # ===========================================================================
 # 21. Precipitation amount (P group)
 # ===========================================================================
+
 
 @pytest.mark.unit
 def test_precipitation_amount_key_present():
@@ -708,12 +748,16 @@ def test_precipitation_amount_value():
 def test_precipitation_amount_zero():
     """P0000 → less than 0.01 inches."""
     _, decoded = RemarksParser().parse(rmk("P0000"))
-    assert "Less than 0.01" in decoded["Precipitation Amount"] or "0.00" in decoded["Precipitation Amount"]
+    assert (
+        "Less than 0.01" in decoded["Precipitation Amount"]
+        or "0.00" in decoded["Precipitation Amount"]
+    )
 
 
 # ===========================================================================
 # 22. Virga
 # ===========================================================================
+
 
 @pytest.mark.unit
 def test_virga_key_present():
@@ -751,6 +795,7 @@ def test_virga_direction_range_with_and_is_not_corrupted():
 # 23. Runway winds
 # ===========================================================================
 
+
 @pytest.mark.unit
 def test_runway_winds_wind_format():
     """WIND 28L 27025KT → 'runway_winds' key present."""
@@ -787,6 +832,7 @@ def test_runway_winds_rwy_format_speed():
 # 24. Variable visibility (VIS minVmax)
 # ===========================================================================
 
+
 @pytest.mark.unit
 def test_variable_visibility_key_present():
     """VIS 1V3 → Variable Visibility key present."""
@@ -806,6 +852,7 @@ def test_variable_visibility_value():
 # 25. Altimeter in remarks (Axxxx)
 # ===========================================================================
 
+
 @pytest.mark.unit
 def test_altimeter_remarks_key_present():
     """RMK A2992 → Altimeter (Remarks) key present."""
@@ -824,10 +871,13 @@ def test_altimeter_remarks_value():
 # 26. Multiple decoded items in one RMK
 # ===========================================================================
 
+
 @pytest.mark.unit
 def test_multiple_remark_items_all_present():
     """AO2 SLP021 T02220183 → three keys decoded."""
-    metar = "METAR KJFK 061751Z 28008KT 10SM FEW250 22/18 A2992 RMK AO2 SLP021 T02220183"
+    metar = (
+        "METAR KJFK 061751Z 28008KT 10SM FEW250 22/18 A2992 RMK AO2 SLP021 T02220183"
+    )
     _, decoded = RemarksParser().parse(metar)
     assert "Station Type" in decoded
     assert "Sea Level Pressure" in decoded
@@ -837,7 +887,9 @@ def test_multiple_remark_items_all_present():
 @pytest.mark.unit
 def test_multiple_remark_items_values_correct():
     """AO2 SLP021 T02220183 → each decoded value is correct."""
-    metar = "METAR KJFK 061751Z 28008KT 10SM FEW250 22/18 A2992 RMK AO2 SLP021 T02220183"
+    metar = (
+        "METAR KJFK 061751Z 28008KT 10SM FEW250 22/18 A2992 RMK AO2 SLP021 T02220183"
+    )
     _, decoded = RemarksParser().parse(metar)
     assert decoded["Sea Level Pressure"] == "1002.1 hPa"
     assert decoded["Temperature (tenths)"] == "22.2°C"
@@ -847,6 +899,7 @@ def test_multiple_remark_items_values_correct():
 # ===========================================================================
 # 27. Density altitude
 # ===========================================================================
+
 
 @pytest.mark.unit
 def test_density_altitude_key_present():
@@ -873,6 +926,7 @@ def test_density_altitude_negative():
 # ===========================================================================
 # 28. Extra edge cases
 # ===========================================================================
+
 
 @pytest.mark.unit
 def test_slpno_and_rvrno_together():
@@ -963,7 +1017,9 @@ def test_altitude_token_does_not_decode_as_6hr_max_temperature():
 @pytest.mark.unit
 def test_thunderstorm_begin_end_repeated_chain():
     """TSB12E13B20 → all begin/end events are decoded."""
-    _, decoded = RemarksParser().parse("METAR KPHX 190651Z 03008KT 10SM TS SCT100CB 26/20 A2984 RMK TSB12E13B20")
+    _, decoded = RemarksParser().parse(
+        "METAR KPHX 190651Z 03008KT 10SM TS SCT100CB 26/20 A2984 RMK TSB12E13B20"
+    )
     value = decoded["Thunderstorm Begin/End Times"]
     assert "06:12 UTC: thunderstorm began" in value
     assert "06:13 UTC: thunderstorm ended" in value
@@ -1002,7 +1058,9 @@ def test_multiple_lightning_groups_are_preserved():
 def test_directional_shower_remark_decoded():
     """SHRA DSNT S-N is plain-language weather location information."""
     _, decoded = RemarksParser().parse(rmk("SHRA DSNT S-N"))
-    assert decoded["Weather Location"] == "shower rain distant to the south through north"
+    assert (
+        decoded["Weather Location"] == "shower rain distant to the south through north"
+    )
 
 
 @pytest.mark.unit
@@ -1046,7 +1104,9 @@ def test_jma_fcst_amd_trends_decoded():
 @pytest.mark.unit
 def test_location_specific_winds_decoded():
     """HARBOR/ROOF wind remarks are decoded as location-specific winds."""
-    _, decoded = RemarksParser().parse(rmk("PRESFR SLP926 HARBOR WIND 10020G27KT ROOF WIND 13015G27KT"))
+    _, decoded = RemarksParser().parse(
+        rmk("PRESFR SLP926 HARBOR WIND 10020G27KT ROOF WIND 13015G27KT")
+    )
     winds = decoded["location_winds"]
     assert winds[0]["location"] == "Harbor"
     assert winds[0]["direction"] == 100
@@ -1058,14 +1118,19 @@ def test_location_specific_winds_decoded():
 def test_visibility_lower_remark_decoded():
     """VIS LWR directional remarks are decoded."""
     _, decoded = RemarksParser().parse(rmk("VIS LWR NE-E-S"))
-    assert decoded["Visibility Lower"] == "Visibility lower to the northeast through east through south"
+    assert (
+        decoded["Visibility Lower"]
+        == "Visibility lower to the northeast through east through south"
+    )
 
 
 @pytest.mark.unit
 def test_jma_directional_visibility_decoded():
     """JMA compact directional visibility remarks are decoded."""
     _, decoded = RemarksParser().parse(rmk("3500E-S"))
-    assert decoded["Directional Visibility (JMA)"] == ["3500 m to the east through south"]
+    assert decoded["Directional Visibility (JMA)"] == [
+        "3500 m to the east through south"
+    ]
 
 
 @pytest.mark.unit
