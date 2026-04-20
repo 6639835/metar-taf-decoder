@@ -48,7 +48,7 @@ RUNWAY_BRAKING_RESERVED = {96, 97, 98}
 # WMO Code Table 1079: depth code 91 is Reserved
 RUNWAY_DEPTH_RESERVED = {91}
 
-# Runway braking action (8-group remarks format)
+# Backward-compatible runway braking action labels.
 #
 # NOTE: `RemarksParser` historically uses int keys for braking values (e.g. 91),
 # while other parsers use string keys (e.g. "91"). Keep int-keyed mapping for

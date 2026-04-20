@@ -58,6 +58,8 @@ class MetarDecoder:
 
     def decode(self, raw_metar: str) -> MetarData:
         metar = raw_metar.strip()
+        if metar.endswith("="):
+            metar = metar[:-1].rstrip()
         parts = metar.split()
 
         maintenance_needed = metar.rstrip().endswith("$") or "$" in parts

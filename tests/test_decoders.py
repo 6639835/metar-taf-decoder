@@ -199,6 +199,19 @@ def test_metar_trend_becmg():
 
 
 @pytest.mark.integration
+def test_metar_trend_strips_final_equals_before_parsing_cloud_type():
+    """A final METAR '=' must not hide the last trend cloud group."""
+    decoder = MetarDecoder()
+    result = decoder.decode(
+        "METAR LFPG 100600Z AUTO VRB03KT 0800 FG VV/// 15/15 Q1006 "
+        "TEMPO 0500 FG FEW015TCU BKN020CB="
+    )
+
+    assert len(result.trends) == 1
+    assert "BKN at 2000ft CB" in result.trends[0].changes
+
+
+@pytest.mark.integration
 def test_metar_military_color_codes():
     """Test METAR with military color code (though not in standard codes)."""
     decoder = MetarDecoder()

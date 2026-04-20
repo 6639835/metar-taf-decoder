@@ -597,6 +597,24 @@ def test_complex_automated_precipitation_timeline_report():
 
 
 @pytest.mark.unit
+def test_bare_8_digit_remark_is_not_runway_state():
+    """METAR runway state uses RDRDR/ERCReReRBRBR, not a bare 8-digit remark."""
+    _, decoded = RemarksParser().parse(rmk("AO2 83311195"))
+    assert "Runway State (Remarks)" not in decoded
+
+
+@pytest.mark.unit
+def test_impossible_additive_temperature_groups_are_warned():
+    """FMH-1 additive temperature groups that contradict each other should be flagged."""
+    _, decoded = RemarksParser().parse(rmk("T02281017 10161 413230322"))
+    assert decoded["6-Hour Maximum Temperature"] == "16.1°C"
+    assert decoded["24-Hour Maximum Temperature"] == "-32.3°C"
+    assert "Additive Data Warning" in decoded
+    assert "6-hour maximum temperature is lower" in decoded["Additive Data Warning"]
+    assert "24-hour maximum temperature is lower" in decoded["Additive Data Warning"]
+
+
+@pytest.mark.unit
 def test_significant_cloud_remarks_plain_language():
     """Plain-language FMH-1 significant cloud remarks should decode."""
     _, decoded = RemarksParser().parse(rmk("CB W MOV E TCU NW APRNT ROTOR CLD NE"))
@@ -717,6 +735,16 @@ def test_virga_value_contains_virga():
     _, decoded = RemarksParser().parse(rmk("VIRGA"))
     val = decoded["Virga"].lower()
     assert "virga" in val or "precipitation" in val
+
+
+@pytest.mark.unit
+def test_virga_direction_range_with_and_is_not_corrupted():
+    """VIRGA DSNT SE-SW AND W should not expand N inside AND."""
+    _, decoded = RemarksParser().parse(rmk("VIRGA DSNT SE-SW AND W"))
+    assert decoded["Virga"] == (
+        "Virga (precipitation not reaching ground) distant "
+        "to the southeast through southwest and west"
+    )
 
 
 # ===========================================================================

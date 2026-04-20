@@ -18,8 +18,6 @@ from ..constants import (
     PRESSURE_TENDENCY_CHARACTERISTICS,
     RUNWAY_BRAKING_REMARKS,
     RUNWAY_DEPTH_SPECIAL,
-    RUNWAY_STATE_DEPOSIT_TYPES_REMARKS,
-    RUNWAY_STATE_EXTENT_REMARKS,
     SENSOR_STATUS,
     STATION_TYPES,
     WEATHER_DESCRIPTORS,
@@ -73,7 +71,7 @@ class RemarksParser:
             "Wind Shift": ["WSHFT"],
             "SLP Status": ["SLPNO"],
             "RVR Status": ["RVRNO"],
-            "Runway State (Remarks)": [r"8\d{7}"],
+            "Additive Data Warning": [],
             "Sensor Status": list(SENSOR_STATUS.keys()),
             "Maintenance Indicator": [MAINTENANCE_INDICATOR],
             "runway_winds": ["RWY", "WIND"],
@@ -95,7 +93,7 @@ class RemarksParser:
         if not match:
             return "", {}
 
-        remarks = match.group(1)
+        remarks = match.group(1).rstrip("=").rstrip()
         decoded: Dict[str, object] = {}
         positions: Dict[str, int] = {}  # Track position of each decoded key for sorting
 
@@ -363,6 +361,11 @@ class RemarksParser:
 
             decoded["24-Hour Maximum Temperature"] = f"{max_temp:.1f}°C"
             decoded["24-Hour Minimum Temperature"] = f"{min_temp:.1f}°C"
+            if max_temp < min_temp:
+                self._add_warning(
+                    decoded,
+                    "24-hour maximum temperature is lower than 24-hour minimum temperature; source group may be malformed",
+                )
 
     def _parse_6hr_temperatures(self, remarks: str, decoded: Dict) -> None:
         """Parse 6-hour max/min temperatures (1snTTT and 2snTTT formats)"""
@@ -373,6 +376,12 @@ class RemarksParser:
             temp_tenths = int(max_temp_6hr_match.group(2))
             temp_value = sign * temp_tenths / 10
             decoded["6-Hour Maximum Temperature"] = f"{temp_value:.1f}°C"
+            current_temp = self._decoded_celsius(decoded.get("Temperature (tenths)"))
+            if current_temp is not None and temp_value < current_temp:
+                self._add_warning(
+                    decoded,
+                    "6-hour maximum temperature is lower than current precise temperature; source group may be malformed",
+                )
 
         # 6-hour minimum temperature
         min_temp_6hr_match = re.search(r"(?<!\d)2([01])(\d{3})(?!\d)", remarks)
@@ -381,6 +390,12 @@ class RemarksParser:
             temp_tenths = int(min_temp_6hr_match.group(2))
             temp_value = sign * temp_tenths / 10
             decoded["6-Hour Minimum Temperature"] = f"{temp_value:.1f}°C"
+            current_temp = self._decoded_celsius(decoded.get("Temperature (tenths)"))
+            if current_temp is not None and temp_value > current_temp:
+                self._add_warning(
+                    decoded,
+                    "6-hour minimum temperature is higher than current precise temperature; source group may be malformed",
+                )
 
     # =========================================================================
     # Precipitation Information
@@ -699,10 +714,7 @@ class RemarksParser:
                 virga_parts.append(loc_map.get(location, location))
 
             if direction:
-                dir_text = direction
-                for abbr, full in DIRECTION_ABBREV.items():
-                    dir_text = dir_text.replace(abbr, full)
-                dir_text = dir_text.replace("-", " to ").replace("AND", "and")
+                dir_text = self._expand_direction_text(direction, range_separator=" through ")
                 virga_parts.append(f"to the {dir_text}")
 
             decoded["Virga"] = " ".join(virga_parts)
@@ -782,17 +794,11 @@ class RemarksParser:
                 acsl_parts.append(loc_map.get(location, location))
 
             if direction:
-                dir_text = direction
-                for abbr, full in DIRECTION_ABBREV.items():
-                    dir_text = dir_text.replace(abbr, full)
-                dir_text = dir_text.replace("-", " to ")
+                dir_text = self._expand_direction_text(direction, range_separator=" through ")
                 acsl_parts.append(f"to the {dir_text}")
 
             if movement:
-                mov_text = movement
-                for abbr, full in DIRECTION_ABBREV.items():
-                    mov_text = mov_text.replace(abbr, full)
-                mov_text = mov_text.replace("-", " to ")
+                mov_text = self._expand_direction_text(movement, range_separator=" through ")
                 acsl_parts.append(f"moving {mov_text}")
 
             decoded["ACSL"] = " ".join(acsl_parts)
@@ -919,46 +925,13 @@ class RemarksParser:
     # =========================================================================
 
     def _parse_runway_state_remarks(self, remarks: str, decoded: Dict) -> None:
-        """Parse runway state in remarks (8-group format: 8RDEddBB)
+        """Do not decode bare 8-digit remark groups as METAR runway state.
 
-        8 = group identifier
-        R = runway designator
-        D = deposit type
-        E = extent of contamination
-        dd = depth of deposit
-        BB = braking action/friction coefficient
+        WMO FM 15 encodes METAR runway state as RDRDR/ERCReReRBRBR or R/SNOCLO,
+        while FMH-1 uses 8/CLCMCH for additive cloud-type data. A bare group such
+        as 83311195 is not a METAR runway-state group and should remain undecoded.
         """
-        runway_state_rmk_match = re.search(r"(?<!\d)8(\d)(\d)(\d)(\d{2})(\d{2})(?!\d)", remarks)
-        if runway_state_rmk_match:
-            runway_digit = runway_state_rmk_match.group(1)
-            deposit = runway_state_rmk_match.group(2)
-            extent = runway_state_rmk_match.group(3)
-            depth_raw = runway_state_rmk_match.group(4)
-            braking_raw = runway_state_rmk_match.group(5)
-
-            # Decode runway
-            runway_num = int(runway_digit)
-            if runway_num <= 3:
-                runway_desc = f"Runway {runway_num}{runway_num}"
-            else:
-                runway_desc = f"Runway {runway_num}x"
-
-            # Deposit type
-            deposit_desc = RUNWAY_STATE_DEPOSIT_TYPES_REMARKS.get(deposit, f"Unknown ({deposit})")
-
-            # Extent of contamination
-            extent_desc = RUNWAY_STATE_EXTENT_REMARKS.get(extent, f"Unknown ({extent})")
-
-            # Depth of deposit
-            depth_desc = self._decode_runway_depth(depth_raw)
-
-            # Braking action
-            braking_val = int(braking_raw)
-            braking_desc = self._decode_braking_action(braking_val, braking_raw)
-
-            decoded["Runway State (Remarks)"] = (
-                f"{runway_desc}: {deposit_desc}, {extent_desc} coverage, " f"depth {depth_desc}, braking {braking_desc}"
-            )
+        return None
 
     @staticmethod
     def _decode_runway_depth(depth_raw: str) -> str:
@@ -1326,11 +1299,29 @@ class RemarksParser:
         return dict(sorted(decoded.items(), key=lambda x: positions.get(x[0], len(remarks))))
 
     @staticmethod
-    def _expand_direction_text(text: str) -> str:
+    def _expand_direction_text(text: str, range_separator: str = " to ") -> str:
         expanded = text
         for abbr, full in sorted(DIRECTION_ABBREV.items(), key=lambda item: -len(item[0])):
             expanded = re.sub(rf"\b{abbr}\b", full, expanded)
-        return expanded.replace("-", " to ")
+        expanded = re.sub(r"\s+AND\s+", " and ", expanded)
+        return re.sub(r"\s*-\s*", range_separator, expanded)
+
+    @staticmethod
+    def _decoded_celsius(value: object) -> Optional[float]:
+        if not isinstance(value, str) or not value.endswith("°C"):
+            return None
+        try:
+            return float(value[:-2])
+        except ValueError:
+            return None
+
+    @staticmethod
+    def _add_warning(decoded: Dict[str, object], message: str) -> None:
+        existing = decoded.get("Additive Data Warning")
+        if existing:
+            decoded["Additive Data Warning"] = f"{existing}; {message}"
+        else:
+            decoded["Additive Data Warning"] = message
 
     # =========================================================================
     # New methods: Tornadic Activity, Coded Obscurations, ACFT MSHP, NOSPECI
