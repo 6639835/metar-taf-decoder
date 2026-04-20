@@ -12,11 +12,11 @@ METAR_TYPE_PATTERN = r"^(METAR|SPECI)$"
 AUTO_PATTERN = r"\bAUTO\b"
 
 # Wind patterns
-# Supports normal format and extreme wind speeds (P99KT, ABV49MPS, ABV99KT)
-# Gust group allows P-prefix for above-max gust (e.g. 27070GP99KT per CAP 746 §4.19)
-WIND_PATTERN = r"(P)?(\d{3}|VRB)(\d{2,3})(G(P)?(\d{2,3}))?(?:KT|MPS|KMH)"
-WIND_EXTREME_PATTERN = r"ABV(\d{2,3})(KT|MPS)"
-WIND_VAR_PATTERN = r"(\d{3})V(\d{3})"
+# Supports normal format and P-prefixed above-limit mean/gust speeds
+# (e.g. 280P99KT, 27070GP99KT per WMO FM 15 Reg. 15.5.6).
+WIND_PATTERN = r"^(\d{3}|VRB)(P)?(\d{2,3})(?:G(P)?(\d{2,3}))?(KT|MPS|KMH)$"
+WIND_EXTREME_PATTERN = r"^ABV(\d{2,3})(KT|MPS)$"
+WIND_VAR_PATTERN = r"^(\d{3})V(\d{3})$"
 
 # Visibility patterns
 VISIBILITY_PATTERN = r"(?:^|\s)(?:(?:P?(\d{1,4})(?:/(\d))?(SM|KM|M)|(\d{4})(NDV)?|CAVOK|CLR))"
@@ -45,7 +45,7 @@ MISSING_WEATHER_PATTERN = r"^//$"  # // — present weather not observable (stan
 
 # Sky condition patterns
 # Height can be 3 digits or /// when height cannot be determined by auto system
-SKY_PATTERN = r"(SKC|CLR|FEW|SCT|BKN|OVC|VV|///)(\d{3}|///)(CB|TCU|///)?"
+SKY_PATTERN = r"^(SKC|CLR|FEW|SCT|BKN|OVC|VV|///)(\d{3}|///)(CB|TCU|///)?$"
 
 # Temperature patterns
 # Dewpoint is optional (e.g., 17/ when dewpoint not available)

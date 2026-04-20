@@ -67,7 +67,7 @@ class WeatherParser(BaseParser[WeatherPhenomenon], StopConditionMixin):
                     remaining = remaining[2:]
                 else:
                     break
-            if has_weather:
+            if has_weather and not remaining:
                 return WeatherPhenomenon(
                     intensity=intensity,
                     descriptor=descriptor,
@@ -123,7 +123,7 @@ class WeatherParser(BaseParser[WeatherPhenomenon], StopConditionMixin):
             else:
                 break
 
-        if has_weather:
+        if has_weather and not remaining:
             return WeatherPhenomenon(
                 intensity=intensity,
                 descriptor=descriptor,

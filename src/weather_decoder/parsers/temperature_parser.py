@@ -81,6 +81,10 @@ class TemperatureParser:
     def _create_forecast_datetime(day: int, hour: int, reference_time: Optional[datetime] = None) -> datetime:
         from ..parsers.time_parser import TimeParser
 
+        if hour == 24:
+            hour = 0
+            day += 1
+
         current_date = reference_time or datetime.now(timezone.utc)
         return TimeParser._build_datetime(current_date, day, hour, 0)
 

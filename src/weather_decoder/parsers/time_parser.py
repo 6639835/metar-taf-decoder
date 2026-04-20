@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import calendar
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple
 
 from ..models import TimeRange
@@ -35,7 +35,7 @@ class TimeParser:
     @staticmethod
     def _build_datetime(current_date: datetime, day: int, hour: int, minute: int = 0) -> datetime:
         year, month = TimeParser._resolve_month_year(current_date, day)
-        return datetime(year, month, day, hour, minute, tzinfo=timezone.utc)
+        return datetime(year, month, 1, hour, minute, tzinfo=timezone.utc) + timedelta(days=day - 1)
 
     @staticmethod
     def parse_observation_time(time_str: str, reference_time: Optional[datetime] = None) -> Optional[datetime]:

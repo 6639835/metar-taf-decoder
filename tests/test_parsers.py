@@ -208,6 +208,7 @@ class TestWindParser:
         assert self.parser.parse("NOSIG") is None
         assert self.parser.parse("") is None
         assert self.parser.parse("CAVOK") is None
+        assert self.parser.parse("18010KTXXX") is None
 
     @pytest.mark.unit
     def test_parse_gust_p_prefix(self) -> None:
@@ -215,6 +216,14 @@ class TestWindParser:
         assert wind is not None
         assert wind.gust == 99
         assert wind.gust_is_above
+
+    @pytest.mark.unit
+    def test_parse_mean_speed_p_prefix(self) -> None:
+        wind = self.parser.parse("270P99KT")
+        assert wind is not None
+        assert wind.direction == 270
+        assert wind.speed == 99
+        assert wind.is_above
 
     @pytest.mark.unit
     def test_parse_3digit_speed(self) -> None:
@@ -514,6 +523,7 @@ class TestWeatherParser:
         assert self.parser.parse("CAVOK") is None
         assert self.parser.parse("BKN050") is None
         assert self.parser.parse("") is None
+        assert self.parser.parse("BRAVO") is None
 
     @pytest.mark.unit
     def test_extract_all_stops_at_trend(self) -> None:
@@ -623,6 +633,28 @@ class TestSkyParser:
         assert sky is not None
         assert sky.unknown_height
         assert sky.height is None
+
+    @pytest.mark.unit
+    def test_parse_unknown_amount_with_height(self) -> None:
+        sky = self.parser.parse("///015")
+        assert sky is not None
+        assert sky.coverage == "///"
+        assert sky.height == 1500
+
+    @pytest.mark.unit
+    def test_parse_unknown_cloud_type(self) -> None:
+        sky = self.parser.parse("BKN025///")
+        assert sky is not None
+        assert sky.height == 2500
+        assert sky.unknown_type
+
+    @pytest.mark.unit
+    def test_parse_unknown_amount_height_cb(self) -> None:
+        sky = self.parser.parse("//////CB")
+        assert sky is not None
+        assert sky.coverage == "///"
+        assert sky.unknown_height
+        assert sky.cb
 
     @pytest.mark.unit
     def test_parse_vv010(self) -> None:
@@ -748,6 +780,16 @@ class TestTemperatureParser:
         assert len(forecasts) == 1
         assert forecasts[0].value == -5
         assert forecasts[0].kind == "min"
+
+    @pytest.mark.unit
+    def test_extract_temperature_forecast_hour_24_rollover(self) -> None:
+        ref = datetime(2024, 4, 30, 18, 0, tzinfo=timezone.utc)
+        tokens = ["TX25/3024Z"]
+        forecasts = self.parser.extract_temperature_forecasts(tokens, reference_time=ref)
+        assert len(forecasts) == 1
+        assert forecasts[0].time.month == 5
+        assert forecasts[0].time.day == 1
+        assert forecasts[0].time.hour == 0
 
     @pytest.mark.unit
     def test_parse_temperature_component_negative(self) -> None:
@@ -1645,6 +1687,18 @@ class TestTimeParser:
         assert period.start.day == 7
         assert period.end.hour == 0
         assert period.end.day == 8
+
+    @pytest.mark.unit
+    def test_parse_valid_period_hour_24_month_rollover(self) -> None:
+        ref = datetime(2024, 4, 30, 18, 0, tzinfo=timezone.utc)
+        period = TimeParser.parse_valid_period("3024/0112", reference_time=ref)
+        assert period is not None
+        assert period.start.month == 5
+        assert period.start.day == 1
+        assert period.start.hour == 0
+        assert period.end.month == 5
+        assert period.end.day == 1
+        assert period.end.hour == 12
 
 
 # ===========================================================================

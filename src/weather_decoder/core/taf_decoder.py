@@ -100,20 +100,51 @@ class TafDecoder:
         return TafData(**report.__dict__)
 
     def _preprocess_taf(self, taf: str) -> str:
-        taf = re.sub(r"(\S)FM(\d{6})", r"\1 FM\2", taf)
-        taf = re.sub(r"FM(\d{6})(\S)", r"FM\1 \2", taf)
+        tokens = taf.split()
+        body_start = self._find_body_start(tokens)
+        prefix = " ".join(tokens[:body_start])
+        body = " ".join(tokens[body_start:])
+
+        body = re.sub(r"(\S)FM(\d{6})", r"\1 FM\2", body)
+        body = re.sub(r"FM(\d{6})(\S)", r"FM\1 \2", body)
 
         for indicator in CHANGE_INDICATORS:
+            if indicator == "FM":
+                continue
             pattern = r"(\S)(" + indicator + r")"
-            taf = re.sub(pattern, r"\1 \2", taf)
+            body = re.sub(pattern, r"\1 \2", body)
+
+        body = re.sub(r"\b(BECMG|TEMPO)(\d{4}/\d{4})\b", r"\1 \2", body)
+        body = re.sub(r"\b(PROB(?:30|40))(TEMPO|BECMG)\b", r"\1 \2", body)
+        body = re.sub(r"\b(PROB(?:30|40))(\d{4}/\d{4})\b", r"\1 \2", body)
 
         for cloud_type in ["FEW", "SCT", "BKN", "OVC"]:
             pattern = r"(\S)(" + cloud_type + r")"
-            taf = re.sub(pattern, r"\1 \2", taf)
+            body = re.sub(pattern, r"\1 \2", body)
 
-        taf = re.sub(r"PROB(\d{2})(\S)", r"PROB\1 \2", taf)
+        body = re.sub(r"PROB(\d{2})(\S)", r"PROB\1 \2", body)
 
-        return taf
+        return " ".join(part for part in (prefix, body) if part)
+
+    @staticmethod
+    def _find_body_start(tokens: List[str]) -> int:
+        index = 0
+        if index < len(tokens) and tokens[index] == "TAF":
+            index += 1
+
+        while index < len(tokens) and tokens[index] in {"AMD", "COR"}:
+            index += 1
+
+        if index < len(tokens) and COMPILED_PATTERNS["station_id"].match(tokens[index]):
+            index += 1
+
+        if index < len(tokens) and re.match(r"\d{6}Z", tokens[index]):
+            index += 1
+
+        if index < len(tokens) and COMPILED_PATTERNS["valid_period"].match(tokens[index]):
+            index += 1
+
+        return index
 
     def _extract_header(self, parts: List[str]) -> Tuple[str, datetime, TimeRange, bool, bool, bool, bool]:
         if parts and parts[0] == "TAF":

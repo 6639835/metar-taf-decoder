@@ -29,13 +29,12 @@ class WindParser(BaseParser[Wind]):
         if not match:
             return None
 
-        is_above = match.group(1) == "P"
-        direction_str = match.group(2)
+        direction_str = match.group(1)
+        is_above = match.group(2) == "P"
         speed = int(match.group(3))
-        # Group 4 = G(P)?(digits), group 5 = optional P, group 6 = digits
-        gust_is_above = match.group(5) == "P" if match.group(5) is not None else False
-        gust = int(match.group(6)) if match.group(6) else None
-        unit = self._determine_unit(token)
+        gust_is_above = match.group(4) == "P" if match.group(4) is not None else False
+        gust = int(match.group(5)) if match.group(5) else None
+        unit = match.group(6)
 
         direction = None if direction_str == "VRB" else int(direction_str)
         is_variable = direction_str == "VRB"

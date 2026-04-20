@@ -452,6 +452,26 @@ def test_taf_cor_correction():
 
 
 @pytest.mark.integration
+def test_taf_preprocess_preserves_station_with_fm_substring():
+    """TAF preprocessing must not split station identifiers that contain FM."""
+    decoder = TafDecoder()
+    result = decoder.decode("TAF KFMH 061730Z 0618/0724 28008KT 9999 FEW030")
+
+    assert result.station_id == "KFMH"
+    assert result.forecast_periods[0].wind is not None
+
+
+@pytest.mark.integration
+def test_taf_preprocess_preserves_station_with_cloud_substring():
+    """TAF preprocessing must not split station identifiers that contain cloud codes."""
+    decoder = TafDecoder()
+    result = decoder.decode("TAF KOVC 061730Z 0618/0724 28008KT 9999 FEW030")
+
+    assert result.station_id == "KOVC"
+    assert result.forecast_periods[0].sky[0].coverage == "FEW"
+
+
+@pytest.mark.integration
 def test_taf_cnl_cancellation():
     """Test TAF with CNL (cancellation) indicator."""
     decoder = TafDecoder()
@@ -482,6 +502,53 @@ def test_taf_with_prob30_tempo():
     assert any(
         p.change_type == "PROB" and p.probability == 30 for p in result.forecast_periods
     )
+
+
+@pytest.mark.integration
+def test_taf_compact_becmg_with_time_range():
+    """TAF preprocessing should split BECMG from attached time ranges."""
+    decoder = TafDecoder()
+    result = decoder.decode(
+        "TAF KJFK 061730Z 0618/0724 28008KT 9999 FEW030BECMG0620/0622 VRB05KT"
+    )
+
+    becmg = [p for p in result.forecast_periods if p.change_type == "BECMG"]
+    assert len(becmg) == 1
+    assert becmg[0].from_time is not None
+    assert becmg[0].to_time is not None
+    assert becmg[0].wind is not None
+    assert becmg[0].wind.is_variable
+
+
+@pytest.mark.integration
+def test_taf_compact_tempo_with_time_range():
+    """TAF preprocessing should split TEMPO from attached time ranges."""
+    decoder = TafDecoder()
+    result = decoder.decode(
+        "TAF KJFK 061730Z 0618/0724 28008KT 9999 FEW030TEMPO0620/0622 -RA"
+    )
+
+    tempo = [p for p in result.forecast_periods if p.change_type == "TEMPO"]
+    assert len(tempo) == 1
+    assert tempo[0].from_time is not None
+    assert tempo[0].to_time is not None
+    assert any("rain" in phenomenon for wx in tempo[0].weather for phenomenon in wx.phenomena)
+
+
+@pytest.mark.integration
+def test_taf_compact_prob30_tempo_with_time_range():
+    """TAF preprocessing should split compact PROB30 TEMPO time ranges."""
+    decoder = TafDecoder()
+    result = decoder.decode(
+        "TAF KJFK 061730Z 0618/0724 28008KT 9999 FEW030PROB30TEMPO0620/0622 -RA"
+    )
+
+    prob = [p for p in result.forecast_periods if p.change_type == "PROB"]
+    assert len(prob) == 1
+    assert prob[0].probability == 30
+    assert prob[0].qualifier == "TEMPO"
+    assert prob[0].from_time is not None
+    assert prob[0].to_time is not None
 
 
 @pytest.mark.integration
