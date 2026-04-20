@@ -15,7 +15,7 @@ from .models import (
     TafReport,
 )
 
-__version__ = "1.1.6"
+__version__ = "1.1.7"
 __author__ = "Justin"
 
 __all__ = [
