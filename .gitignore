@@ -20,12 +20,14 @@ MANIFEST
 
 # Testing
 .pytest_cache/
+.benchmarks/
 .coverage
 coverage.xml
 htmlcov/
 
-# Type checking
+# Type checking / linting caches
 .mypy_cache/
+.ruff_cache/
 
 # Environment variables
 .env

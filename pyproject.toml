@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "weather-decoder"
-version = "1.1.4"
+version = "1.1.6"
 description = "A comprehensive METAR and TAF decoder for aviation weather reports"
 readme = "README.md"
 license = { text = "MIT" }
@@ -34,8 +34,11 @@ dev = [
 ]
 
 [project.urls]
+Homepage = "https://github.com/6639835/metar-taf-decoder"
 Source = "https://github.com/6639835/metar-taf-decoder"
 "Bug Reports" = "https://github.com/6639835/metar-taf-decoder/issues"
+Changelog = "https://github.com/6639835/metar-taf-decoder/blob/main/CHANGELOG.md"
+"Code of Conduct" = "https://github.com/6639835/metar-taf-decoder/blob/main/CODE_OF_CONDUCT.md"
 
 [project.scripts]
 decode-metar = "weather_decoder.cli.metar_cli:main"
@@ -46,6 +49,9 @@ package-dir = { "" = "src" }
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+weather_decoder = ["py.typed"]
 
 [tool.ruff]
 line-length = 88

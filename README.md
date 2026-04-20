@@ -1,5 +1,13 @@
 # Weather Decoder
 
+[![CI](https://github.com/6639835/metar-taf-decoder/actions/workflows/ci.yml/badge.svg)](https://github.com/6639835/metar-taf-decoder/actions/workflows/ci.yml)
+[![Code Quality](https://github.com/6639835/metar-taf-decoder/actions/workflows/code-quality.yml/badge.svg)](https://github.com/6639835/metar-taf-decoder/actions/workflows/code-quality.yml)
+[![Security](https://github.com/6639835/metar-taf-decoder/actions/workflows/security.yml/badge.svg)](https://github.com/6639835/metar-taf-decoder/actions/workflows/security.yml)
+[![Python versions](https://img.shields.io/badge/python-3.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Code style: ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![Checked with mypy](https://www.mypy-lang.org/static/mypy_badge.svg)](https://mypy-lang.org/)
+
 A comprehensive, modular Python library for parsing and decoding aviation weather reports (METAR and TAF).
 
 ## Features
@@ -139,12 +147,20 @@ print(report.wind, report.visibility)
 
 ## Contributing
 
-Contributions are welcome! The modular architecture makes it easy to:
+Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for
+the development workflow, coding standards, and PR expectations. By
+participating you agree to abide by the [Code of Conduct](CODE_OF_CONDUCT.md).
+
+The modular architecture makes it easy to:
 
 1. Add new parsers for additional weather components
 2. Improve existing parsers
 3. Add support for new weather report formats
 4. Enhance the CLI tools
+
+To report a security vulnerability, please follow the process described in
+[SECURITY.md](SECURITY.md). User-visible changes are tracked in
+[CHANGELOG.md](CHANGELOG.md).
 
 ## Development
 
