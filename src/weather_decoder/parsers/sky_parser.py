@@ -7,7 +7,7 @@ from typing import List, Optional
 
 from ..constants import SKY_CONDITIONS, TREND_TYPES
 from ..models import SkyCondition
-from ..utils.patterns import SKY_PATTERN
+from ..constants.patterns import SKY_PATTERN
 from .base_parser import BaseParser, StopConditionMixin
 from .token_stream import TokenStream
 

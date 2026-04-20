@@ -9,7 +9,7 @@ from typing import List, Tuple
 from ..data.metar_data import MetarData
 from ..models import MilitaryColorCode, MetarReport
 from ..parsers.pressure_parser import PressureParser
-from ..parsers.remarks_parser import RemarksParser
+from ..parsers.remarks import RemarksParser
 from ..parsers.runway_parser import RunwayParser
 from ..parsers.sea_parser import SeaParser
 from ..parsers.sky_parser import SkyParser
@@ -22,7 +22,7 @@ from ..parsers.weather_parser import WeatherParser
 from ..parsers.wind_parser import WindParser
 from ..parsers.windshear_parser import WindShearParser
 from ..constants import MILITARY_COLOR_CODES
-from ..utils.patterns import COMPILED_PATTERNS
+from ..constants.patterns import COMPILED_PATTERNS
 from ..validators import MetarValidator
 
 

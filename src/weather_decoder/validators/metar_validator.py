@@ -23,7 +23,7 @@ from ..parsers.token_stream import TokenStream
 from ..parsers.visibility_parser import VisibilityParser
 from ..parsers.weather_parser import WeatherParser
 from ..parsers.wind_parser import WindParser
-from ..utils.patterns import COMPILED_PATTERNS
+from ..constants.patterns import COMPILED_PATTERNS
 
 
 class MetarValidator:

@@ -1,7 +1,6 @@
-"""Formatting utilities for weather data.
+"""Deprecated compatibility shim for common formatting helpers.
 
-This module is maintained for backward compatibility.
-New code should import from weather_decoder.formatters instead.
+Import from ``weather_decoder.formatters.common`` instead.
 """
 
 from ..formatters.common import (

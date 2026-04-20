@@ -1,35 +1,18 @@
-"""Constants and lookup tables for weather decoding
+"""Constants and lookup tables for weather decoding."""
 
-This package provides organized constants for decoding METAR and TAF reports.
-Constants are grouped by domain for easier maintenance.
-"""
-
-# Change indicators and trends
-from .change_codes import (
+from .common import (
     CHANGE_INDICATORS,
-    TREND_TYPES,
-)
-
-# Location and direction codes
-from .location_codes import (
+    CLOUD_TYPE_CODES,
+    CLOUD_TYPES,
+    CODE_GLOSSARY,
     DIRECTION_ABBREV,
     LIGHTNING_FREQUENCY,
     LIGHTNING_TYPES,
     LOCATION_INDICATORS,
-)
-
-# Military codes
-from .military_codes import (
+    MAINTENANCE_INDICATOR,
     MILITARY_COLOR_CODES,
-)
-
-# Pressure-related codes
-from .pressure_codes import (
     PRESSURE_TENDENCY_CHARACTERISTICS,
-)
-
-# Runway-related codes
-from .runway_codes import (
+    REPORT_MODIFIERS,
     RUNWAY_BRAKING,
     RUNWAY_BRAKING_REMARKS,
     RUNWAY_DEPOSIT_TYPES,
@@ -38,35 +21,15 @@ from .runway_codes import (
     RUNWAY_STATE_DEPOSIT_TYPES_REMARKS,
     RUNWAY_STATE_EXTENT_REMARKS,
     RVR_TRENDS,
-)
-
-# Sky condition codes
-from .sky_codes import (
-    CLOUD_TYPE_CODES,
-    CLOUD_TYPES,
+    SENSOR_STATUS,
     SKY_CONDITIONS,
-)
-
-# Weather-related codes
-from .weather_codes import (
+    SPECIAL_CONDITIONS,
+    SPECIAL_VALUES,
+    STATION_TYPES,
+    TREND_TYPES,
     WEATHER_DESCRIPTORS,
     WEATHER_INTENSITY,
     WEATHER_PHENOMENA,
-)
-
-# Report/station related codes (shared by METAR/TAF/remarks)
-from .report_codes import (
-    REPORT_MODIFIERS,
-    SPECIAL_CONDITIONS,
-    SPECIAL_VALUES,
-)
-from .station_codes import (
-    MAINTENANCE_INDICATOR,
-    SENSOR_STATUS,
-    STATION_TYPES,
-)
-from .glossary_codes import (
-    CODE_GLOSSARY,
 )
 
 __all__ = [

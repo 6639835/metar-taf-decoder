@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple
 
 from ..models import TimeRange
-from ..utils.patterns import DATETIME_PATTERN, FM_PATTERN, VALID_PERIOD_PATTERN
+from ..constants.patterns import DATETIME_PATTERN, FM_PATTERN, VALID_PERIOD_PATTERN
 
 
 class TimeParser:

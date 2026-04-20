@@ -1,10 +1,9 @@
-"""Constants and lookup tables for weather decoding.
+"""Deprecated compatibility shim for weather constants.
 
-This module is maintained for backward compatibility.
-New code should import from weather_decoder.constants instead.
+Import from ``weather_decoder.constants.common`` instead.
 """
 
-from ..constants import (
+from ..constants.common import (
     CHANGE_INDICATORS,
     CLOUD_TYPE_CODES,
     CLOUD_TYPES,

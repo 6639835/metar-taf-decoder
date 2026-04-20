@@ -67,7 +67,7 @@ from weather_decoder.constants.report_codes import (
 )
 from weather_decoder.constants.glossary_codes import CODE_GLOSSARY
 
-from weather_decoder.utils.formatters import (
+from weather_decoder.formatters.common import (
     format_pressure,
     format_sky_condition,
     format_temperature,
@@ -75,7 +75,7 @@ from weather_decoder.utils.formatters import (
     format_weather_group,
     format_wind,
 )
-from weather_decoder.utils.patterns import COMPILED_PATTERNS
+from weather_decoder.constants.patterns import COMPILED_PATTERNS
 
 from weather_decoder.parsers.time_parser import TimeParser
 

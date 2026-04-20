@@ -6,7 +6,7 @@ import re
 from typing import Optional, Tuple
 
 from ..models import Wind
-from ..utils.patterns import WIND_EXTREME_PATTERN, WIND_PATTERN, WIND_VAR_PATTERN
+from ..constants.patterns import WIND_EXTREME_PATTERN, WIND_PATTERN, WIND_VAR_PATTERN
 from .base_parser import BaseParser
 from .token_stream import TokenStream
 

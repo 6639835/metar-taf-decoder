@@ -3,7 +3,7 @@
 from .base_parser import BaseParser, StopConditionMixin
 from .icing_parser import IcingParser
 from .pressure_parser import PressureParser
-from .remarks_parser import RemarksParser
+from .remarks import RemarksParser, parse_remarks
 from .runway_parser import RunwayParser
 from .sea_parser import SeaParser
 from .sky_parser import SkyParser
@@ -24,6 +24,7 @@ __all__ = [
     "IcingParser",
     "PressureParser",
     "RemarksParser",
+    "parse_remarks",
     "RunwayParser",
     "SeaParser",
     "SkyParser",

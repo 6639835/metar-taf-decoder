@@ -20,7 +20,7 @@ from ..parsers.weather_parser import WeatherParser
 from ..parsers.wind_parser import WindParser
 from ..parsers.windshear_parser import WindShearParser
 from ..constants import CHANGE_INDICATORS
-from ..utils.patterns import COMPILED_PATTERNS, FM_PATTERN
+from ..constants.patterns import COMPILED_PATTERNS, FM_PATTERN
 from ..validators import TafValidator
 
 

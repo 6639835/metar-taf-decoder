@@ -6,7 +6,7 @@ import re
 from typing import Optional
 
 from ..models import Pressure
-from ..utils.patterns import (
+from ..constants.patterns import (
     ALT_PATTERN,
     ALT_QNH_PATTERN,
     ALTIMETER_PATTERN,
