@@ -30,6 +30,7 @@ relevant so reviewers can reproduce.
 ## Checklist
 
 - [ ] I have read the [contributing guide](../CONTRIBUTING.md).
+- [ ] I have read and will follow the [Code of Conduct](../CODE_OF_CONDUCT.md).
 - [ ] My code follows the project's style (`ruff format`, `ruff check`).
 - [ ] `mypy` and `pytest` pass locally.
 - [ ] I have added or updated tests that prove my fix is effective or that my

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Added `CODE_OF_CONDUCT.md` and linked it from contributor-facing project
+  documentation.
+
 ### Changed
 - Disabled pip caching for release workflow install smoke tests so checks install the
   freshly built package artifact.

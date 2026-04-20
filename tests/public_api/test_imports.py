@@ -1,4 +1,4 @@
-"""Public import surface and compatibility shims."""
+"""Public import surface."""
 
 from weather_decoder import (
     MetarReport,
@@ -12,11 +12,6 @@ from weather_decoder import (
 from weather_decoder.constants.common import WEATHER_PHENOMENA
 from weather_decoder.formatters.common import format_wind
 from weather_decoder.parsers.remarks import RemarksParser, parse_remarks
-from weather_decoder.parsers.remarks_parser import RemarksParser as LegacyRemarksParser
-from weather_decoder.utils.constants import (
-    WEATHER_PHENOMENA as LEGACY_WEATHER_PHENOMENA,
-)
-from weather_decoder.utils.formatters import format_wind as legacy_format_wind
 
 
 def test_package_root_exports_decode_entry_points_and_models():
@@ -29,10 +24,10 @@ def test_package_root_exports_decode_entry_points_and_models():
     assert Visibility.__name__ == "Visibility"
 
 
-def test_moved_module_shims_still_import():
-    assert LEGACY_WEATHER_PHENOMENA is WEATHER_PHENOMENA
-    assert legacy_format_wind is format_wind
-    assert LegacyRemarksParser is RemarksParser
+def test_current_public_modules_import():
+    assert WEATHER_PHENOMENA
+    assert callable(format_wind)
+    assert RemarksParser.__name__ == "RemarksParser"
     assert callable(parse_remarks)
 
 

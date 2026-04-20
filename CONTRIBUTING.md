@@ -3,8 +3,9 @@
 Thanks for taking the time to contribute! This document describes how to
 report issues, propose changes, and develop locally.
 
-By participating in this project you agree to abide by the
-[Code of Conduct](CODE_OF_CONDUCT.md).
+By participating in this project, you agree to follow the
+[Code of Conduct](CODE_OF_CONDUCT.md). Keep discussion respectful,
+constructive, and focused on the work.
 
 ## Ways to contribute
 

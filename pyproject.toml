@@ -57,7 +57,7 @@ weather_decoder = ["py.typed"]
 line-length = 88
 target-version = "py39"
 src = ["src", "tests"]
-extend-exclude = ["archive", "docs"]
+extend-exclude = ["docs"]
 
 [tool.ruff.lint]
 select = ["E4", "E7", "E9", "F"]
@@ -96,7 +96,6 @@ omit = [
     "*/tests/*",
     "*/test_*",
     "*/__pycache__/*",
-    "*/archive/*",
     "*/cli/*",
 ]
 
