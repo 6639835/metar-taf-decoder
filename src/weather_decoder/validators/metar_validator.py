@@ -92,12 +92,13 @@ class MetarValidator:
         if runway_states and station_id and station_id.upper().startswith("E"):
             warnings.append("Runway state groups (MOTNE) are not used in UK METARs since CAP 746 Issue 6")
 
+        is_us_station = self._is_us_station(station_id)
         if len(sky_conditions) > 6:
             warnings.append(
                 f"More than 6 cloud layers reported ({len(sky_conditions)}); "
                 "FMH-1 §9.5.2 allows a maximum of 6 (ICAO/WMO allow up to 4)"
             )
-        elif len(sky_conditions) > 4:
+        elif len(sky_conditions) > 4 and not is_us_station:
             warnings.append(
                 f"More than 4 cloud layers reported ({len(sky_conditions)}); "
                 "ICAO/WMO specifications allow a maximum of 4 "
@@ -294,6 +295,12 @@ class MetarValidator:
                 i += 1
                 continue
 
+            # Trend forecast content is a self-contained trailing section. Once a
+            # trend starts, changed elements such as wind/visibility/clouds no
+            # longer participate in METAR body-order validation.
+            if category == "trend":
+                break
+
             if order[category] < max_seen:
                 warnings.append(
                     f"METAR body elements are out of order near token '{token}' "
@@ -362,6 +369,9 @@ class MetarValidator:
 
         next_token = stream.peek()
         if next_token is not None and re.match(r"\d{6}Z", next_token):
+            stream.pop(0)
+
+        if stream.peek() == "COR":
             stream.pop(0)
 
         if stream.peek() == "AUTO":

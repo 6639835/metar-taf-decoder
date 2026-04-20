@@ -164,6 +164,10 @@ class MetarDecoder:
             time_str = stream.pop(0)
             observation_time = self.time_parser.parse_observation_time(time_str) or observation_time
 
+        if stream.peek() == "COR":
+            is_corrected = True
+            stream.pop(0)
+
         if stream.peek() == "AUTO":
             is_automated = True
             stream.pop(0)

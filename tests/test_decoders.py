@@ -177,6 +177,16 @@ def test_metar_cor_corrected():
 
 
 @pytest.mark.integration
+def test_metar_cor_after_observation_time():
+    """FMH-1 positions COR after the observation time in METAR/SPECI."""
+    decoder = MetarDecoder()
+    result = decoder.decode("METAR KPHX 190651Z COR 03008KT 10SM TS SCT100CB 26/20 A2984")
+
+    assert result.is_corrected is True
+    assert result.wind.direction == 30
+
+
+@pytest.mark.integration
 def test_metar_trend_nosig():
     """Test METAR with NOSIG (no significant change) trend."""
     decoder = MetarDecoder()

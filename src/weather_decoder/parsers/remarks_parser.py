@@ -56,9 +56,16 @@ class RemarksParser:
             "Peak Wind": ["PK WND"],
             "Surface Visibility": ["SFC VIS"],
             "Tower Visibility": ["TWR VIS"],
+            "Visibility Lower": ["VIS LWR"],
+            "Directional Visibility (Remarks)": [],
             "Lightning": ["LTG"],
             "Virga": ["VIRGA"],
             "Thunderstorm Location": ["TS OHD", "TS DSNT", "TS VC", "TS ALQDS", "TS MOV"],
+            "Weather Location": ["SHRA", "VCSH"],
+            "PIREP Turbulence": ["TURB OBS"],
+            "PIREP Clouds": ["PIREP"],
+            "Forecast Amendment": ["FCST AMD"],
+            "Forecast Trends": ["FCST AMD", "TEMPO", "BECMG"],
             "ACSL": ["ACSL"],
             "Cloud Types": ["SC", "AC", "ST", "CU", "CB", "CI", "AS", "NS", "SN", "TCU", "CC", "CS"],
             "Density Altitude": ["DENSITY ALT"],
@@ -75,6 +82,7 @@ class RemarksParser:
             "Sensor Status": list(SENSOR_STATUS.keys()),
             "Maintenance Indicator": [MAINTENANCE_INDICATOR],
             "runway_winds": ["RWY", "WIND"],
+            "location_winds": ["WIND"],
         }
 
     _VIS_VALUE_PATTERN = r"(?:\d+\s+\d+/\d+|\d+/\d+|\d+)"
@@ -100,6 +108,7 @@ class RemarksParser:
         # Parse all remark types
         self._parse_station_type(remarks, decoded, positions)
         self._parse_runway_winds(remarks, decoded)
+        self._parse_location_winds(remarks, decoded)
         self._parse_sea_level_pressure(remarks, decoded)
         self._parse_pressure_tendency(remarks, decoded)
         self._parse_temperature_tenths(remarks, decoded)
@@ -113,6 +122,8 @@ class RemarksParser:
         self._parse_ice_accretion(remarks, decoded)
         self._parse_variable_visibility(remarks, decoded)
         self._parse_sector_visibility(remarks, decoded)
+        self._parse_lower_visibility(remarks, decoded)
+        self._parse_jma_directional_visibility(remarks, decoded)
         self._parse_visibility_second_location(remarks, decoded)
         report_time = self._extract_report_time(metar)
         self._parse_thunderstorm_begin_end(remarks, decoded, report_time)
@@ -128,6 +139,7 @@ class RemarksParser:
         self._parse_tower_visibility(remarks, decoded)
         self._parse_lightning(remarks, decoded)
         self._parse_virga(remarks, decoded)
+        self._parse_directional_weather(remarks, decoded)
         self._parse_thunderstorm_location(remarks, decoded)
         self._parse_acsl(remarks, decoded)
         self._parse_significant_cloud_remarks(remarks, decoded)
@@ -148,6 +160,9 @@ class RemarksParser:
         self._parse_rvr_status(remarks, decoded)
         self._parse_runway_state_remarks(remarks, decoded)
         self._parse_sensor_status(remarks, decoded)
+        self._parse_jma_pirep_turbulence(remarks, decoded)
+        self._parse_pirep_cloud_layers(remarks, decoded)
+        self._parse_jma_forecast_amendment(remarks, decoded)
         self._parse_ri_precip_intensity(remarks, decoded)
         self._parse_acft_mshp(remarks, decoded)
         self._parse_nospeci(remarks, decoded)
@@ -222,6 +237,37 @@ class RemarksParser:
                 if var_from and var_to:
                     wind_info["variable_direction"] = [int(var_from), int(var_to)]
                 decoded["runway_winds"].append(wind_info)
+
+    def _parse_location_winds(self, remarks: str, decoded: Dict) -> None:
+        """Parse location-specific plain-language wind remarks.
+
+        Examples:
+          HARBOR WIND 10020G27KT
+          ROOF WIND 13015G27KT
+        """
+        location_pattern = r"(?:HARBOR|ROOF|TOWER|TWR|SFC|RWY\d{2}[LCR]?)"
+        matches = re.finditer(
+            rf"\b({location_pattern})\s+WIND\s+"
+            r"(\d{3})(\d{2,3})(?:G(\d{2,3}))?KT\b",
+            remarks,
+        )
+        winds: List[Dict[str, object]] = []
+        for match in matches:
+            location, direction, speed, gust = match.groups()
+            if location in {"PK", "RWY"} or location.endswith("PK"):
+                continue
+            wind_info: Dict[str, object] = {
+                "location": location.title(),
+                "direction": int(direction),
+                "speed": int(speed),
+                "unit": "KT",
+            }
+            if gust:
+                wind_info["gust"] = int(gust)
+            winds.append(wind_info)
+
+        if winds:
+            decoded["location_winds"] = winds
 
     def _parse_peak_wind(self, remarks: str, decoded: Dict) -> None:
         """Parse peak wind information — FMH-1 §12.7.1.d.
@@ -337,7 +383,7 @@ class RemarksParser:
 
     def _parse_temperature_tenths(self, remarks: str, decoded: Dict) -> None:
         """Parse temperature/dewpoint to tenths (TsnTTTsnTTT format)"""
-        temp_match = re.search(r"T([01])(\d{3})([01])(\d{3})", remarks)
+        temp_match = re.search(r"(?<!\S)T([01])(\d{3})([01])(\d{3})(?!\S)", remarks)
         if temp_match:
             temp_sign = -1 if temp_match.group(1) == "1" else 1
             temp_tenths = int(temp_match.group(2))
@@ -349,7 +395,7 @@ class RemarksParser:
 
     def _parse_24hr_temperature_extremes(self, remarks: str, decoded: Dict) -> None:
         """Parse 24-hour temperature extremes (4snTTTsnTTT format)"""
-        temp_extremes_match = re.search(r"(?<!\d)4([01])(\d{3})([01])(\d{3})(?!\d)", remarks)
+        temp_extremes_match = re.search(r"(?<!\S)4([01])(\d{3})([01])(\d{3})(?!\S)", remarks)
         if temp_extremes_match:
             max_sign = -1 if temp_extremes_match.group(1) == "1" else 1
             max_temp_tenths = int(temp_extremes_match.group(2))
@@ -370,7 +416,7 @@ class RemarksParser:
     def _parse_6hr_temperatures(self, remarks: str, decoded: Dict) -> None:
         """Parse 6-hour max/min temperatures (1snTTT and 2snTTT formats)"""
         # 6-hour maximum temperature
-        max_temp_6hr_match = re.search(r"(?<!\d)1([01])(\d{3})(?!\d)", remarks)
+        max_temp_6hr_match = re.search(r"(?<!\S)1([01])(\d{3})(?!\S)", remarks)
         if max_temp_6hr_match:
             sign = -1 if max_temp_6hr_match.group(1) == "1" else 1
             temp_tenths = int(max_temp_6hr_match.group(2))
@@ -384,7 +430,7 @@ class RemarksParser:
                 )
 
         # 6-hour minimum temperature
-        min_temp_6hr_match = re.search(r"(?<!\d)2([01])(\d{3})(?!\d)", remarks)
+        min_temp_6hr_match = re.search(r"(?<!\S)2([01])(\d{3})(?!\S)", remarks)
         if min_temp_6hr_match:
             sign = -1 if min_temp_6hr_match.group(1) == "1" else 1
             temp_tenths = int(min_temp_6hr_match.group(2))
@@ -454,6 +500,28 @@ class RemarksParser:
             max_vis_display = str(int(max_vis)) if max_vis == int(max_vis) else max_vis_str
 
             decoded["Variable Visibility"] = f"{min_vis_display} to {max_vis_display} statute miles"
+
+    def _parse_lower_visibility(self, remarks: str, decoded: Dict) -> None:
+        """Parse VIS LWR directional lower-visibility remarks."""
+        match = re.search(
+            rf"\bVIS\s+LWR\s+({self._DIRECTION_PATTERN}(?:-{self._DIRECTION_PATTERN})*)\b",
+            remarks,
+        )
+        if match:
+            decoded["Visibility Lower"] = (
+                f"Visibility lower to the {self._expand_direction_text(match.group(1), range_separator=' through ')}"
+            )
+
+    def _parse_jma_directional_visibility(self, remarks: str, decoded: Dict) -> None:
+        """Parse JMA directional visibility remarks such as 3500E-S."""
+        matches = re.findall(rf"\b(\d{{4}})({self._DIRECTION_PATTERN}(?:-{self._DIRECTION_PATTERN})*)\b", remarks)
+        if not matches:
+            return
+
+        decoded["Directional Visibility (JMA)"] = [
+            f"{int(value)} m to the {self._expand_direction_text(direction, range_separator=' through ')}"
+            for value, direction in matches
+        ]
 
     def _parse_surface_visibility(self, remarks: str, decoded: Dict) -> None:
         """Parse surface visibility (SFC VIS vv)"""
@@ -529,6 +597,15 @@ class RemarksParser:
                 )
 
         if timeline_events:
+            seen_events = set()
+            unique_events = []
+            for event in timeline_events:
+                event_key = (event["display_time"], event["description"])
+                if event_key in seen_events:
+                    continue
+                seen_events.add(event_key)
+                unique_events.append(event)
+            timeline_events = unique_events
             timeline_events.sort(
                 key=lambda event: (
                     event["sort_key"],
@@ -569,23 +646,18 @@ class RemarksParser:
         report_time: Optional[Tuple[int, int, int]],
     ) -> None:
         """Parse thunderstorm begin/end remarks (e.g. TSB0159E30)."""
-        matches = re.finditer(r"\bTS(?:B(\d{2,4}))?(?:E(\d{2,4}))\b|\bTSB(\d{2,4})(?:E(\d{2,4}))?\b", remarks)
         events = []
 
-        for match in matches:
-            begin_token = match.group(1) or match.group(3)
-            end_token = match.group(2) or match.group(4)
-
-            if begin_token:
-                sort_key, display_time = self._resolve_event_time(begin_token, report_time)
-                events.append((sort_key, display_time, "thunderstorm began"))
-            if end_token:
-                sort_key, display_time = self._resolve_event_time(end_token, report_time)
-                events.append((sort_key, display_time, "thunderstorm ended"))
+        for match in re.finditer(r"\bTS((?:[BE]\d{2,4})+)\b", remarks):
+            for action, time_token in re.findall(r"([BE])(\d{2,4})", match.group(1)):
+                sort_key, display_time = self._resolve_event_time(time_token, report_time)
+                description = "thunderstorm began" if action == "B" else "thunderstorm ended"
+                events.append((sort_key, display_time, description))
 
         if not events:
             return
 
+        events = list(dict.fromkeys(events))
         events.sort(key=lambda item: item[0])
         parts = [f"{display_time}: {description}" for _, display_time, description in events]
         decoded["Thunderstorm Begin/End Times"] = "; ".join(parts)
@@ -648,53 +720,53 @@ class RemarksParser:
 
         Format: [FRQ|OCNL|CONS] LTG[IC|CC|CG|CA]* [DSNT|VC|OHD] [directions]
         """
-        ltg_match = re.search(
-            r"(FRQ|OCNL|CONS)?\s*LTG((?:IC|CC|CG|CA)+)?"
-            r"(?:\s+(DSNT|VC|OHD))?"
-            r"(?:\s+(ALQDS))?"
-            r"(?:\s+((?:NE|NW|SE|SW|N|E|S|W)(?:-(?:NE|NW|SE|SW|N|E|S|W))?"
-            r"(?:\s+AND\s+(?:NE|NW|SE|SW|N|E|S|W)(?:-(?:NE|NW|SE|SW|N|E|S|W))?)*))?",
-            remarks,
-        )
-        if ltg_match:
-            ltg_parts = []
+        tokens = remarks.split()
+        descriptions: List[str] = []
+        i = 0
+        while i < len(tokens):
+            freq = None
+            if tokens[i] in LIGHTNING_FREQUENCY and i + 1 < len(tokens) and tokens[i + 1].startswith("LTG"):
+                freq = tokens[i]
+                ltg_token = tokens[i + 1]
+                j = i + 2
+            elif tokens[i].startswith("LTG"):
+                ltg_token = tokens[i]
+                j = i + 1
+            else:
+                i += 1
+                continue
 
-            # Frequency
-            freq = ltg_match.group(1)
+            location_tokens: List[str] = []
+            while j < len(tokens) and self._is_location_token(tokens[j]):
+                location_tokens.append(tokens[j])
+                j += 1
+
+            ltg_parts = []
             if freq:
                 ltg_parts.append(LIGHTNING_FREQUENCY.get(freq, freq))
 
-            # Lightning types
-            ltg_types = ltg_match.group(2)
+            ltg_types = ltg_token[3:]
             if ltg_types:
                 types = []
-                for i in range(0, len(ltg_types), 2):
-                    lt = ltg_types[i : i + 2]
-                    types.append(LIGHTNING_TYPES.get(lt, lt))
-                ltg_parts.append(" and ".join(types) + " lightning")
+                idx = 0
+                while idx + 1 < len(ltg_types):
+                    lt = ltg_types[idx : idx + 2]
+                    if lt in LIGHTNING_TYPES:
+                        types.append(LIGHTNING_TYPES[lt])
+                    idx += 2
+                ltg_parts.append(" and ".join(types) + " lightning" if types else "lightning")
             else:
                 ltg_parts.append("lightning")
 
-            # Distance/location
-            distance = ltg_match.group(3)
-            if distance:
-                ltg_parts.append(LOCATION_INDICATORS.get(distance, distance))
+            location_text = self._format_location_tokens(location_tokens)
+            if location_text:
+                ltg_parts.append(location_text)
 
-            # All quadrants
-            alqds = ltg_match.group(4)
-            if alqds:
-                ltg_parts.append("all quadrants")
+            descriptions.append(" ".join(ltg_parts))
+            i = j
 
-            # Direction
-            direction = ltg_match.group(5)
-            if direction:
-                direction = direction.replace("AND", "and")
-                for abbr, full in sorted(DIRECTION_ABBREV.items(), key=lambda item: -len(item[0])):
-                    direction = direction.replace(abbr, full)
-                direction = direction.replace("-", " to ")
-                ltg_parts.append(f"to the {direction}")
-
-            decoded["Lightning"] = " ".join(ltg_parts)
+        if descriptions:
+            decoded["Lightning"] = "; ".join(descriptions)
 
     def _parse_virga(self, remarks: str, decoded: Dict) -> None:
         """Parse virga information (precipitation not reaching ground)"""
@@ -719,6 +791,31 @@ class RemarksParser:
 
             decoded["Virga"] = " ".join(virga_parts)
 
+    def _parse_directional_weather(self, remarks: str, decoded: Dict) -> None:
+        """Parse plain-language weather location remarks such as SHRA DSNT S-N."""
+        tokens = remarks.split()
+        descriptions: List[str] = []
+        i = 0
+        while i < len(tokens):
+            token = tokens[i]
+            weather = self._describe_weather_token(token)
+            if weather is None:
+                i += 1
+                continue
+
+            j = i + 1
+            location_tokens: List[str] = []
+            while j < len(tokens) and self._is_location_token(tokens[j]):
+                location_tokens.append(tokens[j])
+                j += 1
+
+            if location_tokens:
+                descriptions.append(f"{weather} {self._format_location_tokens(location_tokens)}")
+            i = j
+
+        if descriptions:
+            decoded["Weather Location"] = "; ".join(dict.fromkeys(descriptions))
+
     def _parse_thunderstorm_location(self, remarks: str, decoded: Dict) -> None:
         """Parse thunderstorm location and movement
 
@@ -728,50 +825,147 @@ class RemarksParser:
           - TS DSNT NW
           - TS OHD AND NW -N-E MOV NE (overhead and northwest through north to east, moving northeast)
         """
-        # Single direction: NE, NW, SE, SW, N, E, S, W
-        single_dir = r"(?:NE|NW|SE|SW|N|E|S|W)"
+        tokens = remarks.split()
+        descriptions: List[str] = []
+        i = 0
+        while i < len(tokens):
+            intensity = None
+            if tokens[i] in {"FBL", "MOD", "HVY"} and i + 1 < len(tokens) and tokens[i + 1] == "TS":
+                intensity = tokens[i]
+                j = i + 2
+            elif tokens[i] == "TS":
+                j = i + 1
+            else:
+                i += 1
+                continue
 
-        ts_match = re.search(
-            r"\bTS\s+(DSNT|VC|OHD|ALQDS)?\s*"
-            r"(?:AND\s+)?"  # Optional "AND" after location
-            # Capture direction string: everything up to MOV or end, but be non-greedy
-            rf"((?:{single_dir}(?:\s*-{single_dir})*(?:\s+AND\s+{single_dir}(?:\s*-{single_dir})*)*)?)?\s*"
-            rf"(?:MOV\s+({single_dir}(?:-{single_dir})?))?",
-            remarks,
+            location_tokens: List[str] = []
+            while j < len(tokens) and (
+                self._is_location_token(tokens[j])
+                or re.match(r"^\d+(?:KM|NM|SM)$", tokens[j])
+                or tokens[j] in {"FM", "TO"}
+            ):
+                location_tokens.append(tokens[j])
+                j += 1
+
+            parts = ["Thunderstorm"]
+            if intensity:
+                parts.append({"FBL": "feeble", "MOD": "moderate", "HVY": "heavy"}[intensity])
+
+            location_text = self._format_location_tokens(location_tokens)
+            if location_text:
+                parts.append(location_text)
+
+            descriptions.append(" ".join(parts))
+            i = j
+
+        if descriptions:
+            decoded["Thunderstorm Location"] = "; ".join(dict.fromkeys(descriptions))
+
+    def _parse_jma_pirep_turbulence(self, remarks: str, decoded: Dict) -> None:
+        """Parse JMA PIREP turbulence remarks appended in RMK."""
+        intensity_map = {
+            "FBL": "Feeble",
+            "LGT": "Light",
+            "MOD": "Moderate",
+            "SEV": "Severe",
+            "HVY": "Heavy",
+        }
+        phase_map = {
+            "CMB": "climb",
+            "DES": "descent",
+            "CRZ": "cruise",
+        }
+        pattern = re.compile(
+            r"\b(FBL|LGT|MOD|SEV|HVY)\s+TURB\s+OBS\s+AT\s+(\d{4})Z\s+"
+            r"(.+?)\s+BTN\s+(\d+FT)\s+AND\s+(\d+FT)\s+IN\s+"
+            r"(CMB|DES|CRZ)(?:\s+(?:BY\s+)?([A-Z0-9]+))?"
         )
-        if ts_match:
-            ts_parts = ["Thunderstorm"]
-            location = ts_match.group(1)
-            direction = ts_match.group(2)
-            movement = ts_match.group(3)
+        reports: List[str] = []
+        for match in pattern.finditer(remarks):
+            intensity, hhmm, location, lower, upper, phase, aircraft = match.groups()
+            time_text = f"{hhmm[:2]}:{hhmm[2:]} UTC"
+            description = (
+                f"{intensity_map[intensity]} turbulence observed at {time_text} "
+                f"near {location.strip()} between {lower} and {upper} "
+                f"in {phase_map.get(phase, phase.lower())}"
+            )
+            if aircraft:
+                description += f" by {aircraft}"
+            reports.append(description)
 
-            if location:
-                loc_map = {
-                    "DSNT": "distant (10-30 NM)",
-                    "VC": "in vicinity (5-10 NM)",
-                    "OHD": "overhead",
-                    "ALQDS": "all quadrants",
-                }
-                ts_parts.append(loc_map.get(location, location))
+        if reports:
+            decoded["PIREP Turbulence"] = reports
 
-            if direction and direction.strip():
-                dir_text = direction.strip()
-                # Replace direction abbreviations with full names (longer first to avoid partial matches)
-                for abbr, full in sorted(DIRECTION_ABBREV.items(), key=lambda x: -len(x[0])):
-                    dir_text = re.sub(rf"\b{abbr}\b", full, dir_text)
-                # Clean up: replace dashes with "through" and "AND" with "and"
-                dir_text = re.sub(r"\s*-\s*", " through ", dir_text)
-                dir_text = dir_text.replace(" AND ", " and ")
-                ts_parts.append(f"to the {dir_text}")
+    def _parse_pirep_cloud_layers(self, remarks: str, decoded: Dict) -> None:
+        """Parse PIREP cloud-layer remarks."""
+        if "PIREP" not in remarks or "CLD BASE" not in remarks:
+            return
 
-            if movement:
-                mov_text = movement
-                for abbr, full in sorted(DIRECTION_ABBREV.items(), key=lambda x: -len(x[0])):
-                    mov_text = re.sub(rf"\b{abbr}\b", full, mov_text)
-                mov_text = mov_text.replace("-", " through ")
-                ts_parts.append(f"moving {mov_text}")
+        context = ""
+        context_match = re.search(r"\bPIREP\s+(ON\s+[A-Z]+)\b", remarks)
+        if context_match:
+            context = f"{context_match.group(1).lower()}: "
 
-            decoded["Thunderstorm Location"] = " ".join(ts_parts)
+        layers: List[str] = []
+        pattern = re.compile(
+            r"\b(\d(?:ST|ND|RD|TH))\s+CLD\s+BASE\s+(\d{3}|///)\s+TOP\s+(\d{3}|///)\b"
+        )
+        for match in pattern.finditer(remarks):
+            ordinal, base, top = match.groups()
+            base_text = "unknown base" if base == "///" else f"base {int(base) * 100} ft"
+            top_text = "unknown top" if top == "///" else f"top {int(top) * 100} ft"
+            layers.append(f"{context}{ordinal.lower()} cloud layer {base_text}, {top_text}")
+
+        if layers:
+            decoded["PIREP Clouds"] = layers
+
+    def _parse_jma_forecast_amendment(self, remarks: str, decoded: Dict) -> None:
+        """Parse JMA FCST AMD trend blocks appended in RMK."""
+        tokens = remarks.split()
+        try:
+            start = next(i for i in range(len(tokens) - 1) if tokens[i : i + 2] == ["FCST", "AMD"])
+        except StopIteration:
+            return
+
+        j = start + 2
+        if j < len(tokens) and re.match(r"^\d{4}$", tokens[j]):
+            issue_time = tokens[j]
+            decoded["Forecast Amendment"] = f"Amended forecast issued at {issue_time[:2]}:{issue_time[2:]} UTC"
+            j += 1
+        else:
+            decoded["Forecast Amendment"] = "Amended forecast"
+
+        trends: List[str] = []
+        while j < len(tokens):
+            if tokens[j] not in {"TEMPO", "BECMG"}:
+                j += 1
+                continue
+
+            trend_type = tokens[j]
+            j += 1
+            period = None
+            if j < len(tokens) and re.match(r"^\d{4}$", tokens[j]):
+                period = f"{tokens[j][:2]}:00-{tokens[j][2:]}:00 UTC"
+                j += 1
+
+            elements: List[str] = []
+            while j < len(tokens) and tokens[j] not in {"TEMPO", "BECMG"}:
+                change = self._describe_forecast_amendment_token(tokens[j])
+                if change:
+                    elements.append(change)
+                j += 1
+
+            label = "Temporary" if trend_type == "TEMPO" else "Becoming"
+            description = label
+            if period:
+                description += f" {period}"
+            if elements:
+                description += f": {', '.join(elements)}"
+            trends.append(description)
+
+        if trends:
+            decoded["Forecast Trends"] = trends
 
     # =========================================================================
     # Cloud Information
@@ -815,35 +1009,48 @@ class RemarksParser:
             "CCSL": "Cirrocumulus standing lenticular",
             "APRNT ROTOR CLD": "Apparent rotor cloud",
         }
-        direction_pattern = r"(?:NE|NW|SE|SW|N|E|S|W)"
-        pattern = (
-            rf"\b(CBMAM|CB|TCU|ACC|SCSL|ACSL|CCSL|APRNT\s+ROTOR\s+CLD)"
-            rf"(?:\s+(DSNT|VC|OHD))?"
-            rf"(?:\s+({direction_pattern}(?:-{direction_pattern})?))?"
-            rf"(?:\s+MOV\s+({direction_pattern}(?:-{direction_pattern})?))?"
-        )
-
+        cloud_tokens = {key for key in cloud_labels if " " not in key}
+        tokens = remarks.split()
         cloud_descriptions: List[str] = []
-        for match in re.finditer(pattern, remarks):
-            cloud_code = match.group(1).replace("  ", " ")
-            location = match.group(2)
-            direction = match.group(3)
-            movement = match.group(4)
+        i = 0
+        while i < len(tokens):
+            cloud_code = None
+            if tokens[i : i + 3] == ["APRNT", "ROTOR", "CLD"]:
+                cloud_code = "APRNT ROTOR CLD"
+                j = i + 3
+            elif tokens[i] in cloud_tokens:
+                cloud_code = tokens[i]
+                j = i + 1
+            else:
+                i += 1
+                continue
+
+            # JMA okta cloud groups such as 1CB035 are handled separately.
+            if i > 0 and re.match(r"^\d(?:TCU|SN|SC|ST|CU|CB|CI|CS|CC|AC|AS|NS|CF|SF)\d{3}$", tokens[i]):
+                i += 1
+                continue
+
+            location_tokens: List[str] = []
+            while j < len(tokens) and (
+                self._is_location_token(tokens[j])
+                or re.match(r"^\d+(?:KM|NM|SM)$", tokens[j])
+                or tokens[j] in {"FM", "TO"}
+            ):
+                location_tokens.append(tokens[j])
+                j += 1
 
             parts = [cloud_labels.get(cloud_code, cloud_code)]
-            if location:
-                parts.append(LOCATION_INDICATORS.get(location, location))
-            if direction:
-                parts.append(f"to the {self._expand_direction_text(direction)}")
-            if movement:
-                parts.append(f"moving {self._expand_direction_text(movement)}")
+            location_text = self._format_location_tokens(location_tokens)
+            if location_text:
+                parts.append(location_text)
             cloud_descriptions.append(" ".join(parts))
+            i = j
 
         if cloud_descriptions:
             existing = decoded.get("Cloud Types")
             if existing:
                 cloud_descriptions.insert(0, str(existing))
-            decoded["Cloud Types"] = "; ".join(cloud_descriptions)
+            decoded["Cloud Types"] = "; ".join(dict.fromkeys(cloud_descriptions))
 
     def _parse_cloud_types(self, remarks: str, decoded: Dict) -> None:
         """Parse cloud type codes
@@ -876,7 +1083,10 @@ class RemarksParser:
             cloud_types_found.append(f"{cloud_name} trace (less than 1/8 sky coverage)")
 
         if cloud_types_found:
-            decoded["Cloud Types"] = "; ".join(cloud_types_found)
+            existing = decoded.get("Cloud Types")
+            if existing:
+                cloud_types_found.insert(0, str(existing))
+            decoded["Cloud Types"] = "; ".join(dict.fromkeys(cloud_types_found))
 
     def _parse_ceiling(self, remarks: str, decoded: Dict) -> None:
         """Parse ceiling information (CIGxxx or CIG xxxVxxx)"""
@@ -1297,6 +1507,178 @@ class RemarksParser:
 
         # Sort decoded dict by position
         return dict(sorted(decoded.items(), key=lambda x: positions.get(x[0], len(remarks))))
+
+    @classmethod
+    def _is_location_token(cls, token: str) -> bool:
+        return token in {"OHD", "VC", "DSNT", "ALQDS", "AND", "MOV", "STN", "STNRY"} or cls._is_direction_token(
+            token
+        )
+
+    @classmethod
+    def _is_direction_token(cls, token: str) -> bool:
+        direction = cls._DIRECTION_PATTERN
+        return bool(re.match(rf"^{direction}(?:-{direction})*$", token))
+
+    @staticmethod
+    def _format_distance(token: str) -> str:
+        match = re.match(r"^(\d+)(KM|NM|SM)$", token)
+        if not match:
+            return token
+        unit = {"KM": "km", "NM": "NM", "SM": "SM"}[match.group(2)]
+        return f"{int(match.group(1))} {unit}"
+
+    @classmethod
+    def _format_location_tokens(cls, tokens: List[str]) -> str:
+        location_parts: List[str] = []
+        movement_parts: List[str] = []
+        i = 0
+        while i < len(tokens):
+            token = tokens[i]
+
+            if token == "AND":
+                i += 1
+                continue
+
+            if token == "MOV":
+                if i + 1 < len(tokens):
+                    movement = tokens[i + 1]
+                    if movement in {"STN", "STNRY"}:
+                        movement_parts.append("stationary")
+                    elif cls._is_direction_token(movement):
+                        movement_parts.append(f"moving {cls._expand_direction_text(movement, range_separator=' through ')}")
+                    else:
+                        movement_parts.append(f"moving {movement.lower()}")
+                    i += 2
+                else:
+                    i += 1
+                continue
+
+            if token == "FM" and i + 3 < len(tokens) and re.match(r"^\d+(?:KM|NM|SM)$", tokens[i + 1]):
+                if tokens[i + 2] == "TO" and re.match(r"^\d+(?:KM|NM|SM)$", tokens[i + 3]):
+                    text = f"from {cls._format_distance(tokens[i + 1])} to {cls._format_distance(tokens[i + 3])}"
+                    if i + 4 < len(tokens) and cls._is_direction_token(tokens[i + 4]):
+                        text += f" to the {cls._expand_direction_text(tokens[i + 4], range_separator=' through ')}"
+                        i += 5
+                    else:
+                        i += 4
+                    location_parts.append(text)
+                    continue
+
+            if re.match(r"^\d+(?:KM|NM|SM)$", token):
+                text = cls._format_distance(token)
+                if i + 1 < len(tokens) and cls._is_direction_token(tokens[i + 1]):
+                    text += f" to the {cls._expand_direction_text(tokens[i + 1], range_separator=' through ')}"
+                    i += 2
+                else:
+                    i += 1
+                location_parts.append(text)
+                continue
+
+            if token == "DSNT":
+                j = i + 1
+                distant_locations: List[str] = []
+                while j < len(tokens):
+                    if tokens[j] == "AND":
+                        j += 1
+                        continue
+                    if tokens[j] == "ALQDS":
+                        distant_locations.append("all quadrants")
+                        j += 1
+                        continue
+                    if cls._is_direction_token(tokens[j]):
+                        distant_locations.append(
+                            f"to the {cls._expand_direction_text(tokens[j], range_separator=' through ')}"
+                        )
+                        j += 1
+                        continue
+                    break
+
+                if distant_locations:
+                    location_parts.append(f"distant {' and '.join(distant_locations)}")
+                    i = j
+                else:
+                    location_parts.append(LOCATION_INDICATORS.get(token, "distant"))
+                    i += 1
+                continue
+
+            if token == "OHD":
+                location_parts.append("overhead")
+            elif token == "VC":
+                location_parts.append("in vicinity (5-10 NM)")
+            elif token == "ALQDS":
+                location_parts.append("all quadrants")
+            elif token in {"STN", "STNRY"}:
+                movement_parts.append("stationary")
+            elif cls._is_direction_token(token):
+                location_parts.append(f"to the {cls._expand_direction_text(token, range_separator=' through ')}")
+
+            i += 1
+
+        parts = location_parts + movement_parts
+        return " and ".join(parts)
+
+    @staticmethod
+    def _describe_weather_token(token: str) -> Optional[str]:
+        intensity = ""
+        raw = token
+        if raw.startswith("+"):
+            intensity = "heavy "
+            raw = raw[1:]
+        elif raw.startswith("-"):
+            intensity = "light "
+            raw = raw[1:]
+
+        if raw == "VCSH":
+            return "showers in vicinity"
+
+        descriptor = ""
+        for desc_code, desc_value in WEATHER_DESCRIPTORS.items():
+            if raw.startswith(desc_code):
+                descriptor = f"{desc_value} "
+                raw = raw[len(desc_code) :]
+                break
+
+        phenomena = []
+        while raw:
+            code = raw[:2]
+            if code not in WEATHER_PHENOMENA:
+                return None
+            phenomena.append(WEATHER_PHENOMENA[code])
+            raw = raw[2:]
+
+        if not phenomena:
+            return None
+        return f"{intensity}{descriptor}{' '.join(phenomena)}".strip()
+
+    @staticmethod
+    def _describe_forecast_amendment_token(token: str) -> Optional[str]:
+        if token == "NSW":
+            return "no significant weather"
+
+        if token.isdigit() and len(token) == 4:
+            visibility = int(token)
+            if visibility == 9999:
+                return "visibility 10km or more"
+            if visibility >= 1000:
+                return f"visibility {visibility / 1000:.1f}km"
+            return f"visibility {visibility}m"
+
+        cloud_match = re.match(r"^(FEW|SCT|BKN|OVC)(\d{3})([A-Z]{2,3})?$", token)
+        if cloud_match:
+            coverage, height, cloud_type = cloud_match.groups()
+            description = f"{coverage} at {int(height) * 100}ft"
+            if cloud_type:
+                description += f" {cloud_type}"
+            return description
+
+        weather = RemarksParser._describe_weather_token(token)
+        if weather:
+            return weather
+
+        if re.match(r"^(\d{3}|VRB)\d{2,3}(?:G\d{2,3})?(?:KT|MPS|KMH)$", token):
+            return f"wind {token}"
+
+        return None
 
     @staticmethod
     def _expand_direction_text(text: str, range_separator: str = " to ") -> str:

@@ -175,12 +175,32 @@ def test_metar_more_than_4_rvr_groups(metar_decoder):
 def test_metar_more_than_4_sky_conditions_icao(metar_decoder):
     """More than 4 sky conditions — ICAO limit warning."""
     result = metar_decoder.decode(
-        "METAR KJFK 061751Z 28008KT 9999 FEW030 SCT050 BKN100 OVC150 FEW200 22/18 A2992"
+        "METAR EGLL 061751Z 28008KT 9999 FEW030 SCT050 BKN100 OVC150 FEW200 22/18 Q1013"
     )
     warnings = _warnings(result)
     assert any("cloud" in w.lower() or "layer" in w.lower() or "4" in w for w in warnings), (
         f"Expected cloud/layer/4 warning, got: {warnings}"
     )
+
+
+@pytest.mark.integration
+def test_metar_us_five_sky_conditions_no_icao_layer_warning(metar_decoder):
+    """US METARs may report up to six sky layers under FMH-1."""
+    result = metar_decoder.decode(
+        "METAR KDSM 171954Z 07008KT 10SM FEW010 SCT065 SCT100 BKN170 OVC250 21/19 A3004"
+    )
+    warnings = _warnings(result)
+    assert not any("More than 4 cloud layers" in w for w in warnings)
+
+
+@pytest.mark.integration
+def test_metar_trend_changed_wind_does_not_trigger_body_order_warning(metar_decoder):
+    """A wind group inside a trailing BECMG trend is not body-order content."""
+    result = metar_decoder.decode(
+        "METAR RJTT 291030Z VRB07KT 9999 FEW030 BKN150 29/17 Q1003 BECMG TL1100 36012KT"
+    )
+    warnings = _warnings(result)
+    assert not any("out of order" in w for w in warnings)
 
 
 @pytest.mark.integration

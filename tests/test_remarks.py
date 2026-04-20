@@ -949,3 +949,131 @@ def test_slp_key_absent_when_no_slp():
     """When no SLP token, Sea Level Pressure key must be absent."""
     _, decoded = RemarksParser().parse(rmk("AO2"))
     assert "Sea Level Pressure" not in decoded
+
+
+@pytest.mark.unit
+def test_altitude_token_does_not_decode_as_6hr_max_temperature():
+    """Altitude tokens in PIREP remarks must not match 1snTTT temperature groups."""
+    _, decoded = RemarksParser().parse(
+        rmk("MOD TURB OBS AT 1011Z PLUTO BTN 9000FT AND 13000FT IN CMB BY B738")
+    )
+    assert "6-Hour Maximum Temperature" not in decoded
+
+
+@pytest.mark.unit
+def test_thunderstorm_begin_end_repeated_chain():
+    """TSB12E13B20 → all begin/end events are decoded."""
+    _, decoded = RemarksParser().parse("METAR KPHX 190651Z 03008KT 10SM TS SCT100CB 26/20 A2984 RMK TSB12E13B20")
+    value = decoded["Thunderstorm Begin/End Times"]
+    assert "06:12 UTC: thunderstorm began" in value
+    assert "06:13 UTC: thunderstorm ended" in value
+    assert "06:20 UTC: thunderstorm began" in value
+
+
+@pytest.mark.unit
+def test_jma_thunderstorm_intensity_distance_and_stationary():
+    """FBL TS 5KM W MOV STN keeps intensity, distance, direction, and movement."""
+    _, decoded = RemarksParser().parse(rmk("FBL TS 5KM W MOV STN"))
+    value = decoded["Thunderstorm Location"]
+    assert "feeble" in value
+    assert "5 km to the west" in value
+    assert "stationary" in value
+
+
+@pytest.mark.unit
+def test_stationary_not_decoded_as_south_movement():
+    """MOV STNRY must decode as stationary, not as movement south."""
+    _, decoded = RemarksParser().parse(rmk("TS SW-W MOV STNRY"))
+    value = decoded["Thunderstorm Location"]
+    assert "stationary" in value
+    assert "moving south" not in value.lower()
+
+
+@pytest.mark.unit
+def test_multiple_lightning_groups_are_preserved():
+    """Two LTG groups in one RMK should both appear in decoded output."""
+    _, decoded = RemarksParser().parse(rmk("FRQ LTGCGIC VC FRQ LTGCG DSNT SW-NE"))
+    value = decoded["Lightning"]
+    assert "in vicinity" in value
+    assert "distant to the southwest through northeast" in value
+
+
+@pytest.mark.unit
+def test_directional_shower_remark_decoded():
+    """SHRA DSNT S-N is plain-language weather location information."""
+    _, decoded = RemarksParser().parse(rmk("SHRA DSNT S-N"))
+    assert decoded["Weather Location"] == "shower rain distant to the south through north"
+
+
+@pytest.mark.unit
+def test_jma_pirep_turbulence_decoded():
+    """JMA MOD TURB OBS AT ... RMK is decoded into PIREP turbulence entries."""
+    _, decoded = RemarksParser().parse(
+        rmk("MOD TURB OBS AT 1033Z 25NM E NARITA BTN 13000FT AND 10000FT IN DES B77W")
+    )
+    reports = decoded["PIREP Turbulence"]
+    assert len(reports) == 1
+    assert "Moderate turbulence observed at 10:33 UTC" in reports[0]
+    assert "descent by B77W" in reports[0]
+
+
+@pytest.mark.unit
+def test_significant_tcu_distance_range_and_movement_decoded():
+    """TCU FM 20KM TO 40KM W-NW MOV E keeps range, direction, and movement."""
+    _, decoded = RemarksParser().parse(rmk("TCU FM 20KM TO 40KM W-NW MOV E"))
+    value = decoded["Cloud Types"]
+    assert "from 20 km to 40 km to the west through northwest" in value
+    assert "moving east" in value
+
+
+@pytest.mark.unit
+def test_jma_fcst_amd_trends_decoded():
+    """FCST AMD trend blocks in Japanese RMK are decoded."""
+    _, decoded = RemarksParser().parse(
+        rmk(
+            "FCST AMD 0715 TEMPO 0708 4000 FEW015CU SCT020CU "
+            "BECMG 0809 -SHRA TEMPO 0911 NSW FEW015CU"
+        )
+    )
+    assert decoded["Forecast Amendment"] == "Amended forecast issued at 07:15 UTC"
+    trends = decoded["Forecast Trends"]
+    assert "Temporary 07:00-08:00 UTC" in trends[0]
+    assert "visibility 4.0km" in trends[0]
+    assert "Becoming 08:00-09:00 UTC: light shower rain" in trends[1]
+    assert "no significant weather" in trends[2]
+
+
+@pytest.mark.unit
+def test_location_specific_winds_decoded():
+    """HARBOR/ROOF wind remarks are decoded as location-specific winds."""
+    _, decoded = RemarksParser().parse(rmk("PRESFR SLP926 HARBOR WIND 10020G27KT ROOF WIND 13015G27KT"))
+    winds = decoded["location_winds"]
+    assert winds[0]["location"] == "Harbor"
+    assert winds[0]["direction"] == 100
+    assert winds[0]["gust"] == 27
+    assert winds[1]["location"] == "Roof"
+
+
+@pytest.mark.unit
+def test_visibility_lower_remark_decoded():
+    """VIS LWR directional remarks are decoded."""
+    _, decoded = RemarksParser().parse(rmk("VIS LWR NE-E-S"))
+    assert decoded["Visibility Lower"] == "Visibility lower to the northeast through east through south"
+
+
+@pytest.mark.unit
+def test_jma_directional_visibility_decoded():
+    """JMA compact directional visibility remarks are decoded."""
+    _, decoded = RemarksParser().parse(rmk("3500E-S"))
+    assert decoded["Directional Visibility (JMA)"] == ["3500 m to the east through south"]
+
+
+@pytest.mark.unit
+def test_pirep_cloud_layers_decoded():
+    """PIREP cloud-layer base/top remarks are decoded."""
+    _, decoded = RemarksParser().parse(
+        rmk("PIREP ON DEP 1ST CLD BASE 017 TOP 020 2ND CLD BASE 037 TOP 047")
+    )
+    layers = decoded["PIREP Clouds"]
+    assert layers[0] == "on dep: 1st cloud layer base 1700 ft, top 2000 ft"
+    assert layers[1] == "on dep: 2nd cloud layer base 3700 ft, top 4700 ft"
