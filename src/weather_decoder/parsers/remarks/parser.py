@@ -36,7 +36,7 @@ class RemarksParser(
         """Initialize the remarks parser."""
         self._key_patterns = {
             # Prefer AO2 over AO1 when both appear
-            "Station Type": ["A02A", "AO2", "AO1", "A02", "A01"],
+            "Station Type": ["AO2", "AO1"],
             "Sea Level Pressure": ["SLP"],
             "Pressure Tendency": [r"5[0-8]\d{3}"],
             "Temperature (tenths)": ["T0", "T1"],

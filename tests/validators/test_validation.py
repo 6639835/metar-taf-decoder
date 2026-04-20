@@ -98,13 +98,13 @@ def test_metar_intensity_on_gr_hail(metar_decoder):
 
 @pytest.mark.integration
 def test_metar_gs_intensity_in_body(metar_decoder):
-    """GS (small hail) with intensity in METAR body should be warned."""
+    """GS (snow pellets) with intensity in METAR body should be warned."""
     result = metar_decoder.decode(
         "METAR KJFK 061751Z 28008KT 5000 +GS FEW250 22/18 A2992"
     )
     warnings = _warnings(result)
-    assert any("GS" in w or "small hail" in w for w in warnings), (
-        f"Expected GS/small hail warning, got: {warnings}"
+    assert any("GS" in w or "snow pellets" in w for w in warnings), (
+        f"Expected GS/snow-pellet warning, got: {warnings}"
     )
 
 
@@ -294,14 +294,26 @@ def test_metar_wind_variation_ge_180_degrees(metar_decoder):
 
 
 @pytest.mark.integration
-def test_metar_wind_variation_with_speed_below_6kt(metar_decoder):
-    """Wind direction variation reported with speed < 6 kt — should warn."""
+def test_metar_wind_variation_with_speed_below_3kt(metar_decoder):
+    """Annex IV permits nnnVnnn at 3 kt or more, but not below 3 kt."""
     result = metar_decoder.decode(
-        "METAR KJFK 061751Z 28003KT 250V320 10SM FEW250 22/18 A2992"
+        "METAR KJFK 061751Z 28002KT 250V320 10SM FEW250 22/18 A2992"
     )
     warnings = _warnings(result)
-    assert any("6 kt" in w or "VRB" in w for w in warnings), (
-        f"Expected <6 kt/VRB warning, got: {warnings}"
+    assert any("3 kt" in w or "VRB" in w for w in warnings), (
+        f"Expected <3 kt/VRB warning, got: {warnings}"
+    )
+
+
+@pytest.mark.integration
+def test_metar_wind_variation_at_3kt_is_annex_iv_valid(metar_decoder):
+    """Annex IV uses 3 kt, not 6 kt, as the nnnVnnn speed threshold."""
+    result = metar_decoder.decode(
+        "METAR EGLL 061751Z 28003KT 220V300 9999 FEW030 15/10 Q1013"
+    )
+    warnings = _warnings(result)
+    assert not any("speed < 3 kt" in w for w in warnings), (
+        f"Unexpected Annex IV wind-variation threshold warning, got: {warnings}"
     )
 
 
@@ -314,6 +326,28 @@ def test_metar_cavok_with_weather_groups(metar_decoder):
     warnings = _warnings(result)
     assert any("CAVOK" in w for w in warnings), (
         f"Expected CAVOK warning, got: {warnings}"
+    )
+
+
+@pytest.mark.integration
+def test_metar_cavok_with_nsc_warns(metar_decoder):
+    """CAVOK replaces cloud groups, including NSC."""
+    result = metar_decoder.decode("METAR YUDO 221630Z 24004MPS CAVOK NSC 17/16 Q1018")
+    warnings = _warnings(result)
+    assert any("CAVOK" in w and "cloud" in w for w in warnings), (
+        f"Expected CAVOK/cloud warning, got: {warnings}"
+    )
+
+
+@pytest.mark.integration
+def test_metar_cavok_with_rvr_warns(metar_decoder):
+    """CAVOK replaces RVR information in Annex 3 reports."""
+    result = metar_decoder.decode(
+        "METAR YUDO 221630Z 24004MPS CAVOK R12/1000 17/16 Q1018"
+    )
+    warnings = _warnings(result)
+    assert any("CAVOK" in w and "RVR" in w for w in warnings), (
+        f"Expected CAVOK/RVR warning, got: {warnings}"
     )
 
 
@@ -352,6 +386,30 @@ def test_metar_metric_rvr_without_ft(metar_decoder):
 
 
 @pytest.mark.integration
+def test_metar_rvr_ft_suffix_annex_warning(metar_decoder):
+    """FT-suffixed RVR parses, but is not in the ICAO Annex 3 METAR template."""
+    result = metar_decoder.decode(
+        "METAR YUDO 221630Z 24004MPS 0600 R12/0600FT FG BKN002 17/16 Q1018"
+    )
+    warnings = _warnings(result)
+    assert any("RVR" in w and "FT" in w and "Annex 3" in w for w in warnings), (
+        f"Expected Annex RVR FT warning, got: {warnings}"
+    )
+
+
+@pytest.mark.integration
+def test_metar_variable_rvr_annex_warning(metar_decoder):
+    """Variable RVR ranges parse, but are not in the ICAO Annex 3 METAR template."""
+    result = metar_decoder.decode(
+        "METAR YUDO 221630Z 24004MPS 0600 R12/0600V1000 FG BKN002 17/16 Q1018"
+    )
+    warnings = _warnings(result)
+    assert any("Variable RVR" in w or "Rxx/nnnnVnnnn" in w for w in warnings), (
+        f"Expected variable RVR warning, got: {warnings}"
+    )
+
+
+@pytest.mark.integration
 def test_metar_uk_station_runway_state(metar_decoder):
     """UK station (EGLL) with runway state group — CAP 746 Issue 6 warning."""
     result = metar_decoder.decode(
@@ -361,6 +419,96 @@ def test_metar_uk_station_runway_state(metar_decoder):
     assert any(
         "UK" in w or "CAP 746" in w or "runway state" in w.lower() for w in warnings
     ), f"Expected UK/CAP 746/runway state warning, got: {warnings}"
+
+
+@pytest.mark.integration
+def test_metar_cap746_wind_variation_allowed_at_3kt(metar_decoder):
+    """CAP 746 uses a 3 kt threshold for nnnVnnn wind variation groups."""
+    result = metar_decoder.decode(
+        "METAR EGLL 061751Z 28003KT 250V320 9999 NSC 10/08 Q1013"
+    )
+    warnings = _warnings(result)
+    assert not any("speed < 6 kt" in w or "speed < 3 kt" in w for w in warnings)
+
+
+@pytest.mark.integration
+def test_metar_cap746_hail_shower_intensity_allowed(metar_decoder):
+    """CAP 746 permits intensity on precipitation, including SHGR/SHGS."""
+    result = metar_decoder.decode(
+        "METAR EGLL 061751Z 28008KT 5000 +SHGR FEW020CB 10/08 Q1013"
+    )
+    warnings = _warnings(result)
+    assert not any("GR" in w or "hail" in w for w in warnings)
+
+
+@pytest.mark.integration
+def test_metar_cap746_cavok_rejects_rvr_group(metar_decoder):
+    """CAVOK replaces visibility, RVR, weather, and cloud groups."""
+    result = metar_decoder.decode(
+        "METAR EGLL 061751Z 28008KT CAVOK R28/0600 10/08 Q1013"
+    )
+    warnings = _warnings(result)
+    assert any("CAVOK" in w and "RVR" in w for w in warnings)
+
+
+@pytest.mark.integration
+def test_metar_cap746_uk_windshear_not_reported(metar_decoder):
+    """CAP 746 says WS groups are not reported in UK METARs."""
+    result = metar_decoder.decode(
+        "METAR EGLL 061751Z 28008KT 9999 NSC 10/08 Q1013 WS R28"
+    )
+    warnings = _warnings(result)
+    assert any("Wind shear" in w and "UK METAR" in w for w in warnings)
+
+
+@pytest.mark.integration
+def test_metar_cap746_uk_remarks_not_used(metar_decoder):
+    """CAP 746 says RMK is not used by UK civil aerodromes."""
+    result = metar_decoder.decode(
+        "METAR EGLL 061751Z 28008KT 9999 NSC 10/08 Q1013 RMK AO2"
+    )
+    warnings = _warnings(result)
+    assert any("RMK" in w and "UK civil METAR" in w for w in warnings)
+
+
+@pytest.mark.integration
+def test_metar_cap746_uk_altimeter_must_be_qnh(metar_decoder):
+    """CAP 746 UK METAR pressure is QNH encoded as Qdddd."""
+    result = metar_decoder.decode(
+        "METAR EGLL 061751Z 28008KT 9999 NSC 10/08 A2992"
+    )
+    warnings = _warnings(result)
+    assert any("Qdddd" in w or "A####" in w for w in warnings)
+
+
+@pytest.mark.integration
+def test_metar_cap746_recent_weather_whitelist(metar_decoder):
+    """REFZFG is not in CAP 746 Table 4 recent weather codes."""
+    result = metar_decoder.decode(
+        "METAR EGLL 061751Z 28008KT 9999 NSC 10/08 Q1013 REFZFG"
+    )
+    warnings = _warnings(result)
+    assert any("REFZFG" in w and "CAP 746 Table 4" in w for w in warnings)
+
+
+@pytest.mark.integration
+def test_metar_cap746_cloud_layers_limit_non_convective(metar_decoder):
+    """Extra UK cloud layers are only for omitted TCU/CB layers."""
+    result = metar_decoder.decode(
+        "METAR EGLL 061751Z 28008KT 9999 FEW010 SCT020 BKN030 OVC040 10/08 Q1013"
+    )
+    warnings = _warnings(result)
+    assert any("three cloud layers" in w for w in warnings)
+
+
+@pytest.mark.integration
+def test_metar_cap746_rvr_increment_warning(metar_decoder):
+    """RVR values must be on CAP 746 reporting increments."""
+    result = metar_decoder.decode(
+        "METAR EGLL 061751Z 28008KT 1000 R28/0430 FG VV/// 10/08 Q1013"
+    )
+    warnings = _warnings(result)
+    assert any("RVR" in w and "increment" in w for w in warnings)
 
 
 @pytest.mark.integration
@@ -374,12 +522,226 @@ def test_metar_auto_with_cavok(metar_decoder):
 
 
 @pytest.mark.integration
+def test_jma_auto_with_cavok_warns(metar_decoder):
+    """JMA automated METAR/SPECI uses 9999 with NSC/NCD instead of CAVOK."""
+    result = metar_decoder.decode("METAR RJBB 051300Z AUTO 09005KT CAVOK 20/16 Q1012")
+    warnings = _warnings(result)
+    assert any("JMA automated" in w and "CAVOK" in w for w in warnings), (
+        f"Expected JMA AUTO/CAVOK warning, got: {warnings}"
+    )
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("token", ["VCFG", "FZRA", "SHRA", "+GR", "GS"])
+def test_jma_auto_restricted_present_weather_warns(metar_decoder, token):
+    """JMA automated METAR/SPECI has a narrower present-weather code set."""
+    result = metar_decoder.decode(
+        f"METAR RJBB 051300Z AUTO 09005KT 9999 {token} NSC 20/16 Q1012"
+    )
+    warnings = _warnings(result)
+    assert any("JMA automated" in w and token in w for w in warnings), (
+        f"Expected JMA automated weather warning for {token}, got: {warnings}"
+    )
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "token", ["RA", "-SN", "RASN", "SNRA", "FG", "BR", "HZ", "UP", "SQ", "+TSRA"]
+)
+def test_jma_auto_allowed_present_weather_has_no_jma_warning(metar_decoder, token):
+    """Allowed JMA automated present-weather groups do not trigger JMA-specific warnings."""
+    result = metar_decoder.decode(
+        f"METAR RJBB 051300Z AUTO 09005KT 1200 {token} BKN010 20/16 Q1012"
+    )
+    warnings = _warnings(result)
+    assert not any("JMA automated" in w for w in warnings), (
+        f"Unexpected JMA automated weather warning for {token}, got: {warnings}"
+    )
+
+
+@pytest.mark.integration
 def test_metar_valid_report_has_no_missing_keyword_warning(metar_decoder):
     """Valid METAR should not trigger the missing METAR/SPECI keyword warning."""
     result = metar_decoder.decode("METAR KJFK 061751Z 28008KT 9999 FEW030 22/18 Q1013")
     warnings = _warnings(result)
     assert not any("keyword not found" in w for w in warnings), (
         f"Unexpected keyword warning, got: {warnings}"
+    )
+
+
+@pytest.mark.integration
+def test_metar_missing_observation_time_warns(metar_decoder):
+    """WMO METAR/SPECI requires YYGGggZ observation time."""
+    result = metar_decoder.decode("METAR KJFK 28008KT 9999 FEW250 22/18 Q1013")
+    warnings = _warnings(result)
+    assert any("YYGGggZ" in w or "observation time" in w for w in warnings), (
+        f"Expected YYGGggZ/observation-time warning, got: {warnings}"
+    )
+
+
+@pytest.mark.integration
+def test_metar_regional_visibility_and_altimeter_warn_for_wmo(metar_decoder):
+    """SM visibility and A#### altimeter are regional extensions outside WMO FM 15."""
+    result = metar_decoder.decode("METAR KJFK 061751Z 28008KT 10SM FEW250 22/18 A2992")
+    warnings = _warnings(result)
+    assert any("Statute-mile visibility" in w for w in warnings), (
+        f"Expected SM visibility WMO warning, got: {warnings}"
+    )
+    assert any("A####" in w for w in warnings), (
+        f"Expected A#### altimeter WMO warning, got: {warnings}"
+    )
+
+
+@pytest.mark.integration
+def test_metar_metric_visibility_suffix_warns_for_wmo(metar_decoder):
+    """WMO FM 15 uses unsuffixed VVVV, not 1200M/10KM visibility tokens."""
+    result = metar_decoder.decode("METAR EGLL 061751Z 28008KT 1200M FEW250 22/18 Q1013")
+    warnings = _warnings(result)
+    assert any("KM/M" in w or "unsuffixed VVVV" in w for w in warnings), (
+        f"Expected metric suffix WMO warning, got: {warnings}"
+    )
+
+
+@pytest.mark.integration
+def test_metar_annex_iv_requires_mandatory_body_groups(metar_decoder):
+    """A non-NIL Annex IV METAR must include the mandatory body elements."""
+    result = metar_decoder.decode("METAR EGLL 061751Z Q1020")
+    warnings = _warnings(result)
+    assert any("surface wind" in w for w in warnings)
+    assert any("visibility" in w for w in warnings)
+    assert any("air/dew-point" in w for w in warnings)
+
+
+@pytest.mark.integration
+def test_metar_annex_iv_warns_for_regional_units_and_pressure(metar_decoder):
+    """US visibility/altimeter examples decode but are flagged outside Annex IV."""
+    result = metar_decoder.decode("METAR KJFK 061751Z 28008KT 10SM FEW250 22/18 A2992")
+    warnings = _warnings(result)
+    assert any("visibility must be reported in metres" in w for w in warnings)
+    assert any("requires QNH" in w for w in warnings)
+    assert any("inHg altimeter" in w for w in warnings)
+
+
+@pytest.mark.integration
+def test_metar_annex_iv_warns_for_non_kt_and_raw_100kt(metar_decoder):
+    """Annex IV Appendix 1 uses KT and P99 for winds of 100 kt or more."""
+    mps = metar_decoder.decode("METAR EGLL 061751Z 18005MPS 9999 FEW030 15/10 Q1013")
+    raw_100 = metar_decoder.decode(
+        "METAR EGLL 061751Z 360100KT 9999 FEW030 15/10 Q1013"
+    )
+    assert any("wind speed unit must be KT" in w for w in _warnings(mps))
+    assert any("P99" in w for w in _warnings(raw_100))
+
+
+@pytest.mark.integration
+def test_metar_station_identifier_must_be_alpha_for_fmh1(metar_decoder):
+    result = metar_decoder.decode("METAR KJ1K 061751Z 28008KT 10SM FEW250 22/18 A2992")
+    warnings = _warnings(result)
+    assert any("Station identifier" in w and "FMH-1" in w for w in warnings), (
+        f"Expected station identifier warning, got: {warnings}"
+    )
+    assert any("CCCC" in w or "four-letter" in w for w in warnings), (
+        f"Expected WMO CCCC station warning, got: {warnings}"
+    )
+
+
+@pytest.mark.integration
+def test_metar_cor_before_station_warns_for_fmh1_order(metar_decoder):
+    result = metar_decoder.decode(
+        "METAR COR KJFK 061751Z 28008KT 10SM FEW250 22/18 A2992"
+    )
+    warnings = _warnings(result)
+    assert any("COR" in w and "FMH-1" in w for w in warnings), (
+        f"Expected COR placement warning, got: {warnings}"
+    )
+
+
+@pytest.mark.integration
+def test_us_metar_wind_must_use_knots(metar_decoder):
+    result = metar_decoder.decode("METAR KJFK 061751Z 18005MPS 10SM FEW250 22/18 A2992")
+    warnings = _warnings(result)
+    assert any("FMH-1" in w and "KT" in w for w in warnings), (
+        f"Expected FMH-1 KT warning, got: {warnings}"
+    )
+
+
+@pytest.mark.integration
+def test_us_metar_visibility_must_use_statute_miles(metar_decoder):
+    result = metar_decoder.decode("METAR KJFK 061751Z 28008KT 9999 FEW250 22/18 A2992")
+    warnings = _warnings(result)
+    assert any("visibility" in w.lower() and "FMH-1" in w for w in warnings), (
+        f"Expected FMH-1 visibility warning, got: {warnings}"
+    )
+
+
+@pytest.mark.integration
+def test_us_metar_visibility_reportable_values(metar_decoder):
+    result = metar_decoder.decode(
+        "METAR KJFK 061751Z 28008KT 2 1/8SM FEW250 22/18 A2992"
+    )
+    warnings = _warnings(result)
+    assert any("reportable FMH-1 visibility value" in w for w in warnings), (
+        f"Expected FMH-1 visibility table warning, got: {warnings}"
+    )
+
+
+@pytest.mark.integration
+def test_us_metar_altimeter_must_use_a_group(metar_decoder):
+    result = metar_decoder.decode("METAR KJFK 061751Z 28008KT 10SM FEW250 22/18 Q1013")
+    warnings = _warnings(result)
+    assert any("Q-coded pressure" in w and "FMH-1" in w for w in warnings), (
+        f"Expected FMH-1 altimeter warning, got: {warnings}"
+    )
+
+
+@pytest.mark.integration
+def test_us_auto_clear_sky_requires_clr(metar_decoder):
+    result = metar_decoder.decode(
+        "METAR KJFK 061751Z AUTO 28008KT 10SM SKC 22/18 A2992"
+    )
+    warnings = _warnings(result)
+    assert any("SKC" in w and "CLR" in w and "FMH-1" in w for w in warnings), (
+        f"Expected AUTO SKC/CLR warning, got: {warnings}"
+    )
+
+
+@pytest.mark.integration
+def test_us_manual_clear_sky_requires_skc(metar_decoder):
+    result = metar_decoder.decode("METAR KJFK 061751Z 28008KT 10SM CLR 22/18 A2992")
+    warnings = _warnings(result)
+    assert any("CLR" in w and "SKC" in w and "FMH-1" in w for w in warnings), (
+        f"Expected manual CLR/SKC warning, got: {warnings}"
+    )
+
+
+@pytest.mark.integration
+def test_us_metar_temperature_missing_omits_entire_group(metar_decoder):
+    result = metar_decoder.decode("METAR KJFK 061751Z 28008KT 10SM FEW250 ///18 A2992")
+    warnings = _warnings(result)
+    assert any(
+        "temperature is missing" in w.lower() and "FMH-1" in w for w in warnings
+    ), f"Expected FMH-1 temperature/dew point warning, got: {warnings}"
+
+
+@pytest.mark.integration
+def test_us_metar_vcva_not_fmh1_body_code(metar_decoder):
+    result = metar_decoder.decode(
+        "METAR KJFK 061751Z 28008KT 10SM VCVA FEW250 22/18 A2992"
+    )
+    warnings = _warnings(result)
+    assert any("VCVA" in w and "FMH-1" in w for w in warnings), (
+        f"Expected VCVA FMH-1 warning, got: {warnings}"
+    )
+
+
+@pytest.mark.integration
+def test_us_metar_fzup_not_fmh1_body_code(metar_decoder):
+    result = metar_decoder.decode(
+        "METAR KJFK 061751Z 28008KT 10SM FZUP FEW250 22/18 A2992"
+    )
+    warnings = _warnings(result)
+    assert any("UP" in w and "FMH-1" in w for w in warnings), (
+        f"Expected FZUP FMH-1 warning, got: {warnings}"
     )
 
 
@@ -433,6 +795,33 @@ def test_metar_shallow_mi_with_non_fg(metar_decoder):
     )
 
 
+@pytest.mark.integration
+def test_metar_non_wmo_weather_codes_warn(metar_decoder):
+    """IC and PY are not WMO Code table 4678 METAR/TAF weather codes."""
+    result = metar_decoder.decode(
+        "METAR KJFK 061751Z 28008KT 9999 IC PY FEW250 22/18 Q1013"
+    )
+    warnings = _warnings(result)
+    assert any("IC" in w or "ice crystals" in w for w in warnings), (
+        f"Expected IC warning, got: {warnings}"
+    )
+    assert any("PY" in w or "spray" in w for w in warnings), (
+        f"Expected PY warning, got: {warnings}"
+    )
+
+
+@pytest.mark.integration
+def test_metar_plus_fc_is_valid_wmo_intensity(metar_decoder):
+    """WMO permits intensity with funnel clouds, so +FC must not get a WMO intensity warning."""
+    result = metar_decoder.decode(
+        "METAR EGLL 061751Z 28008KT 9999 +FC FEW250 22/18 Q1013"
+    )
+    warnings = _warnings(result)
+    assert not any("Intensity modifier" in w for w in warnings), (
+        f"Unexpected +FC intensity warning, got: {warnings}"
+    )
+
+
 # ===========================================================================
 # METAR - DECODED CONTENT SANITY CHECKS
 # ===========================================================================
@@ -469,6 +858,22 @@ def test_metar_no_warning_for_valid_weather(metar_decoder):
     intensity_warnings = [w for w in _warnings(result) if "intensity" in w.lower()]
     assert not intensity_warnings, (
         f"Unexpected intensity warnings: {intensity_warnings}"
+    )
+
+
+@pytest.mark.integration
+def test_metar_non_annex_weather_codes_warn(metar_decoder):
+    """IC and PY parse as extensions, but are outside ICAO Annex 3 METAR weather."""
+    ice = metar_decoder.decode("METAR YUDO 221630Z 24004MPS 5000 IC SCT010 17/16 Q1018")
+    spray = metar_decoder.decode(
+        "METAR YUDO 221630Z 24004MPS 5000 PY SCT010 17/16 Q1018"
+    )
+
+    assert any("IC" in w and "Annex 3" in w for w in _warnings(ice)), (
+        f"Expected IC Annex warning, got: {_warnings(ice)}"
+    )
+    assert any("PY" in w and "Annex 3" in w for w in _warnings(spray)), (
+        f"Expected PY Annex warning, got: {_warnings(spray)}"
     )
 
 
@@ -522,6 +927,48 @@ def test_taf_nosig_in_body(taf_decoder):
 
 
 @pytest.mark.integration
+def test_taf_missing_keyword_warns(taf_decoder):
+    """WMO FM 51 requires TAF at the beginning of each forecast."""
+    result = taf_decoder.decode("KJFK 061730Z 0618/0718 28008KT 9999 FEW250")
+    warnings = _warnings(result)
+    assert any("TAF forecast type indicator" in w for w in warnings), (
+        f"Expected missing TAF warning, got: {warnings}"
+    )
+
+
+@pytest.mark.integration
+def test_taf_invalid_wmo_station_identifier_warns(taf_decoder):
+    """WMO FM 51 CCCC station group is an ICAO four-letter location indicator."""
+    result = taf_decoder.decode("TAF KJ1K 061730Z 0618/0718 28008KT 9999 FEW250")
+    warnings = _warnings(result)
+    assert any("CCCC" in w or "four-letter" in w for w in warnings), (
+        f"Expected TAF station warning, got: {warnings}"
+    )
+
+
+@pytest.mark.integration
+def test_taf_becmg_without_time_range_warns(taf_decoder):
+    """WMO FM 51 BECMG groups require YYGG/YeYeGeGe."""
+    result = taf_decoder.decode(
+        "TAF KJFK 061730Z 0618/0718 28008KT 9999 FEW250 BECMG 5000 BR"
+    )
+    warnings = _warnings(result)
+    assert any("BECMG" in w and "time period" in w for w in warnings), (
+        f"Expected BECMG time-period warning, got: {warnings}"
+    )
+
+
+@pytest.mark.integration
+def test_taf_statute_mile_visibility_warns(taf_decoder):
+    """WMO FM 51 forecast visibility is metric, not statute miles."""
+    result = taf_decoder.decode("TAF KJFK 061730Z 0618/0718 28008KT 6SM FEW250")
+    warnings = _warnings(result)
+    assert any(
+        "visibility must be reported in metres" in w or "got SM" in w for w in warnings
+    ), f"Expected TAF SM visibility warning, got: {warnings}"
+
+
+@pytest.mark.integration
 def test_taf_more_than_5_change_groups(taf_decoder):
     """More than 5 change groups — should warn."""
     result = taf_decoder.decode(
@@ -550,6 +997,30 @@ def test_taf_cavok_with_cloud_groups_warns(taf_decoder):
 
 
 @pytest.mark.integration
+def test_taf_more_than_4_cloud_layers_warns(taf_decoder):
+    """A forecast period cannot report more than four cloud layers."""
+    result = taf_decoder.decode(
+        "TAF EGLL 061100Z 0612/0718 24012KT 9999 FEW010 SCT020 BKN030 OVC040 SCT050"
+    )
+    warnings = _warnings(result)
+    assert any("cloud layers" in w and "4" in w for w in warnings), (
+        f"Expected cloud layer warning, got: {warnings}"
+    )
+
+
+@pytest.mark.integration
+def test_taf_change_period_outside_valid_period_warns(taf_decoder):
+    """Change groups must remain inside the report valid period."""
+    result = taf_decoder.decode(
+        "TAF EGLL 061100Z 0612/0618 24012KT 9999 NSC FM071200 26010KT 9999 NSC"
+    )
+    warnings = _warnings(result)
+    assert any("outside the TAF valid period" in w for w in warnings), (
+        f"Expected valid-period warning, got: {warnings}"
+    )
+
+
+@pytest.mark.integration
 def test_taf_main_period_requires_visibility_and_clouds(taf_decoder):
     """Complete TAF sections must include visibility and sky/CAVOK content."""
     result = taf_decoder.decode("TAF KJFK 061730Z 0618/0724 28008KT")
@@ -571,6 +1042,30 @@ def test_taf_becmg_duration_limit_warning(taf_decoder):
 
 
 @pytest.mark.integration
+def test_taf_becmg_missing_time_period_warning(taf_decoder):
+    """BECMG requires a DDHH/DDHH period in Annex 3 Table A5-1."""
+    result = taf_decoder.decode(
+        "TAF KJFK 061730Z 0618/0724 28008KT 9999 FEW030 BECMG 8000 NSW"
+    )
+    warnings = _warnings(result)
+    assert any("BECMG" in w and "DDHH/DDHH" in w for w in warnings), (
+        f"Expected BECMG time-period warning, got: {warnings}"
+    )
+
+
+@pytest.mark.integration
+def test_taf_tempo_missing_time_period_warning(taf_decoder):
+    """TEMPO requires a DDHH/DDHH period in Annex 3 Table A5-1."""
+    result = taf_decoder.decode(
+        "TAF KJFK 061730Z 0618/0724 28008KT 9999 FEW030 TEMPO 1000 TSRA BKN010CB"
+    )
+    warnings = _warnings(result)
+    assert any("TEMPO" in w and "DDHH/DDHH" in w for w in warnings), (
+        f"Expected TEMPO time-period warning, got: {warnings}"
+    )
+
+
+@pytest.mark.integration
 def test_taf_temperature_groups_must_be_report_level(taf_decoder):
     """TX/TN embedded in FM periods should be warned as misplaced."""
     result = taf_decoder.decode(
@@ -579,6 +1074,21 @@ def test_taf_temperature_groups_must_be_report_level(taf_decoder):
     warnings = _warnings(result)
     assert any("TX/TN" in w or "temperature groups" in w for w in warnings), (
         f"Expected misplaced temperature warning, got: {warnings}"
+    )
+
+
+@pytest.mark.integration
+def test_taf_temperature_groups_before_change_are_report_level(taf_decoder):
+    """Annex 3 Table A5-1 places TX/TN before expected significant change groups."""
+    result = taf_decoder.decode(
+        "TAF KJFK 061730Z 0618/0724 28008KT 9999 FEW030 "
+        "TX25/0618Z TN15/0706Z BECMG 0620/0622 VRB05KT"
+    )
+    warnings = _warnings(result)
+
+    assert len(result.temperature_forecasts) == 2
+    assert not any("TX/TN" in w or "temperature groups" in w for w in warnings), (
+        f"Unexpected temperature warning, got: {warnings}"
     )
 
 
@@ -595,12 +1105,46 @@ def test_taf_nonstandard_extension_group_warning(taf_decoder):
 
 
 @pytest.mark.integration
+def test_taf_annex_iv_warns_for_sm_visibility_and_high_cloud(taf_decoder):
+    """Annex IV TAF uses metres and cloud-base range 000-200."""
+    result = taf_decoder.decode("TAF KJFK 061730Z 0618/0724 28008KT P6SM FEW250")
+    warnings = _warnings(result)
+    assert any("visibility must be reported in metres" in w for w in warnings)
+    assert any("cloud-base height" in w for w in warnings)
+
+
+@pytest.mark.integration
+def test_taf_annex_iv_warns_for_ncd_and_extra_cloud_layer(taf_decoder):
+    """Appendix 3 TAF excludes NCD and allows up to four cloud layers."""
+    ncd = taf_decoder.decode("TAF EGLL 061730Z 0618/0718 28008KT 9999 NCD")
+    many_clouds = taf_decoder.decode(
+        "TAF EGLL 061730Z 0618/0718 28008KT 9999 FEW010 SCT020 BKN030 OVC040 FEW050"
+    )
+    assert any("NCD is not in the Annex IV TAF" in w for w in _warnings(ncd))
+    assert any("up to four cloud layers" in w for w in _warnings(many_clouds))
+
+
+@pytest.mark.integration
 def test_taf_more_than_3_weather_codes_per_period(taf_decoder):
     """More than 3 weather codes in the MAIN period — per-period warning."""
     result = taf_decoder.decode("TAF KJFK 061730Z 0618/0724 -RA -SN BR VCTS FEW030")
     warnings = _warnings(result)
     assert any("weather" in w.lower() or "3" in w for w in warnings), (
         f"Expected weather/3 per-period warning, got: {warnings}"
+    )
+
+
+@pytest.mark.integration
+def test_taf_non_annex_weather_codes_warn(taf_decoder):
+    """IC and PY parse as extensions, but are outside ICAO Annex 3 TAF weather."""
+    ice = taf_decoder.decode("TAF KJFK 061730Z 0618/0724 28008KT 9999 IC FEW030")
+    spray = taf_decoder.decode("TAF KJFK 061730Z 0618/0724 28008KT 9999 PY FEW030")
+
+    assert any("IC" in w and "Annex 3" in w for w in _warnings(ice)), (
+        f"Expected IC Annex warning, got: {_warnings(ice)}"
+    )
+    assert any("PY" in w and "Annex 3" in w for w in _warnings(spray)), (
+        f"Expected PY Annex warning, got: {_warnings(spray)}"
     )
 
 
@@ -624,6 +1168,88 @@ def test_taf_prob30_is_valid(taf_decoder):
     )
     prob_warnings = [w for w in warnings if "invalid" in w.lower() and "PROB" in w]
     assert not prob_warnings, f"Unexpected PROB30 validity warning: {prob_warnings}"
+
+
+# ===========================================================================
+# EU ANNEX IV REGRESSION TESTS
+# ===========================================================================
+
+
+@pytest.mark.integration
+def test_metar_annex_wind_p99_fixed_value_warning(metar_decoder):
+    """Annex IV uses P99, not P100, for wind speeds of 100 kt or more."""
+    result = metar_decoder.decode(
+        "METAR EDDM 061751Z 280P100KT 9999 FEW030 22/18 Q1013"
+    )
+    assert any("P99" in w for w in _warnings(result)), _warnings(result)
+
+
+@pytest.mark.integration
+def test_metar_annex_visibility_resolution_warning(metar_decoder):
+    """Metric visibility must follow Annex IV resolution bands."""
+    result = metar_decoder.decode("METAR EDDM 061751Z 28008KT 0751 FEW030 22/18 Q1013")
+    assert any(
+        "visibility" in w.lower() and "resolution" in w.lower()
+        for w in _warnings(result)
+    ), _warnings(result)
+
+
+@pytest.mark.integration
+def test_metar_annex_rvr_resolution_warning(metar_decoder):
+    """RVR must follow Annex IV 25/50/100 m resolution bands."""
+    result = metar_decoder.decode(
+        "METAR EDDM 061751Z 28008KT 0700 R01/0123 FEW030 22/18 Q1013"
+    )
+    assert any("RVR" in w and "resolution" in w for w in _warnings(result)), _warnings(
+        result
+    )
+
+
+@pytest.mark.integration
+def test_metar_annex_missing_rvr_is_parsed(metar_decoder):
+    """Annex IV allows missing RVR as four solidi after the runway separator."""
+    result = metar_decoder.decode(
+        "METAR EDDM 061751Z 28008KT 0700 R01///// FEW030 22/18 Q1013"
+    )
+    assert len(result.runway_visual_ranges) == 1
+    assert result.runway_visual_ranges[0].unavailable is True
+
+
+@pytest.mark.integration
+def test_metar_annex_cloud_height_resolution_warning(metar_decoder):
+    """Cloud bases above 9900 ft must be reported in 1000 ft steps."""
+    result = metar_decoder.decode("METAR EDDM 061751Z 28008KT 9999 FEW101 22/18 Q1013")
+    assert any("cloud-base" in w and "resolution" in w for w in _warnings(result)), (
+        _warnings(result)
+    )
+
+
+@pytest.mark.integration
+def test_taf_missing_type_keeps_location_but_warns_type_only(taf_decoder):
+    """Missing TAF type should not be misreported as a missing location indicator."""
+    result = taf_decoder.decode("EDDM 061700Z 0618/0718 28008KT 9999 FEW030")
+    warnings = _warnings(result)
+    assert any("forecast type" in w for w in warnings), warnings
+    assert not any("location indicator" in w for w in warnings), warnings
+
+
+@pytest.mark.integration
+def test_taf_annex_visibility_resolution_warning(taf_decoder):
+    """TAF visibility must follow Annex IV resolution bands."""
+    result = taf_decoder.decode("TAF EDDM 061700Z 0618/0718 28008KT 0751 FEW030")
+    assert any(
+        "visibility" in w.lower() and "resolution" in w.lower()
+        for w in _warnings(result)
+    ), _warnings(result)
+
+
+@pytest.mark.integration
+def test_taf_annex_cloud_height_resolution_warning(taf_decoder):
+    """TAF cloud bases above 9900 ft must be reported in 1000 ft steps."""
+    result = taf_decoder.decode("TAF EDDM 061700Z 0618/0718 28008KT 9999 FEW101")
+    assert any("cloud-base" in w and "resolution" in w for w in _warnings(result)), (
+        _warnings(result)
+    )
 
 
 # ===========================================================================
@@ -1081,12 +1707,34 @@ def test_weather_parser_fzra_freezing_rain():
 
 @pytest.mark.unit
 def test_weather_parser_re_slash_slash():
-    """RE// — recent weather unavailable (AUTO station)."""
+    """RE// decodes recent weather that was not reported."""
     wp = WeatherParser()
     result = wp.parse("RE//")
     assert result is not None
     assert result.intensity == "recent"
     assert "not reported" in result.phenomena
+
+
+@pytest.mark.unit
+def test_weather_parser_recent_gr_and_gs():
+    """REGR and REGS are valid WMO recent-weather groups."""
+    wp = WeatherParser()
+    regr = wp.parse("REGR")
+    regs = wp.parse("REGS")
+    assert regr is not None
+    assert regr.intensity == "recent"
+    assert "hail" in regr.phenomena
+    assert regs is not None
+    assert regs.intensity == "recent"
+    assert "snow pellets" in regs.phenomena
+
+
+@pytest.mark.unit
+def test_weather_parser_rejects_recent_freezing_fog_and_intensity():
+    """Recent weather has no intensity and WMO lists freezing precipitation, not freezing fog."""
+    wp = WeatherParser()
+    assert wp.parse("REFZFG") is None
+    assert wp.parse("RE+FC") is None
 
 
 @pytest.mark.unit

@@ -304,12 +304,12 @@ class RecentWeatherRemarksMixin(RemarksCommon):
             decoded["Hailstone Size"] = f"{m.group(1)} inch in diameter"
 
     def _parse_snow_pellet_intensity(self, remarks: str, decoded: Dict) -> None:
-        """Parse snow pellet/small hail intensity (GS LGT|MOD|HVY) — FMH-1 §12.7.1.o"""
+        """Parse snow pellet intensity (GS LGT|MOD|HVY) — FMH-1 §12.7.1.o"""
         m = re.search(r"\bGS\s+(LGT|MOD|HVY)\b", remarks)
         if m:
             intensity_map = {"LGT": "light", "MOD": "moderate", "HVY": "heavy"}
             decoded["Snow Pellet Intensity"] = (
-                f"{intensity_map[m.group(1)]} snow pellets/small hail"
+                f"{intensity_map[m.group(1)]} snow pellets"
             )
 
     def _parse_volcanic_eruption(self, remarks: str, decoded: Dict) -> None:

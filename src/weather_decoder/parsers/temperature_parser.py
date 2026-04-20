@@ -13,10 +13,21 @@ class TemperatureParser:
     """Parser for temperature information in METAR and TAF reports."""
 
     METAR_TEMPERATURE_PATTERN = re.compile(r"^(M?\d{2}|//)/(M?\d{2}|//)?$")
+    METAR_MISSING_TEMPERATURE_PATTERN = re.compile(
+        r"^(?:///)(M?\d{2})$|^(M?\d{2})///$|^/{5}$"
+    )
     TX_PATTERN = re.compile(r"TX([M]?)(\d{2})/(\d{2})(\d{2})Z")
     TN_PATTERN = re.compile(r"TN([M]?)(\d{2})/(\d{2})(\d{2})Z")
 
     def parse(self, token: str) -> Optional[Tuple[Optional[float], Optional[float]]]:
+        missing_match = self.METAR_MISSING_TEMPERATURE_PATTERN.match(token)
+        if missing_match:
+            if token == "/////":
+                return (None, None)
+            if token.startswith("///"):
+                return (None, self._parse_temperature_component(missing_match.group(1)))
+            return (self._parse_temperature_component(missing_match.group(2)), None)
+
         match = self.METAR_TEMPERATURE_PATTERN.match(token)
         if not match:
             return None
@@ -98,7 +109,7 @@ class TemperatureParser:
 
     @staticmethod
     def _parse_temperature_component(token: Optional[str]) -> Optional[float]:
-        if token is None or token in {"", "//"}:
+        if token is None or token in {"", "//", "///"}:
             return None
         if token.startswith("M") and token[1:].isdigit() and len(token) == 3:
             return -int(token[1:])

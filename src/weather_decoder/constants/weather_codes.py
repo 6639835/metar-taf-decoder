@@ -29,7 +29,7 @@ WEATHER_PHENOMENA = {
     "IC": "ice crystals",
     "PL": "ice pellets",
     "GR": "hail",
-    "GS": "small hail",
+    "GS": "snow pellets",
     "UP": "unknown precipitation",
     "BR": "mist",
     "FG": "fog",
@@ -80,10 +80,10 @@ COMPOUND_WEATHER_PHENOMENA = {
     # Additional WMO-compliant compounds
     "SHSN": "snow shower",
     "SHGR": "hail shower",
-    "SHGS": "small hail shower",
+    "SHGS": "snow pellet shower",
     "SHRA": "rain shower",
     "TSGR": "thunderstorm with hail",
-    "TSGS": "thunderstorm with small hail",
+    "TSGS": "thunderstorm with snow pellets",
     "TSRA": "thunderstorm with rain",
     "TSSN": "thunderstorm with snow",
 }

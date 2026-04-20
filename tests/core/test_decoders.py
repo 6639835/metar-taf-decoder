@@ -318,11 +318,11 @@ def test_metar_validation_no_keyword():
 
 @pytest.mark.unit
 def test_metar_validation_skc_warning():
-    """Test validation warning for SKC (US code, not WMO standard)."""
+    """Test validation warning for CLR in a manual U.S. FMH-1 METAR."""
     decoder = MetarDecoder()
-    result = decoder.decode("METAR KJFK 061751Z 28008KT 10SM SKC 22/18 A2992")
+    result = decoder.decode("METAR KJFK 061751Z 28008KT 10SM CLR 22/18 A2992")
 
-    assert any("SKC/CLR" in w for w in result.validation_warnings)
+    assert any("CLR" in w and "SKC" in w for w in result.validation_warnings)
 
 
 @pytest.mark.unit
@@ -516,6 +516,17 @@ def test_taf_cnl_cancellation():
 
     assert result.is_cancelled is True
     assert result.status == "CANCELLATION"
+
+
+@pytest.mark.integration
+def test_taf_strips_final_equals_before_cancellation():
+    """A final TAF '=' must not hide CNL or the final body token."""
+    decoder = TafDecoder()
+    result = decoder.decode("TAF KJFK 061730Z 0618/0724 CNL=")
+
+    assert result.is_cancelled is True
+    assert result.status == "CANCELLATION"
+    assert result.forecast_periods == []
 
 
 @pytest.mark.integration

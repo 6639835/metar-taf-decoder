@@ -108,10 +108,16 @@ class MetarDecoder:
             runway_visual_ranges=runway_visual_ranges,
             runway_states=runway_states,
             weather_groups=weather_groups,
+            recent_weather=recent_weather,
             sky_conditions=sky_conditions,
             temperature=temperature,
             dewpoint=dewpoint,
+            altimeter=altimeter,
+            windshear=windshear,
             trends=trends,
+            remarks=remarks,
+            is_nil=is_nil,
+            has_remarks=bool(remarks),
         )
 
         report = MetarReport(

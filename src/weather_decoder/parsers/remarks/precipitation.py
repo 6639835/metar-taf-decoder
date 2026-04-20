@@ -142,11 +142,11 @@ class PrecipitationRemarksMixin(RemarksCommon):
     def _parse_ri_precip_intensity(self, remarks: str, decoded: Dict) -> None:
         """Parse JMA precipitation intensity in RMK (RIxxx) — JMA Attachment 2
 
-        RIxxx where xxx is precipitation intensity in tenths of mm/hr
-        (e.g., RI035 = 3.5 mm/hr; RI300 = 30.0 mm/hr)
-        Reported when intensity ≥ 3 mm/hr (RI030 and above).
+        RIxxx where xxx is precipitation intensity in whole mm/h
+        (e.g., RI035 = 35 mm/h).
+        Reported when intensity is 3 mm/h or more.
         """
         m = re.search(r"\bRI(\d{3})\b", remarks)
         if m:
             val = int(m.group(1))
-            decoded["Precipitation Intensity (JMA)"] = f"{val / 10.0:.1f} mm/hr"
+            decoded["Precipitation Intensity (JMA)"] = f"{val} mm/h"

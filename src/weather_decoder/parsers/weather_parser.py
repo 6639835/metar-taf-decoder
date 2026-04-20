@@ -17,17 +17,20 @@ class WeatherParser(BaseParser[WeatherPhenomenon], StopConditionMixin):
 
     stop_tokens = TREND_TYPES
     RECENT_WEATHER_PATTERN = re.compile(
-        r"^RE(?:RASN|SNRA|FZDZ|FZRA|FZUP|FZFG|"
+        r"^RE(?:RASN|SNRA|FZDZ|FZRA|FZUP|"
         r"REDZ|DZ|SHRA|RA|SHSN|SN|RESG|SG|SHGR|SHGS|SHUP|"
-        r"BLSN|BLDU|BLSA|SS|DS|"
+        r"GR|GS|BLSN|BLDU|BLSA|SS|DS|"
         r"TSRA|TSSN|TSGR|TSGS|TSUP|TS|"
-        r"FC|\+FC|VA|PL|UP|//)$"
+        r"FC|VA|PL|UP|//)$"
     )
 
     def parse(self, token: str) -> Optional[WeatherPhenomenon]:
         # AUTO station: present weather not observable (// per ICAO/WMO Reg. 15.8.19, CAP 746 §4.154)
         if token == "//":
             return WeatherPhenomenon(unavailable=True)
+
+        if token == "RE//":
+            return WeatherPhenomenon(intensity="recent", phenomena=("not reported",))
 
         # NSW is only valid in METAR TREND sections (BECMG/TEMPO), not the METAR body.
         # Return None so extract_all() skips it; metar_decoder emits the validation warning.
@@ -41,9 +44,6 @@ class WeatherParser(BaseParser[WeatherPhenomenon], StopConditionMixin):
 
         if token.startswith("RE") and not self.RECENT_WEATHER_PATTERN.match(token):
             return None
-
-        if token == "RE//":
-            return WeatherPhenomenon(intensity="recent", phenomena=("not reported",))
 
         intensity = None
         descriptor = None
@@ -69,7 +69,7 @@ class WeatherParser(BaseParser[WeatherPhenomenon], StopConditionMixin):
             while remaining and len(remaining) >= 2:
                 code = remaining[:2]
                 if code in WEATHER_PHENOMENA:
-                    phenomena.append(WEATHER_PHENOMENA[code])
+                    self._append_weather_phenomenon(phenomena, code)
                     remaining = remaining[2:]
                 else:
                     break
@@ -123,7 +123,7 @@ class WeatherParser(BaseParser[WeatherPhenomenon], StopConditionMixin):
         while remaining and len(remaining) >= 2:
             code = remaining[:2]
             if code in WEATHER_PHENOMENA:
-                phenomena.append(WEATHER_PHENOMENA[code])
+                self._append_weather_phenomenon(phenomena, code)
                 remaining = remaining[2:]
                 has_weather = True
             else:
@@ -141,6 +141,13 @@ class WeatherParser(BaseParser[WeatherPhenomenon], StopConditionMixin):
     @staticmethod
     def is_recent_weather_token(token: str) -> bool:
         return bool(WeatherParser.RECENT_WEATHER_PATTERN.match(token))
+
+    @staticmethod
+    def _append_weather_phenomenon(phenomena: List[str], code: str) -> None:
+        if code == "GS":
+            phenomena.append("snow pellets")
+            return
+        phenomena.append(WEATHER_PHENOMENA[code])
 
     def extract_all(self, stream: TokenStream) -> List[WeatherPhenomenon]:
         weather_groups: List[WeatherPhenomenon] = []

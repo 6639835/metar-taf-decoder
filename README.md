@@ -20,6 +20,9 @@ weather reports (METAR and TAF).
 - **Comprehensive Parsing**: Handles wind, visibility, weather phenomena, sky conditions, and more
 - **Remarks Decoding**: Family-based remarks parsers for automation, pressure, wind, visibility, lightning, precipitation, sky, temperature, and recent weather remarks
 - **Multiple Formats**: Support for various international weather report formats
+- **Standards Warnings**: Decodes regional formats while surfacing Annex IV,
+  ICAO/WMO, FMH-1, CAP 746, and JMA validation warnings when a report uses
+  non-template or locally extended syntax
 
 ## Installation
 
@@ -165,6 +168,10 @@ print(report.wind, report.visibility)
 The decoder APIs return `MetarData` and `TafData`, convenience wrappers around
 the strongly typed `MetarReport` and `TafReport` models. The model dataclasses
 are also exported from the package root for consumers that need type annotations.
+
+The parsers are intentionally permissive so regional formats such as FAA
+statute-mile visibility and inHg altimeter groups can still be decoded. Check
+`report.validation_warnings` when you need Annex IV / ICAO-template compliance.
 
 Prefer the current paths in new code:
 

@@ -280,6 +280,7 @@ class TestModelDefaults:
         rvr = RunwayVisualRange(runway="09", visual_range=800, unit="M")
         assert rvr.is_less_than is False
         assert rvr.is_more_than is False
+        assert rvr.unavailable is False
         assert rvr.variable_range is None
         assert rvr.variable_less_than is False
         assert rvr.variable_more_than is False

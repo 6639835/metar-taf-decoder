@@ -13,6 +13,7 @@ from weather_decoder.formatters.common import (
     format_sky_conditions_list,
     format_weather_groups_list,
     format_pressure,
+    format_sky_condition,
     format_temperature,
 )
 from weather_decoder.models import (
@@ -876,6 +877,20 @@ class TestFormatSkyConditionsList:
         result = format_sky_conditions_list([sky])
         assert "Unknown cloud amount" in result[0]
         assert "unknown height" in result[0]
+
+    def test_unknown_cloud_amount_preserves_cb(self):
+        """JMA //////CB keeps the CB marker in formatted output."""
+        sky = SkyCondition(coverage="///", height=None, unknown_height=True, cb=True)
+        result = format_sky_condition(sky)
+        assert "Unknown cloud amount" in result
+        assert "CB" in result
+
+    def test_unknown_cloud_amount_preserves_tcu(self):
+        """JMA //////TCU keeps the TCU marker in formatted output."""
+        sky = SkyCondition(coverage="///", height=None, unknown_height=True, tcu=True)
+        result = format_sky_condition(sky)
+        assert "Unknown cloud amount" in result
+        assert "TCU" in result
 
     def test_unknown_cloud_amount_with_height(self):
         """/// coverage with known height includes the height."""

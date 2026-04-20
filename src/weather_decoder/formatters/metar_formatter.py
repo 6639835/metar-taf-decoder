@@ -246,7 +246,9 @@ class MetarFormatter:
         lines = ["Runway Visual Range:"]
 
         for rvr in rvr_list:
-            if rvr.variable_range is not None:
+            if rvr.unavailable:
+                rvr_line = f"  Runway {rvr.runway}: not available"
+            elif rvr.variable_range is not None:
                 min_prefix = (
                     "less than "
                     if rvr.is_less_than

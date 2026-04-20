@@ -64,6 +64,13 @@ def test_complex_automated_precipitation_timeline_report():
 
 
 @pytest.mark.unit
+def test_jma_ri_precipitation_intensity_uses_whole_mm_per_hour():
+    """RI035 is 35 mm/h in JMA automated METAR/SPECI remarks."""
+    _, decoded = RemarksParser().parse(rmk("A2956 RI035"))
+    assert decoded["Precipitation Intensity (JMA)"] == "35 mm/h"
+
+
+@pytest.mark.unit
 def test_precipitation_amount_value():
     """P0021 → 0.21 inches."""
     _, decoded = RemarksParser().parse(rmk("P0021"))

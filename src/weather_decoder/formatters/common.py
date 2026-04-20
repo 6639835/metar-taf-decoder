@@ -117,9 +117,19 @@ def format_sky_condition(sky: SkyCondition) -> str:
             return "Vertical visibility (unknown height)"
         return f"Vertical visibility {sky.height} feet"
     if sky_type == "///":
-        if sky.unknown_height:
-            return "Unknown cloud amount at unknown height"
-        return f"Unknown cloud amount at {sky.height} feet"
+        height_text = (
+            "unknown height"
+            if sky.unknown_height or sky.height is None
+            else f"{sky.height} feet"
+        )
+        result = f"Unknown cloud amount at {height_text}"
+        if sky.cb:
+            result += " (CB)"
+        elif sky.tcu:
+            result += " (TCU)"
+        elif sky.unknown_type:
+            result += " (unknown type)"
+        return result
 
     height_str = (
         "unknown height"

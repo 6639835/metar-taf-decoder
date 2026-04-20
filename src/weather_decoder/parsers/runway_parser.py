@@ -16,7 +16,7 @@ from ..constants.runway_codes import (
 from ..models import RunwayState, RunwayVisualRange
 from .token_stream import TokenStream
 
-RVR_PATTERN = r"R(\d{2}[LCR]?)/([PM])?(\d{4})(?:V([PM])?(\d{4}))?(?:FT)?([UDN])?$"
+RVR_PATTERN = r"R(\d{2}[LCR]?)/([PM])?(\d{4}|/{4})(?:V([PM])?(\d{4}))?(?:FT)?([UDN])?$"
 RUNWAY_STATE_PATTERN = r"R(\d{2}[LCR]?)/(\d|/)(\d|/)(\d{2}|//)(\d{2}|//)$"
 RUNWAY_STATE_CLRD_PATTERN = r"R(\d{2}[LCR]?)/CLRD//$"
 SNOCLO_TOKEN = "R/SNOCLO"
@@ -41,7 +41,9 @@ class RunwayParser:
     def _parse_rvr_match(self, match: re.Match, original: str) -> RunwayVisualRange:
         runway = match.group(1)
         modifier1 = match.group(2)
-        visual_range = int(match.group(3))
+        visual_range_token = match.group(3)
+        unavailable = visual_range_token == "////"
+        visual_range = 0 if unavailable else int(visual_range_token)
         modifier2 = match.group(4)
         variable_range = int(match.group(5)) if match.group(5) else None
         trend = match.group(6)
@@ -54,6 +56,7 @@ class RunwayParser:
             unit=unit,
             is_less_than=modifier1 == "M",
             is_more_than=modifier1 == "P",
+            unavailable=unavailable,
             variable_range=variable_range,
             variable_less_than=modifier2 == "M" if modifier2 else False,
             variable_more_than=modifier2 == "P" if modifier2 else False,

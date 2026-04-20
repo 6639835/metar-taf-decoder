@@ -45,12 +45,16 @@ class TafDecoder:
         )
 
     def decode(self, raw_taf: str) -> TafData:
-        taf = self._preprocess_taf(raw_taf.strip())
+        taf = raw_taf.strip()
+        if taf.endswith("="):
+            taf = taf[:-1].rstrip()
+        taf = self._preprocess_taf(taf)
 
         remarks, remarks_decoded = self._decode_remarks(taf)
         main_taf = taf.split("RMK", 1)[0].strip() if "RMK" in taf else taf
 
         tokens = main_taf.split()
+        validation_tokens = list(tokens)
         (
             station_id,
             issue_time,
@@ -62,6 +66,7 @@ class TafDecoder:
         ) = self._extract_header(tokens)
 
         validation_warnings = self.validator.validate_report(
+            validation_tokens=validation_tokens,
             remarks=remarks,
             valid_period=valid_period,
             is_cancelled=is_cancelled,
@@ -80,7 +85,7 @@ class TafDecoder:
         period_warnings: List[str] = []
         if not is_cancelled and not is_nil:
             forecast_periods, period_warnings = self._decode_forecast_periods(
-                temperature_tokens, valid_period.start
+                temperature_tokens, valid_period
             )
         validation_warnings.extend(period_warnings)
 
@@ -203,10 +208,12 @@ class TafDecoder:
         )
 
     def _decode_forecast_periods(
-        self, parts: List[str], reference_time: datetime
+        self, parts: List[str], valid_period: TimeRange
     ) -> Tuple[List[TafForecastPeriod], List[str]]:
         if not parts:
             return [], []
+
+        reference_time = valid_period.start
 
         change_indices = self._find_change_indices(parts)
         change_indices.append(len(parts))
@@ -235,6 +242,7 @@ class TafDecoder:
             self.validator.validate_forecast_periods(
                 parts=parts,
                 forecast_periods=forecast_periods,
+                valid_period=valid_period,
             )
         )
 
@@ -403,22 +411,24 @@ class TafDecoder:
         reference_time: datetime,
     ) -> Tuple[List[str], List, List[str]]:
         working_tokens = list(tokens)
-        temperature_tokens: List[str] = []
-
-        while working_tokens:
-            token = working_tokens[-1]
-            if self.temperature_parser.TX_PATTERN.match(
-                token
-            ) or self.temperature_parser.TN_PATTERN.match(token):
-                temperature_tokens.insert(0, working_tokens.pop())
-            else:
+        first_change_index = len(working_tokens)
+        for i, token in enumerate(working_tokens):
+            if (
+                token in ("TEMPO", "BECMG")
+                or token.startswith("PROB")
+                or re.match(FM_PATTERN, token)
+            ):
+                first_change_index = i
                 break
 
+        base_tokens = working_tokens[:first_change_index]
+        change_tokens = working_tokens[first_change_index:]
         temperature_forecasts = self.temperature_parser.extract_temperature_forecasts(
-            temperature_tokens, reference_time
+            base_tokens, reference_time
         )
+        remaining_tokens = base_tokens + change_tokens
         warnings = self.validator.validate_temperature_groups(
-            working_tokens, temperature_forecasts
+            remaining_tokens, temperature_forecasts
         )
 
-        return working_tokens, temperature_forecasts, warnings
+        return remaining_tokens, temperature_forecasts, warnings

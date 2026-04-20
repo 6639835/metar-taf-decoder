@@ -18,6 +18,17 @@ class SkyParser(BaseParser[SkyCondition], StopConditionMixin):
     stop_tokens = TREND_TYPES
 
     def parse(self, token: str) -> Optional[SkyCondition]:
+        # AUTO station: CB/TCU detected, but amount and height are unavailable
+        # (//////CB or //////TCU per CAP 746 §4.149-4.150).
+        if token in {"//////CB", "//////TCU"}:
+            return SkyCondition(
+                coverage="///",
+                height=None,
+                unknown_height=True,
+                cb=token.endswith("CB"),
+                tcu=token.endswith("TCU"),
+            )
+
         # AUTO station: cloud observation system not operating (////// per ICAO/CAP 746 §4.146)
         if token == "//////":
             return SkyCondition(
@@ -51,7 +62,7 @@ class SkyParser(BaseParser[SkyCondition], StopConditionMixin):
             unknown_height=unknown_height,
             cb=cloud_type == "CB",
             tcu=cloud_type == "TCU",
-            unknown_type=cloud_type == "///",
+            unknown_type=cloud_type in ("///", "//"),
         )
 
     def extract_all(self, stream: TokenStream) -> List[SkyCondition]:

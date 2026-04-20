@@ -4,10 +4,6 @@
 STATION_TYPES = {
     "AO1": "Automated station without precipitation discriminator",
     "AO2": "Automated station with precipitation discriminator",
-    # Common remarks variants (often used outside the U.S. METAR body header)
-    "A01": "Automated observation equipment cannot distinguish between rain and snow",
-    "A02": "Automated observation equipment can distinguish between rain and snow",
-    "A02A": "Automated observation augmented by a human observer",
 }
 
 # Sensor/status indicators used in U.S. METAR remarks (RMK).

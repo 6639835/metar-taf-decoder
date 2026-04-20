@@ -15,8 +15,7 @@ from .common import (
 class AutomationRemarksMixin(RemarksCommon):
     def _parse_station_type(self, remarks: str, decoded: Dict, positions: Dict) -> None:
         """Parse station type (AO1/AO2)"""
-        # Longest-first to avoid matching A02 within A02A
-        for code in ["A02A", "AO2", "AO1", "A02", "A01"]:
+        for code in ["AO2", "AO1"]:
             pos = remarks.find(code)
             if pos >= 0:
                 decoded["Station Type"] = STATION_TYPES.get(code, code)

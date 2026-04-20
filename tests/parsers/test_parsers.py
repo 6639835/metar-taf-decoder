@@ -520,6 +520,12 @@ class TestWeatherParser:
         assert "not reported" in wx.phenomena
 
     @pytest.mark.unit
+    def test_parse_gs_means_snow_pellets(self) -> None:
+        wx = self.parser.parse("GS")
+        assert wx is not None
+        assert wx.phenomena == ("snow pellets",)
+
+    @pytest.mark.unit
     def test_parse_nsw_returns_none(self) -> None:
         assert self.parser.parse("NSW") is None
 
@@ -655,6 +661,14 @@ class TestSkyParser:
         assert sky.unknown_type
 
     @pytest.mark.unit
+    def test_parse_jma_local_unknown_cloud_type(self) -> None:
+        sky = self.parser.parse("SCT090//")
+        assert sky is not None
+        assert sky.coverage == "SCT"
+        assert sky.height == 9000
+        assert sky.unknown_type
+
+    @pytest.mark.unit
     def test_parse_unknown_amount_height_cb(self) -> None:
         sky = self.parser.parse("//////CB")
         assert sky is not None
@@ -739,6 +753,14 @@ class TestTemperatureParser:
         temp, dew = result
         assert temp is None
         assert dew == 18.0
+
+    @pytest.mark.unit
+    def test_parse_annex_iv_missing_dewpoint_compact(self) -> None:
+        result = self.parser.parse("22///")
+        assert result is not None
+        temp, dew = result
+        assert temp == 22.0
+        assert dew is None
 
     @pytest.mark.unit
     def test_parse_both_missing(self) -> None:

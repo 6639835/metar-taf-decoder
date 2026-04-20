@@ -53,6 +53,7 @@ class RunwayVisualRange:
     unit: str
     is_less_than: bool = False
     is_more_than: bool = False
+    unavailable: bool = False
     variable_range: Optional[int] = None
     variable_less_than: bool = False
     variable_more_than: bool = False

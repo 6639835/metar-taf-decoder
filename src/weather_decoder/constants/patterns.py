@@ -24,11 +24,11 @@ VISIBILITY_PATTERN = (
 )
 
 # Runway visual range patterns
-# Format: R{runway}/{M|P}{value}{V{M|P}{value}}{FT}{trend}
+# Format: R{runway}/{M|P}{value or ////}{V{M|P}{value}}{FT}{trend}
 # M = less than (Minus), P = more than (Plus)
 # Trend: U = improving (Up), D = deteriorating (Down), N = no change
 # Note: Pattern ends with $ to avoid matching runway state reports (6 digits)
-RVR_PATTERN = r"R(\d{2}[LCR]?)/([PM])?(\d{4})(?:V([PM])?(\d{4}))?(?:FT)?([UDN])?$"
+RVR_PATTERN = r"R(\d{2}[LCR]?)/([PM])?(\d{4}|/{4})(?:V([PM])?(\d{4}))?(?:FT)?([UDN])?$"
 
 # Runway state report pattern (MOTNE format)
 # Format: R{runway}/{deposit}{extent}{depth}{braking}
@@ -46,8 +46,9 @@ MISSING_VISIBILITY_PATTERN = r"^/{4}$"  # //// — visibility not observable
 MISSING_WEATHER_PATTERN = r"^//$"  # // — present weather not observable (standalone)
 
 # Sky condition patterns
-# Height can be 3 digits or /// when height cannot be determined by auto system
-SKY_PATTERN = r"^(SKC|CLR|FEW|SCT|BKN|OVC|VV|///)(\d{3}|///)(CB|TCU|///)?$"
+# Height can be 3 digits or /// when height cannot be determined by auto system.
+# Type can be // in JMA automated local routine/special reports.
+SKY_PATTERN = r"^(SKC|CLR|FEW|SCT|BKN|OVC|VV|///)(\d{3}|///)(CB|TCU|///|//)?$"
 
 # Temperature patterns
 # Dewpoint is optional (e.g., 17/ when dewpoint not available)
