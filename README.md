@@ -74,6 +74,7 @@ src/
     ├── models.py       # Canonical structured report/component models
     ├── data/           # Convenience wrappers returned by decoders
     ├── parsers/        # Specialized component parsers
+    ├── validators/     # Cross-field standards validation and warnings
     ├── formatters/     # Human-readable output helpers
     ├── constants/      # Organized code tables and lookup values
     ├── utils/          # Regex patterns and compatibility exports
@@ -84,6 +85,7 @@ src/
 
 - **Core Decoders**: Orchestrate the parsing process
 - **Specialized Parsers**: Handle specific weather components (wind, visibility, etc.)
+- **Validators**: Apply cross-field standards checks and warning generation
 - **Models**: Structured dataclasses for reports and report components
 - **Convenience Wrappers**: Printable report objects returned by the decoders
 - **Utilities**: Shared regex patterns and legacy compatibility exports
