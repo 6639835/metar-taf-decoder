@@ -2,6 +2,6 @@
 -e .[dev]
 
 # Optional workflow helpers that are not part of the package metadata.
-build>=0.8.0
-pre-commit>=2.20.0
-twine>=4.0.0
+build>=1.4.4
+pre-commit>=4.3.0
+twine>=6.2.0
